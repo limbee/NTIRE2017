@@ -1,3 +1,7 @@
+.vscode
+*.swp
+*.t7
+
 # Compiled Lua sources
 luac.out
 
