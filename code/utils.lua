@@ -93,9 +93,9 @@ function util:calcPSNR(output,target,scale)
     --     target = self:rgb2y(target:float())
     -- end
 
-    local h,w = table.unpack(output:size():totable())
+    local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
-    local diff = (output - target)[{{shave + 1, h - shave}, {shave + 1, w - shave}}]
+    local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
     local psnr = 10*math.log10(255*255/mse)
 
