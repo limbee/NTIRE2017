@@ -19,27 +19,10 @@ local function getModel(opt)
         model = model:get(1)
     end
 
-    if opt.optnet then
-        local optnet = require 'optnet'
-        local imsize = opt.dataset == 'imagenet' and 224 or 32
-        local sampleInput = torch.zeros(4,3,imsize,imsize):cuda()
-        optnet.optimizeMemory(model, sampleInput, {inplace = false, mode = 'training'})
-    end
-
-    if opt.nGPU > 0 then
-        if opt.backend == 'cudnn' then
-            cudnn.convert(model,cudnn)
-        end
-        model:cuda()
-        if opt.cudnn == 'fastest' then
-            cudnn.fastest = true
-            cudnn.benchmark = true
-        elseif opt.cudnn == 'deterministic' then
-            model:apply(function(m)
-                if m.setMode then m:setMode(1, 1, 1) end
-            end)
-        end
-    end
+    model = cudnn.convert(model,cudnn)
+    model:cuda()
+    cudnn.fastest = true
+    cudnn.benchmark = true
 
     if opt.nGPU > 1 then
         local gpus = torch.range(1, opt.nGPU):totable()

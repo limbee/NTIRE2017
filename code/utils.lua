@@ -47,46 +47,19 @@ function util:plot(tb,name)
 	gnuplot.closeall()  
 end
 
-function util:store(model,criterion,loss,psnr)
-
-    function clean_model(model)
-        if torch.type(model) == 'nn.DataParallelTable' then
-            model = model:get(1)
-        end
-
-        local function deepCopy(tbl)
-            -- creates a copy of a network with new modules and the same tensors
-            local copy = {}
-            for k, v in pairs(tbl) do
-                if type(v) == 'table' then
-                    copy[k] = deepCopy(v)
-                else
-                    copy[k] = v
-                end
-            end
-            if torch.typename(tbl) then
-                torch.setmetatable(copy, torch.typename(tbl))
-            end
-            return copy
-        end
-
-        return deepCopy(model):float():clearState()
+function util:checkpoint(model,criterion,loss,psnr)
+    if torch.type(model) == 'nn.DataParallelTable' then
+        model = model:get(1)
     end
 
-    model = clean_model(model)
+    model:clearState()
+
     torch.save(paths.concat(self.save,'model','model_' .. #loss .. '.t7'),model)
     torch.save(paths.concat(self.save,'model','model_latest.t7'),model)
 
     torch.save(paths.concat(self.save,'loss.t7'),loss)
     torch.save(paths.concat(self.save,'psnr.t7'),psnr)
     torch.save(paths.concat(self.save,'opt.t7'),self.opt)
-
-    if self.opt.adv > 0 then
-        local discriminator = criterion.criterions[criterion.iAdvLoss].discriminator
-        discriminator = clean_model(discriminator)
-        torch.save(paths.concat(self.save,'model','discriminator_' .. #loss .. '.t7'),discriminator)
-        torch.save(paths.concat(self.save,'model','discriminator_latest.t7'),discriminator)
-    end
 end
 
 function util:load()
