@@ -253,10 +253,13 @@ function FilteredDistCriterion:_setMask(b, w, h)
     self.mask = torch.cmul(self.lfMask_w, self.lfMask_h)
     if (self.filter == 'highpass') then
         self.mask = torch.ones(b, w, h) - self.mask
+    elseif (self.filter == 'high_enhance') then
+        local enhanceFactor = 5
+        self.mask = (0.1 * torch.ones(b, w, h)) + (torch.ones(b, w, h) - self.mask)
     end
     self.mask = self.mask:cuda()
     --for debugging
-    --image.save('mask.png', self.mask)
+    image.save('mask.png', self.mask)
 end
 
 function FilteredDistCriterion:updateOutput(input, target)
@@ -302,14 +305,14 @@ end
 a = torch.Tensor({{1, 2, 3, 4}, {4, 5, 6, 5}, {7, 8, 9, 8}, {4, 3, 2, 1}}):cuda()
 b = torch.Tensor({{1, 2, 1, 0}, {4, 3, 2, 1}, {6, 4, 1, 3}, {4, 2, 3, 1}}):cuda()
 ]]
-b = image.load('gray.png'):cuda()
-w = b:size(2)
-h = b:size(3)
-a = torch.zeros(1, w, h):cuda()
+local b = image.load('gray.png'):cuda()
+local w = b:size(2)
+local h = b:size(3)
+local a = torch.zeros(1, w, h):cuda()
 
 local mod = nn.DFT2D(1, w, h)
 --local cri = nn.FourierDistCriterion(1, w, h):cuda()
-local cri = nn.FilteredDistCriterion(0.2, 'highpass'):cuda()
+local cri = nn.FilteredDistCriterion(0.2, 'high_enhance'):cuda()
 
 --print(unpack(mod:forward(a)))
 
@@ -323,7 +326,7 @@ for i = 1, 1000 do
     local da = cri:backward(oa, b)
     oa = oa - da:mul(lr)
 end
-image.save('gray_opt.png', oa)
+image.save('FD_opt.png', oa)
 --print(oa)
 --print(b)
 
