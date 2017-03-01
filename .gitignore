@@ -1,7 +1,7 @@
-.sh
 .vscode
 *.swp
 *.t7
+*.sh
 
 # Compiled Lua sources
 luac.out
