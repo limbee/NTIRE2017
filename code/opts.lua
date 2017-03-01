@@ -16,9 +16,9 @@ function M.parse(arg)
     cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
     cmd:option('-gpuid',        1,          'GPU id to use')
     cmd:option('-nThreads',     3,          'number of data loading threads')
-	cmd:option('-save',         now,        'subdirectory to save/log experiments in')
+    cmd:option('-save',         now,        'subdirectory to save/log experiments in')
     -- Data
-	cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
+    cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
     cmd:option('-degrade',      'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',       10,         'number of images for validation')
     -- Training
@@ -35,8 +35,8 @@ function M.parse(arg)
     -- Optimization
     cmd:option('-optimMethod',  'ADAM',     'Optimization method')
     cmd:option('-lr',           1e-4,       'initial learning rate')
-	cmd:option('-momentum',     0.9,        'SGD momentum')
-	cmd:option('-beta1',        0.9,        'ADAM momentum')
+    cmd:option('-momentum',     0.9,        'SGD momentum')
+    cmd:option('-beta1',        0.9,        'ADAM momentum')
     cmd:option('-weightDecay',  0,          'weight decay')
     -- Model
     cmd:option('-netType',      'resnet',   'Generator network architecture. Options: resnet | vdsr')
