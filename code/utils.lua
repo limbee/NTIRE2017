@@ -27,9 +27,9 @@ function util:plot(tb,name)
         table.insert(lines,{name,torch.Tensor(tb),'-'})
     end
     gnuplot.plot(lines)
-	gnuplot.grid(true)
-	gnuplot.title(name)
-	gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
+    gnuplot.grid(true)
+    gnuplot.title(name)
+    gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
     if torch.type(tb[1]):find('Tensor') then
         if tb[1][1] < tb[#tb][1] then
             gnuplot.movelegend('right','bottom')
@@ -65,12 +65,13 @@ end
 function util:load()
     local ok, loss, psnr
     if self.opt.load then
-        ok,loss,psnr,opt = pcall( function()
-                local loss = torch.load(paths.concat(self.save,'loss.t7'))
-                local psnr = torch.load(paths.concat(self.save,'psnr.t7'))
-                local opt = torch.load(paths.concat(self.save,'opt.t7'))
-                return loss,psnr,opt
-            end)
+        ok,loss,psnr,opt = pcall(
+	function()
+	    local loss = torch.load(paths.concat(self.save,'loss.t7'))
+	    local psnr = torch.load(paths.concat(self.save,'psnr.t7'))
+	    local opt = torch.load(paths.concat(self.save,'opt.t7'))
+	    return loss,psnr,opt
+	end)
         if ok then
             print(('loaded history (%d epoch * %d iter/epoch)\n'):format(#loss,self.opt.testEvery))
         else
@@ -95,8 +96,7 @@ function util:calcPSNR(output,target,scale)
 
     local h,w = table.unpack(output:size():totable())
     local sc = scale 
-    local diff = output[{{sc+1,h-sc},{sc+1,w-sc}}] - target[{{sc+1,h-sc},{sc+1,w-sc}}]
-
+    local diff = (output - target)[{{sc + 1, h - sc}, {sc + 1, w - sc}}]
     local mse = diff:pow(2):mean()
     local psnr = 10*math.log10(255*255/mse)
 
