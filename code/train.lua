@@ -53,7 +53,7 @@ function Trainer:train(epoch, dataloader)
         if n % self.opt.printEvery == 0 then
             local it = (epoch-1)*self.opt.testEvery + n
             if it>1000 then it = string.format('%.1fk',it/1000) end
-            print(('[iter: ' .. it .. '] Time: %.3f (data: %.3f),\terr: %.6f')
+            print(('[Iter: ' .. it .. '] Time: %.3f (data: %.3f),\terr: %.6f')
                 :format(trainTime, dataTime, err/iter))
             if n % self.opt.testEvery ~= 0 then
                 err, iter = 0,0
