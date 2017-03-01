@@ -61,7 +61,9 @@ function Trainer:train(epoch, dataloader)
             end
         end
 
-        if n % self.opt.testEvery == 0 then break end
+        if (n % self.opt.testEvery == 0) then
+            break
+        end
     end
     
     return err/iter
