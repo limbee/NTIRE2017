@@ -49,8 +49,13 @@ function M.parse(arg)
     cmd:option('-upsample',     'shuffle',  'Upsampling method: full | bilinear | shuffle')
     -- Loss
     cmd:option('-abs',          0,          'L1 loss weight')
+    cmd:option('-chbn'          0,          'Charbonnier loss weight')
     cmd:option('-smoothL1',     0,          'Smooth L1 loss weight')
     cmd:option('-mse',          1,          'MSE loss weight')
+    cmd:option('-ssim',         0,          'SSIM loss weight')
+    cmd:option('-fd'            0,          'Frequency domain loss weight')
+    cmd:option('-filter_wc',    0,          'Cut-off frequency for frequency loss')
+    cmd:option('-filter_type',  'he',       'Filter type for frequency loss')
     cmd:text()
 
     local opt = cmd:parse(arg or {})

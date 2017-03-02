@@ -213,7 +213,7 @@ end
 --nn.Criterion -> nn.FilteredDistCriterion
 --Computes frequency-domain distance between two filtered images. (supports batch)
 --You can make your own filter by modifying 'self.mask'.
---default: 'lowpass' and 'highpass'
+--default: 'lpf' and 'hpf'
 
 --params:   wc - cutoff frequency, filter - filter type, sizeAverage (true or false)
 --input:    input, target pairs (1 x w x h) or (b x 1 x w x h)
@@ -251,9 +251,9 @@ function FilteredDistCriterion:_setMask(b, w, h)
     self.lfMask_w[{{}, {self.wc_w + 1, w - self.wc_w}, {}}] = 0
     self.lfMask_h[{{}, {}, {self.wc_h + 1, h - self.wc_h}}] = 0
     self.mask = torch.cmul(self.lfMask_w, self.lfMask_h)
-    if (self.filter == 'highpass') then
+    if (self.filter == 'hpf') then
         self.mask = torch.ones(b, w, h) - self.mask
-    elseif (self.filter == 'high_enhance') then
+    elseif (self.filter == 'he') then
         local enhanceFactor = 5
         self.mask = (0.1 * torch.ones(b, w, h)) + (torch.ones(b, w, h) - self.mask)
     end
@@ -308,7 +308,7 @@ local a = torch.zeros(1, w, h):cuda()
 
 local mod = nn.DFT2D(1, w, h)
 --local cri = nn.FourierDistCriterion(1, w, h):cuda()
-local cri = nn.FilteredDistCriterion(0.2, 'high_enhance'):cuda()
+local cri = nn.FilteredDistCriterion(0.2, 'he'):cuda()
 
 --print(unpack(mod:forward(a)))
 
