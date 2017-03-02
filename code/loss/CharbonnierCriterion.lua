@@ -1,5 +1,11 @@
 require 'nn'
 
+--nn.Criterion -> nn.CharbonnierCriterion
+--Differentiable L1 loss function (supports batch)
+
+--input:    input, target pairs (c x w x h) or (b x c x w x h)
+--output:   A Charbonnier loss
+--------------------------------------------------------------------------------
 local CharbonnierCriterion, parent = torch.class('nn.CharbonnierCriterion', 'nn.Criterion')
 
 function CharbonnierCriterion:__init(sizeAverage, eps)
@@ -36,7 +42,7 @@ function CharbonnierCriterion:updateGradInput(input, target)
     return self.gradInput
 end
 
---[[
+
 --test code
 local input = torch.randn(5, 5)
 local target = torch.randn(5, 5)
@@ -51,8 +57,10 @@ print(cri_imp:forward(input, target))
 
 print(cri_ref:backward(input, target))
 print(cri_imp:backward(input, target))
+--------------------------------------------------------------------------------
 
---numerical differentiation
+--[[
+--test code 1(numerical differentiation)
 local epsilon = 1e-5
 local ref = cri_imp:forward(input, target)
 local numerical = torch.zeros(5, 5)

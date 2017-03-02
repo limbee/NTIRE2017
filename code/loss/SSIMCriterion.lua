@@ -3,8 +3,13 @@ require 'cunn'
 require 'cudnn'
 
 --for debugging
-require 'image'
+--require 'image'
 
+--nn.Criterion -> nn.SSIMCriterion
+--Computes SSIM between two images (supports batch)
+
+--input:    input, target pairs (c x w x h) or (b x c x w x h)
+--output:   A number (SSIM)
 --------------------------------------------------------------------------------
 local SSIMCriterion, parent = torch.class('nn.SSIMCriterion', 'nn.Criterion')
 
@@ -118,12 +123,13 @@ function SSIMCriterion:updateGradInput(input, target)
         
         self.gradInput = -torch.cmul(dMdx, varTerme) - torch.cmul(dVdx, meanTerme)
     end
+
     return self.gradInput
 end
 --------------------------------------------------------------------------------
 
 --[[
---test code 1
+--test code 1 (numerical differentiation)
 local input = torch.randn(5, 5):div(10):add(0.5):clamp(0, 1)
 local target = torch.randn(5, 5):div(10):add(0.5):clamp(0, 1)
 print('Input:')
@@ -135,8 +141,6 @@ print('SSIM:')
 local cri_SSIM = nn.SSIMCriterion()
 print(cri_SSIM:forward(input, target))
 
---numerical differentiation
---[[
 local epsilon = 1e-5
 local ref = cri_SSIM:forward(input, target)
 local numerical = torch.zeros(5, 5)
@@ -157,6 +161,15 @@ local a = torch.randn(1, w, h):cuda()
 
 local cri = nn.SSIMCriterion():cuda()
 
+--[[
+--test code 2 (optimization)
+b = image.load('gray.png'):cuda()
+local w = b:size(2)
+local h = b:size(3)
+local a = torch.randn(1, w, h):cuda()
+
+local cri = nn.SSIMCriterion():cuda()
+
 local oa = a:clone()
 local lr = 200
 for i = 1, 1000 do
@@ -170,6 +183,8 @@ end
 image.save('SSIM_opt.png', oa)
 ]]
 
+--[[
+--test code 3 (batch)
 ba = torch.randn(4, 3, 8, 8):cuda()
 bb = torch.randn(4, 3, 8, 8):cuda()
 cri = nn.SSIMCriterion()
@@ -179,3 +194,4 @@ a = ba[1]
 b = bb[1]
 print(cri:forward(a, b))
 print(cri:backward(a, b))
+]]

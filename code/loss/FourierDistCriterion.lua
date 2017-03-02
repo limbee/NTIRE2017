@@ -3,8 +3,8 @@ require 'cunn'
 require 'cudnn'
 
 --for debugging
-require 'image'
-local signal = require 'signal'
+--require 'image'
+--local signal = require 'signal'
 
 --nn.Module -> nn.DFT2D
 --Computes 2D DFT of input gray-scale image. (supports batch)
@@ -123,7 +123,7 @@ end
 --Computes distance between two complex tensors.
 
 --params:   sizeAverage (true or false)
---input:    {real (b x w x h), image (b x w x h)}
+--input:    input, target pairs {real (b x w x h), image (b x w x h)}
 --output:   A number
 --------------------------------------------------------------------------------
 local ComplexDistCriterion, parent = torch.class('nn.ComplexDistCriterion', 'nn.Criterion')
@@ -147,7 +147,7 @@ function ComplexDistCriterion:updateOutput(input, target)
     if (self.sizeAverage) then
         self.output = self.output / input[1]:nElement()
     end
-    --slow
+    --This one is slow
     --[[local err_real = self.mseReal:forward(input[1], target[1])
     local err_image = self.mseImage:forward(input[2], target[2])
     self.output = err_real + err_image
@@ -162,7 +162,7 @@ function ComplexDistCriterion:updateGradInput(input, target)
         self.gradInput[1] = self.gradInput[1] / input[1]:nElement()
         self.gradInput[2] = self.gradInput[2] / input[2]:nElement()
     end
-    --slow
+    --This one is slow
     --[[ local dedr = self.mseReal:backward(input[1], target[1])
     local dedi = self.mseImage:backward(input[2], target[2])
     self.gradInput = {dedr, dedi}
@@ -175,7 +175,7 @@ end
 --Computes frequency-domain distance between two images. (supports batch)
 
 --params:   sizeAverage (true or false)
---input:    (1 x w x h) or (b x 1 x w x h)
+--input:    input, target pairs (1 x w x h) or (b x 1 x w x h)
 --output:   A number
 --------------------------------------------------------------------------------
 local FourierDistCriterion, parent = torch.class('nn.FourierDistCriterion', 'nn.Criterion')
@@ -216,7 +216,7 @@ end
 --default: 'lowpass' and 'highpass'
 
 --params:   wc - cutoff frequency, filter - filter type, sizeAverage (true or false)
---input:    (1 x w x h) or (b x 1 x w x h)
+--input:    input, target pairs (1 x w x h) or (b x 1 x w x h)
 --output:   A number
 --------------------------------------------------------------------------------
 local FilteredDistCriterion, parent = torch.class('nn.FilteredDistCriterion', 'nn.Criterion')
@@ -299,12 +299,8 @@ function FilteredDistCriterion:updateGradInput(input, target)
     return self.gradInput
 end
 --------------------------------------------------------------------------------
-
---test code 1
 --[[
-a = torch.Tensor({{1, 2, 3, 4}, {4, 5, 6, 5}, {7, 8, 9, 8}, {4, 3, 2, 1}}):cuda()
-b = torch.Tensor({{1, 2, 1, 0}, {4, 3, 2, 1}, {6, 4, 1, 3}, {4, 2, 3, 1}}):cuda()
-]]
+--test code 1
 local b = image.load('gray.png'):cuda()
 local w = b:size(2)
 local h = b:size(3)
@@ -329,7 +325,7 @@ end
 image.save('FD_opt.png', oa)
 --print(oa)
 --print(b)
-
+]]
 --[[
 --test code 2
 print('a:')
