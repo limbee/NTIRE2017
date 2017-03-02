@@ -66,7 +66,7 @@ function util:load()
     local ok, loss, psnr
     if self.opt.load then
         ok,loss,psnr,opt = pcall(function()
-	        local loss = torch.load(paths.concat(self.save,'loss.t7'))
+	    local loss = torch.load(paths.concat(self.save,'loss.t7'))
             local psnr = torch.load(paths.concat(self.save,'psnr.t7'))
             local opt = torch.load(paths.concat(self.save,'opt.t7'))
             return loss,psnr,opt

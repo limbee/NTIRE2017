@@ -80,13 +80,13 @@ function M.parse(arg)
     torch.setdefaulttensortype('torch.FloatTensor')
 
     if opt.nGPU == 1 then
-		os.execute('CUDA_VISIBLE_DEVICES=' .. (opt.gpuid - 1))
+        os.execute('CUDA_VISIBLE_DEVICES=' .. (opt.gpuid - 1))
         cutorch.setDevice(opt.gpuid)
     end
     cutorch.manualSeedAll(opt.manualSeed)
 
     if (opt.nEpochs == 0) then
-		opt.nEpochs = math.huge
+        opt.nEpochs = math.huge
     end
 
     opt.optimState = {
@@ -99,15 +99,15 @@ function M.parse(arg)
         beta1 = opt.beta1
     }
     if opt.optimMethod == 'SGD' then 
-		opt.optimState.method = optim.sgd
+        opt.optimState.method = optim.sgd
     elseif opt.optimMethod == 'ADADELTA' then
-		opt.optimState.method = optim.adadelta
+        opt.optimState.method = optim.adadelta
     elseif opt.optimMethod == 'ADAM' then
-		opt.optimState.method = optim.adam
+        opt.optimState.method = optim.adam
     elseif opt.optimMethod == 'RMSPROP' then
-		opt.optimState.method = optim.rmsprop
+        opt.optimState.method = optim.rmsprop
     else
-		error('unknown optimization method')
+        error('unknown optimization method')
     end  
 
     local opt_text = io.open(paths.concat(opt.save,'options.txt'),'a')
