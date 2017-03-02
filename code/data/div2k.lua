@@ -8,55 +8,89 @@ local div2k = torch.class('sr.div2k', M)
 
 function div2k:__init(opt, split)
     self.size = 800
-
-    self.dirTar = '/var/tmp/dataset/DIV2K/DIV2K_train_HR'
-    self.dirInp = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_train_LR_' .. opt.degrade, 'X'..opt.scale)
-
     self.opt = opt
     self.split = split
+
+    --target dataset, input dataset
+    self.dataTarget = nil
+    self.dataInput = nil
+    self.dirTar = nil
+    self.dirInp = nil
+    
+    --absolute path of the dataset
+    local apath = '/var/tmp/dataset/DIV2K'
+    if (opt.datatype == 'png') then
+        self.dirTar = apath .. '/DIV2K_train_HR'
+        self.dirInp = paths.concat(apath .. '/DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+    elseif (opt.datatype == 't7') then
+        local dirDecoded = apath .. '/DIV2K_decoded'
+        self.dirTar = dirDecoded .. '/DIV2K_train_HR.t7'
+        if (opt.netType == 'vdsr') then
+            self.dirInp = dirDecoded .. '/DIV2k_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'b.t7'
+        else
+            self.dirInp = dirDecoded .. '/DIV2k_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. '.t7'
+        end
+        self.dataTarget = torch.load(dirTar)
+        self.dataInput = torch.load(dirInp)
+    end
 end
 
 function div2k:get(i)
-    local idx
-    if self.split == 'train' then
+    local idx = nil
+    if (self.split == 'train') then
         idx = i
-    elseif self.split == 'val' then
-        idx = self.size - self.opt.numVal + i
+    elseif (self.split == 'val') then
+        idx = (self.size - self.opt.numVal + i)
     end
+
     local scale = self.opt.scale
-    local tarName = ''
+    local target = nil
+    local input = nil
 
-    local nDigit = math.floor(math.log10(i)) + 1
-    for i=1,4-nDigit do tarName = tarName .. '0' end
-    tarName = tarName .. i
-    inpName = tarName .. 'x' .. scale .. '.png'
-    tarName = tarName .. '.png'
+    if (self.opt.datatype == 'png') then
+        local tarName = ''
+        local nDigit = math.floor(math.log10(i)) + 1
+        for j = 1, (4 - nDigit) do
+            tarName = tarName .. '0'
+        end
+        tarName = tarName .. i
+        inpName = tarName .. 'x' .. scale .. '.png'
+        tarName = tarName .. '.png'
 
-    local target = image.load(paths.concat(self.dirTar,tarName), self.opt.nChannel, 'float')
-    local input = image.load(paths.concat(self.dirInp,inpName), self.opt.nChannel, 'float')
-    local _,h,w = table.unpack(target:size():totable())
-    local hh,ww = scale*math.floor(h/scale), scale*math.floor(w/scale)
-    local hhi,wwi = hh/scale, ww/scale
-    target = target[{{},{1,hh},{1,ww}}]
+        target = image.load(paths.concat(self.dirTar, tarName), self.opt.nChannel, 'float')
+        input = image.load(paths.concat(self.dirInp, inpName), self.opt.nChannel, 'float')
+    elseif (self.opt.datatype == 't7') then
+        target = self.dataTarget[i]:float()
+        input = self.dataInput[i]:float()
+    end
 
-    if self.split == 'train' then 
+    local ch, h, w = table.unpack(target:size():totable())
+    local hh, ww = (scale * math.floor(h / scale)), (scale * math.floor(w / scale))
+    local hhi, wwi = (hh / scale), (ww / scale)
+    target = target[{{}, {1, hh}, {1, ww}}]
+
+    if (self.split == 'train') then 
         local tps = self.opt.patchSize -- target patch size
         local ips = self.opt.patchSize / scale -- input patch size
-        if ww < tps or hh < tps then return end
+        if ((ww < tps) or (hh < tps)) then
+            return
+        end
 
-        local ix = torch.random(1, wwi-ips+1)
-        local iy = torch.random(1, hhi-ips+1)
-        local tx = scale*(ix-1)+1
-        local ty = scale*(iy-1)+1
+        local ix = torch.random(1, wwi - ips + 1)
+        local iy = torch.random(1, hhi - ips + 1)
+        local tx = (scale * (ix - 1)) + 1
+        local ty = (scale * (iy - 1)) + 1
 
-        input = input[{{},{iy,iy+ips-1},{ix,ix+ips-1}}]
-        target = target[{{},{ty,ty+tps-1},{tx,tx+tps-1}}]
+        input = input[{{}, {iy, iy + ips - 1}, {ix, ix + ips - 1}}]
+        target = target[{{}, {ty , ty + tps - 1}, {tx, tx + tps - 1}}]
     end
 
-    input:mul(255)
-    target:mul(255)
+    if (self.opt.datatype == 'png') then
+        input:mul(255)
+        target:mul(255)
+    end
 
-    if self.opt.nChannel == 1 then
+    if (self.opt.nChannel == 1) then
         input = util:rgb2y(input)
         target = util:rgb2y(target)
     end
