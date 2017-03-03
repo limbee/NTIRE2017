@@ -26,12 +26,14 @@ function div2k:__init(opt, split)
         local dirDecoded = apath .. '/DIV2K_decoded'
         self.dirTar = dirDecoded .. '/DIV2K_train_HR.t7'
         if (opt.netType == 'vdsr') then
-            self.dirInp = dirDecoded .. '/DIV2k_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'b.t7'
+            self.dirInp = dirDecoded .. '/DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'b.t7'
         else
-            self.dirInp = dirDecoded .. '/DIV2k_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. '.t7'
+            self.dirInp = dirDecoded .. '/DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. '.t7'
         end
-        self.dataTarget = torch.load(dirTar)
-        self.dataInput = torch.load(dirInp)
+        self.dataTarget = torch.load(self.dirTar)
+        print('Target data(.t7) prepared')
+        self.dataInput = torch.load(self.dirInp)
+        print('Input data(.t7) prepared')
     end
 end
 
