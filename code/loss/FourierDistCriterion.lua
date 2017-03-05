@@ -9,18 +9,16 @@ require 'cudnn'
 --nn.Module -> nn.DFT2D
 --Computes 2D DFT of input gray-scale image. (supports batch)
 
---input:    (1 x w x h) or (b x 1 x w x h)
---output:   {real (1 x w x h), image (1 x w x h)} 
---          or {real (b x 1 x w x h), image (b x 1 x w x h)}
+--input:    (b x 1 x w x h) or (b x 3 x w x h)
+--output:   {real (b x 1 x w x h), image (b x 1 x w x h)} 
+--          or {real (b x 3 x w x h), image (b x 3 x w x h)}
 --------------------------------------------------------------------------------
 local DFT2D, parent = torch.class('nn.DFT2D', 'nn.Module')
 
 function DFT2D:__init()
     parent.__init(self)
     
-    self.b = -1
-    self.w = -1
-    self.h = -1
+    self.sz = torch.CudaTensor({-1, -1, -1, -1})
     self.rmm_1 = nn.MM(false, false):cuda()
     self.rmm_2_r = nn.MM(false, true):cuda()
     self.rmm_2_i = nn.MM(false, true):cuda()
@@ -38,51 +36,29 @@ function DFT2D:__init()
 end
 
 --automatically sets kernel size
-function DFT2D:_setSize(b, w, h)
-    self.b = b
-    self.w = w
-    self.h = h
+function DFT2D:_setSize(sz)
+    self.sz = sz:clone()
+    local b, c, w, h = self.sz[1], self.sz[2], self.sz[3], self.sz[4]
     self.sqn = math.sqrt(w * h)
-    self.pre_real = torch.Tensor(w, w)
-    self.pre_image = torch.Tensor(w, w)
-    self.post_real = torch.Tensor(h, h)
-    self.post_image = torch.Tensor(h, h)
 
-    local basis = torch.ones(1, w, w) * (-2 * math.pi / w)
-    for i = 1, w do
-        for j = 1, w do
-            basis[1][i][j] = basis[1][i][j] * (i - 1) * (j - 1)
-        end
-    end
-    local basis_r = torch.expand(basis, b, w, w):clone()
-    self.pre_real = torch.cos(basis_r):cuda()
-    self.pre_image = torch.sin(basis_r):cuda()
+    local cv_pre = torch.linspace(0, w - 1, w):repeatTensor(w, 1)
+    local basis_pre = torch.cmul(cv_pre, cv_pre:t()):mul(-2 * math.pi / w)
+    local basis_pre = torch.expand(basis_pre:view(1, w, w), b, w, w)
+    self.pre_real = torch.cos(basis_pre):cuda()
+    self.pre_image = torch.sin(basis_pre):cuda()
 
-    local basis = torch.ones(1, h, h) * (-2 * math.pi / h)
-    for i = 1, h do
-        for j = 1, h do
-            basis[1][i][j] = basis[1][i][j] * (i - 1) * (j - 1)
-        end
-    end
-
-    local basis_r = torch.expand(basis, b, h, h):clone()
-    self.post_real = torch.cos(basis_r):cuda()
-    self.post_image = torch.sin(basis_r):cuda()
+    local cv_post = torch.linspace(0, h - 1, h):repeatTensor(h, 1)
+    local basis_post = torch.cmul(cv, cv:t()):mul(-2 * math.pi / h)
+    local basis_post = torch.expand(basis_post:view(1, h, h), b, h, h)
+    self.post_real = torch.cos(basis_post):cuda()
+    self.post_image = torch.sin(basis_post):cuda()
 end
 
 function DFT2D:updateOutput(input)
-    self.dim = 3
-    if (input:dim() == 2) then
-        input = input:view(1, self.w, self.h)
-        self.dim = 2
-    elseif (input:dim() == 4) then
-        input = input:view(self.b, self.w, self.h)
-        self.dim = 4
+    if (torch.all(torch.eq(input:size(), self.sz)) == false) then
+        self:_setSize(input:size())
     end
-    if ((self.b ~= input:size(1)) or (self.w ~= input:size(2)) or (self.h ~= input:size(3))) then
-       self:_setSize(input:size(1), input:size(2), input:size(3)) 
-    end
-
+    input:view(input, self.sz[1] * self.sz[2], self.sz[3], self.sz[4])
     self.rr_1 = self.rmm_1:forward({self.pre_real, input})
     self.ri_1 = self.imm_1:forward({self.pre_image, input})
     self.rr_2_1 = self.rmm_2_r:forward({self.rr_1, self.post_real})
@@ -92,16 +68,11 @@ function DFT2D:updateOutput(input)
     self.real = (self.rr_2_1 - self.rr_2_2)
     self.image = (self.ri_2_1 + self.ri_2_2)
     self.output = {self.real:div(self.sqn), self.image:div(self.sqn)}
+
     return self.output
 end
 
 function DFT2D:updateGradInput(input, gradOutput)
-    if (self.dim == 2) then
-        input = input:view(1, self.w, self.h)
-    elseif (self.dim == 4) then
-        input = input:view(self.b, self.w, self.h)
-    end
-
     local grr_2_1 = self.rmm_2_r:updateGradInput({self.rr_1, self.post_real}, gradOutput[1])
     local grr_2_2 = self.rmm_2_i:updateGradInput({self.ri_1, self.post_image}, -gradOutput[1])
     local gri_2_1 = self.imm_2_r:updateGradInput({self.rr_1, self.post_image}, gradOutput[2])
@@ -109,12 +80,8 @@ function DFT2D:updateGradInput(input, gradOutput)
     local grr_1 = self.rmm_1:updateGradInput({self.pre_real, input}, grr_2_1[1] + gri_2_1[1])
     local gri_1 = self.imm_1:updateGradInput({self.pre_image, input}, grr_2_2[1] + gri_2_2[1])
     self.gradInput = (grr_1[2] + gri_1[2]):div(self.sqn)
+    self.gradInput:view(self.gradInput, self.sz[1], self.sz[2], self.sz[3], self.sz[4])
 
-    if (self.dim == 2) then
-        self.gradInput = self.gradInput:view(self.w, self.h)
-    elseif (self.dim == 4) then
-        self.gradInput = self.gradInput:view(self.b, 1, self.w, self.h)
-    end
     return self.gradInput
 end
 --------------------------------------------------------------------------------
@@ -177,7 +144,9 @@ end
 --params:   sizeAverage (true or false)
 --input:    input, target pairs (1 x w x h) or (b x 1 x w x h)
 --output:   A number
+--This code is commented because it is same with MSECriterion
 --------------------------------------------------------------------------------
+--[[
 local FourierDistCriterion, parent = torch.class('nn.FourierDistCriterion', 'nn.Criterion')
 
 function FourierDistCriterion:__init(sizeAverage)
@@ -208,6 +177,7 @@ function FourierDistCriterion:updateGradInput(input, target)
     self.gradInput = self.transformI:updateGradInput(input, gradF)
     return self.gradInput
 end
+]]
 --------------------------------------------------------------------------------
 
 --nn.Criterion -> nn.FilteredDistCriterion
@@ -228,9 +198,10 @@ function FilteredDistCriterion:__init(wc, filter, sizeAverage)
     else
         self.sizeAverage = true
     end
-    self.b = -1
-    self.w = -1
-    self.h = -1
+    self.transformI = nn.DFT2D()
+    self.transformT = nn.DFT2D()
+
+    self.sz = torch.CudaTensor({-1, -1, -1, -1})
     self.wc = wc
     self.filter = filter
     self.criterion = nn.ComplexDistCriterion(sizeAverage)
@@ -238,96 +209,94 @@ function FilteredDistCriterion:__init(wc, filter, sizeAverage)
     parent.cuda(self)
 end
 
-function FilteredDistCriterion:_setMask(b, w, h)
-    self.b = b
-    self.w = w
-    self.h = h
-    self.transformI = nn.DFT2D()
-    self.transformT = nn.DFT2D()
-    self.wc_w = math.floor(w * self.wc)
-    self.wc_h = math.floor(h * self.wc)
-    self.lfMask_w = torch.ones(b, w, h)
-    self.lfMask_h = torch.ones(b, w, h)
-    self.lfMask_w[{{}, {self.wc_w + 1, w - self.wc_w}, {}}] = 0
-    self.lfMask_h[{{}, {}, {self.wc_h + 1, h - self.wc_h}}] = 0
-    self.mask = torch.cmul(self.lfMask_w, self.lfMask_h)
-    if (self.filter == 'hpf') then
+function FilteredDistCriterion:_makeLMask(wc)
+    local b, c, w, h = self.sz[1], self.sz[2], self.sz[3], self.sz[4]
+    local wc_w = math.floor(w * wc)
+    local wc_h = math.floor(h * wc)
+    local lfMask_w = torch.ones(b, w, h)
+    local lfMask_h = torch.ones(b, w, h)
+    lfMask_w[{{}, {wc_w + 1, w - wc_w}, {}}] = 0
+    lfMask_h[{{}, {}, {wc_h + 1, h - wc_h}}] = 0
+
+    return torch.cmul(lfMask_w, lfMask_h)
+end
+
+function FilteredDistCriterion:_setMask(sz)
+    self.sz = sz:clone()
+    local b, c, w, h = self.sz[1], self.sz[2], self.sz[3], self.sz[4]
+    self.mask = self:_makeLMask(self.wc)
+    local eF = 1
+    if (self.filter == 'highpass') then
         self.mask = torch.ones(b, w, h) - self.mask
-    elseif (self.filter == 'he') then
-        local enhanceFactor = 5
-        self.mask = (0.1 * torch.ones(b, w, h)) + (torch.ones(b, w, h) - self.mask)
+    elseif (self.filter == 'high_enhance') then
+        eF = 3
+        local hfMask = torch.ones(b, w, h) - self.mask
+        self.mask = torch.ones(b, w, h) + hfMask:mul(eF - 1)
     end
     self.mask = self.mask:cuda()
     --for debugging
-    image.save('mask.png', self.mask)
+    image.save('mask.png', self.mask / eF)
 end
 
 function FilteredDistCriterion:updateOutput(input, target)
-    self.dim = 3
-    if (input:dim() == 2) then
-        input = input:view(1, self.w, self.h)
-        target = target:view(1, self.w, self.h)
-        self.dim = 2
-    elseif (input:dim() == 4) then
-        input = input:view(self.b, self.w, self.h)
-        target = target:view(self.b, self.w, self.h)
-        self.dim = 4
+    if (torch.all(torch.eq(input:size(), self.sz)) == false) then
+        self:_setMask(input:size())
     end
-
-    if ((self.b ~= input:size(1)) or (self.w ~= input:size(2)) or (self.h ~= input:size(3))) then
-       self:_setMask(input:size(1), input:size(2), input:size(3)) 
-    end
-
     self.Fi = self.transformI:forward(input)
+    self.Ft = self.transformT:forward(target)
     self.Fi[1]:cmul(self.mask)
     self.Fi[2]:cmul(self.mask)
-    self.Ft = self.transformT:forward(target)
     self.Ft[1]:cmul(self.mask)
     self.Ft[2]:cmul(self.mask)
     self.output = self.criterion:forward(self.Fi, self.Ft)
+
     return self.output
 end
 
 function FilteredDistCriterion:updateGradInput(input, target)
     local gradF = self.criterion:backward(self.Fi, self.Ft)
     self.gradInput = self.transformI:updateGradInput(input, gradF)
-    if (self.dim == 2) then
-        self.gradInput = self.gradInput:view(self.w, self.h)
-    elseif (self.dim == 4) then
-        self.gradInput = self.gradInput:view(self.b, 1, self.w, self.h)
-    end
+    self.gradInput:view(self.gradInput, self.sz[1], self.sz[2], self.sz[3], self.sz[4])
+
     return self.gradInput
 end
 --------------------------------------------------------------------------------
---[[
+
 --test code 1
-local b = image.load('gray.png'):cuda()
+local b = image.load('color.png'):cuda()
+local c = b:size(1)
 local w = b:size(2)
 local h = b:size(3)
-local a = torch.zeros(1, w, h):cuda()
+b = b:view(1, c, w, h)
+local a = torch.ones(1, c, w, h):clamp(0, 1):cuda()
 
-local mod = nn.DFT2D(1, w, h)
---local cri = nn.FourierDistCriterion(1, w, h):cuda()
-local cri = nn.FilteredDistCriterion(0.2, 'he'):cuda()
-
+local mod = nn.DFT2D()
+local crifd = nn.FilteredDistCriterion(0.5, 'lowpass'):cuda()
+local crimse = nn.MSECriterion()
+local cri = nn.MultiCriterion()
+cri:add(crifd, 1)
+cri:add(crimse, 0.1)
+cri:cuda()
 --print(unpack(mod:forward(a)))
 
 local oa = a:clone()
 local lr = 200
-for i = 1, 1000 do
+for i = 1, 3000 do
     local err = cri:forward(oa, b)
-    if ((i % 50) == 0) then
+    if ((i % 300) == 0) then
         print(err)
     end
     local da = cri:backward(oa, b)
     oa = oa - da:mul(lr)
 end
+oa = oa:squeeze(1)
 image.save('FD_opt.png', oa)
---print(oa)
---print(b)
-]]
+image.save('FD_gray.png', image.rgb2yuv(oa)[1])
+
 --[[
 --test code 2
+a = torch.Tensor({{1, 2, 3, 4}, {4, 5, 6, 5}, {7, 8, 9, 8}, {4, 3, 2, 1}}):cuda()
+b = torch.Tensor({{1, 2, 1, 0}, {4, 3, 2, 1}, {6, 4, 1, 3}, {4, 2, 3, 1}}):cuda()
 print('a:')
 print(a)
 print('b:')
