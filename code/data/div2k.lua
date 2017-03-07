@@ -19,9 +19,13 @@ function div2k:__init(opt, split)
     
     --absolute path of the dataset
     local apath = '/var/tmp/dataset/DIV2K'
-    if (opt.datatype == 'png') then
+    if ((opt.datatype == 'png') or (opt.datatype == 't7split')) then
         self.dirTar = apath .. '/DIV2K_train_HR'
-        self.dirInp = paths.concat(apath .. '/DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+        if (opt.netType == 'vdsr') then
+            self.dirInp = paths.concat(apath .. '/DIV2K_train_LR' .. opt.degrade, 'X' .. opt.scale .. 'b')
+        else
+            self.dirInp = paths.concat(apath .. '/DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+        end
     elseif (opt.datatype == 't7') then
         local dirDecoded = apath .. '/DIV2K_decoded'
         self.dirTar = dirDecoded .. '/DIV2K_train_HR.t7'
@@ -49,18 +53,23 @@ function div2k:get(i)
     local target = nil
     local input = nil
 
-    if (self.opt.datatype == 'png') then
+    if ((self.opt.datatype == 'png') or (self.opt.datatype == 't7split')) then
         local tarName = ''
         local nDigit = math.floor(math.log10(i)) + 1
         for j = 1, (4 - nDigit) do
             tarName = tarName .. '0'
         end
         tarName = tarName .. i
-        inpName = tarName .. 'x' .. scale .. '.png'
-        tarName = tarName .. '.png'
-
-        target = image.load(paths.concat(self.dirTar, tarName), self.opt.nChannel, 'float')
-        input = image.load(paths.concat(self.dirInp, inpName), self.opt.nChannel, 'float')
+        local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
+        inpName = tarName .. 'x' .. scale .. ext
+        tarName = tarName .. ext
+        if (self.opt.datatype == 'png') then
+            target = image.load(paths.concat(self.dirTar, tarName), self.opt.nChannel, 'float')
+            input = image.load(paths.concat(self.dirInp, inpName), self.opt.nChannel, 'float')
+        else
+            target = torch.load(paths.concat(self.dirTar, tarName)):float()
+            input = torch.load(paths.concat(self.dirInp, inpName)):float()
+        end
     elseif (self.opt.datatype == 't7') then
         target = self.dataTarget[i]:float()
         input = self.dataInput[i]:float()
