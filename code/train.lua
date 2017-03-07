@@ -29,11 +29,10 @@ function Trainer:train(epoch, dataloader)
     self.model:training()
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-
+        
         self:copyInputs(sample,'train') -- Copy input and target to the GPU
 
         self.model:zeroGradParameters()
-
         self.model:forward(self.input)
         self.err = self.criterion(self.model.output, self.target)
         self.model:backward(self.input, self.criterion.gradInput)
