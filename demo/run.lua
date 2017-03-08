@@ -38,7 +38,7 @@ for modelFile in paths.iterfiles('model') do
             for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
                 local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
                 paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
-                paths.mkdir(paths.concat('img_target', modelName, testFolder, Xs))
+                paths.mkdir(paths.concat('img_target', modelName, testFolder))
                 for testFile in paths.iterfiles(inputFolder) do
                     if (string.find(testFile, '.png')) then
                         table.insert(testList, {inputFolder, testFile, testFolder})
@@ -52,7 +52,7 @@ for modelFile in paths.iterfiles('model') do
                 if (opt.model == 'vdsr') then
                     dataDir = dataDir .. 'b'
                 end
-                paths.mkdir(paths.concat('img_output', modelName, 'test', Xs)
+                paths.mkdir(paths.concat('img_output', modelName, 'test', Xs))
                 for testFile in paths.iterfiles(dataDir) do
                     if (string.find(testFile, '.png')) then
                         table.insert(testList, {dataDir, testFile})
@@ -109,7 +109,7 @@ for modelFile in paths.iterfiles('model') do
                     target:repeatTensor(target, 3, 1, 1)
                 end
                 target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
-                image.save(paths.concat('img_target', modelName, testList[i][3], Xs, testList[i][2]), target)
+                image.save(paths.concat('img_target', modelName, testList[i][3], testList[i][2]), target)
                 image.save(paths.concat('img_output', modelName, testList[i][3], Xs, testList[i][2]), output)
             elseif (opt.type == 'test') then
                 image.save(paths.concat('img_output', modelName, 'test',Xs , testList[i][2]), output)

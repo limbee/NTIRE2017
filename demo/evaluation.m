@@ -54,7 +54,7 @@ for iModel = 1:length(totalDir)
                     disp([num2str(im) '/' num2str(length(scaleDir))]);
                 end
             end
-            if (numImages > 0) then
+            if (numImages > 0)
                 disp(['Mean PSNR & SSIM of ' modelName ' on ' setName ' ' scaleName]);
                 disp(['PSNR: ' num2str(meanPSNR / numImages)])
                 disp(['SSIM: ' num2str(meanSSIM / numImages)])
