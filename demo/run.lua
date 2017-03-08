@@ -20,14 +20,25 @@ local testList = {}
 
 for modelFile in paths.iterfiles('model') do
     if (string.find(modelFile, '.t7')) then
+        local model = torch.load(paths.concat('model',modelFile)):cuda()
+        local modelName = modelFile:split('%.')[1]
+        print('>> Testing model: ' .. modelName)
+        model:evaluate()
+
         local dataDir = ''
+        local Xs = 'X' .. opt.scale
+        testList = {}
+        --testList[i][1]: absolute directory
+        --testList[i][2]: image file name
+        --testList[i][3]: benchmark set name
+        collectgarbage()
         if (opt.type == 'bench') then
             dataDir = '../../dataset/benchmark'
             local size = (opt.model == 'vdsr') and 'big' or 'small'
             for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
-                local inputFolder = paths.concat(dataDir, size, testFolder, 'X' .. opt.scale)
-                paths.mkdir(paths.concat('img_output', testFolder, 'X' .. opt.scale))
-                paths.mkdir(paths.concat('img_target', testFolder, 'X' .. opt.scale))
+                local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
+                paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
+                paths.mkdir(paths.concat('img_target', modelName, testFolder, Xs))
                 for testFile in paths.iterfiles(inputFolder) do
                     if (string.find(testFile, '.png')) then
                         table.insert(testList, {inputFolder, testFile, testFolder})
@@ -35,18 +46,20 @@ for modelFile in paths.iterfiles('model') do
                 end
             end
         elseif (opt.type == 'test') then
-            --for DIV2K dataset
+            --This code is for DIV2K dataset
             if (opt.dataset == 'DIV2K') then
-                dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, 'X' .. opt.scale)
+                dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
                 if (opt.model == 'vdsr') then
                     dataDir = dataDir .. 'b'
                 end
-                paths.mkdir('img_output/test/X' .. opt.scale)
+                paths.mkdir(paths.concat('img_output', modelName, 'test', Xs)
                 for testFile in paths.iterfiles(dataDir) do
                     if (string.find(testFile, '.png')) then
                         table.insert(testList, {dataDir, testFile})
                     end
                 end
+            --We can test with our own images.
+            --Just put the images in the img_input folder.
             else
                 for testFile in paths.iterfiles('img_input') do
                     if (string.find(testFile, '.png') or string.find(testFile, '.jp')) then
@@ -56,12 +69,7 @@ for modelFile in paths.iterfiles('model') do
             end
         end
 
-        local model = torch.load(paths.concat('model',modelFile)):cuda()
-        local modelName = modelFile:split('%.')[1]
-	print('>> test on ' .. modelName .. '......')
-	model:evaluate()
         local timer = torch.Timer()
-        
         for i = 1, #testList do
             if (opt.progress == 'true') then
                 print('>> \t' .. testList[i][2])
@@ -101,10 +109,10 @@ for modelFile in paths.iterfiles('model') do
                     target:repeatTensor(target, 3, 1, 1)
                 end
                 target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
-                image.save(paths.concat('img_target', testList[i][3],'X' .. opt.scale, testList[i][2]), target)
-                image.save(paths.concat('img_output', testList[i][3],'X' .. opt.scale, testList[i][2]), output)
+                image.save(paths.concat('img_target', modelName, testList[i][3], Xs, testList[i][2]), target)
+                image.save(paths.concat('img_output', modelName, testList[i][3], Xs, testList[i][2]), output)
             elseif (opt.type == 'test') then
-                image.save(paths.concat('img_output/test/X' .. opt.scale, testList[i][2]), output)
+                image.save(paths.concat('img_output', modelName, 'test',Xs , testList[i][2]), output)
             end
         end
         print('Elapsed time: ' .. timer:time().real)
