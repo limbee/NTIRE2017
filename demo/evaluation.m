@@ -1,9 +1,15 @@
-clear
+clear;
 outputDir = 'img_output';
 %outputDir = 'img_input';
 targetDir = 'img_target';
 setException = {};
 psnrOnly = true;
+
+tableRow = {};
+tableCol = {};
+tableData = [];
+col = 1;
+row = 1;
 
 totalDir = dir(fullfile(outputDir));
 for iModel = 1:length(totalDir)
@@ -11,8 +17,10 @@ for iModel = 1:length(totalDir)
     if (modelName(1) == '.')
         continue;
     end
+    tableRow = [tableRow {[modelName '_PSNR']} {[modelName '_SSIM']}];
     modelFull = fullfile(outputDir, modelName);
     modelDir = dir(modelFull);
+    row = 1;
     for iSet = 1:length(modelDir)
         setName = modelDir(iSet).name;
         if ((setName(1) == '.') || (any(strcmp(setException, setName)) == true))
@@ -55,10 +63,21 @@ for iModel = 1:length(totalDir)
                 end
             end
             if (numImages > 0)
-                disp(['Mean PSNR & SSIM of ' modelName ' on ' setName ' ' scaleName]);
-                disp(['PSNR: ' num2str(meanPSNR / numImages)])
-                disp(['SSIM: ' num2str(meanSSIM / numImages)])
+                if (col == 1)
+                    tableCol = [tableCol {[setName ' ' scaleName]}];
+                end
+                meanPSNR = meanPSNR / numImages;
+                meanSSIM = meanSSIM / numImages;
+%                 disp(['Mean PSNR & SSIM of ' modelName ' on ' setName ' ' scaleName]);
+%                 disp(['PSNR: ' num2str(meanPSNR)])
+%                 disp(['SSIM: ' num2str(meanSSIM)])
+                tableData(row, col) = meanPSNR;
+                tableData(row, col + 1) = meanSSIM;
+                row = row + 1;
             end
         end
     end
+    col = col + 2;
 end
+T = array2table(tableData, 'RowNames', tableCol, 'VariableNames', tableRow);
+disp(T);
