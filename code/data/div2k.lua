@@ -55,11 +55,11 @@ function div2k:get(i)
 
     if ((self.opt.datatype == 'png') or (self.opt.datatype == 't7split')) then
         local tarName = ''
-        local nDigit = math.floor(math.log10(i)) + 1
+        local nDigit = math.floor(math.log10(idx)) + 1
         for j = 1, (4 - nDigit) do
             tarName = tarName .. '0'
         end
-        tarName = tarName .. i
+        tarName = tarName .. idx
         local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
         inpName = tarName .. 'x' .. scale .. ext
         tarName = tarName .. ext
@@ -71,8 +71,8 @@ function div2k:get(i)
             input = torch.load(paths.concat(self.dirInp, inpName)):float()
         end
     elseif (self.opt.datatype == 't7') then
-        target = self.dataTarget[i]:float()
-        input = self.dataInput[i]:float()
+        target = self.dataTarget[idx]:float()
+        input = self.dataInput[idx]:float()
     end
 
     local ch, h, w = table.unpack(target:size():totable())

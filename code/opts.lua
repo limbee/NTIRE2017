@@ -15,7 +15,7 @@ function M.parse(arg)
     cmd:option('-manualSeed',   0,          'Manually set RNG seed')
     cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
     cmd:option('-gpuid',        1,          'GPU id to use')
-    cmd:option('-nThreads',     1,          'number of data loading threads')
+    cmd:option('-nThreads',     3,          'number of data loading threads')
     cmd:option('-save',         now,        'subdirectory to save/log experiments in')
     -- Data
     cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
