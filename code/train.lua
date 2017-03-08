@@ -96,24 +96,28 @@ function Trainer:test(epoch, dataloader)
 
         -- This function prevents the gpu memory from overflowing
         -- by passing the input layer-by-layer through the network.
-        local function recursiveForward(input,m)
+        local function recursiveForward(input, m)
             local output
             if m.__typename:find('Concat') then
                 output = {}
-                for i=1,m:size() do
-                    table.insert(output,recursiveForward(input,m:get(i)))
+                for i = 1, m:size() do
+                    table.insert(output, recursiveForward(input, m:get(i)))
                 end
             elseif m.__typename:find('Sequential') then
                 output = input
-                for i=1,#m do
-                    output = recursiveForward(output,m:get(i))
+                for i = 1, #m do
+                    output = recursiveForward(output, m:get(i))
                 end
             else
                 output = m:forward(input):clone()
                 m = nil
                 __model:clearState()
                 collectgarbage()
+                collectgarbage()
             end
+            input = nil
+            collectgarbage()
+            collectgarbage()
             return output
         end
         local output = recursiveForward(input,model):squeeze(1)
@@ -125,12 +129,12 @@ function Trainer:test(epoch, dataloader)
 
         iter = iter + 1
         collectgarbage()
+        collectgarbage()
     end
 
     print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.2f,  Test time: %.2f\n')
         :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
 
-    collectgarbage()
     return avgPSNR / iter
 end
 

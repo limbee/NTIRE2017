@@ -1,77 +1,120 @@
+require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
 
 
 local cmd = torch.CmdLine()
-cmd:option('-type',		'bench',	'demo type: bench | test')
-cmd:option('-model',	'resnet',	'model type: resnet | vdsr')
-cmd:option('-gpuid',	2,			'GPU id for use')
+cmd:option('-type',	    'test',	        'demo type: bench | test')
+cmd:option('-dataset',  'DIV2K',        'test dataset')
+cmd:option('-progress', 'false',        'show current progress')
+cmd:option('-model',    'resnet',	    'model type: resnet | vdsr')
+cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
+cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
+cmd:option('-gpuid',	2,		'GPU id for use')
 local opt = cmd:parse(arg or {})
-local inputSize = opt.model=='resnet' and 'small' or 'big'
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 cutorch.setDevice(opt.gpuid)
 
+local testList = {}
+
 for modelFile in paths.iterfiles('model') do
-	if modelFile:sub(1,1)=='.' then goto continue end
-	
-	local model = torch.load(paths.concat('model',modelFile)):cuda()
-	model:evaluate()
+    if (string.find(modelFile, '.t7')) then
+        local model = torch.load(paths.concat('model',modelFile)):cuda()
+        local modelName = modelFile:split('%.')[1]
+        print('>> Testing model: ' .. modelName)
+        model:evaluate()
 
-	local modelName = modelFile:split('%.')[1]
-	print('>> test on ' .. modelName .. ' ......')
-	paths.mkdir(paths.concat('img_output',modelName))
+        local dataDir = ''
+        local Xs = 'X' .. opt.scale
+        testList = {}
+        --testList[i][1]: absolute directory
+        --testList[i][2]: image file name
+        --testList[i][3]: benchmark set name
+        collectgarbage()
+        if (opt.type == 'bench') then
+            dataDir = '../../dataset/benchmark'
+            local size = (opt.model == 'vdsr') and 'big' or 'small'
+            for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
+                local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
+                paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
+                paths.mkdir(paths.concat('img_target', modelName, testFolder, Xs))
+                for testFile in paths.iterfiles(inputFolder) do
+                    if (string.find(testFile, '.png')) then
+                        table.insert(testList, {inputFolder, testFile, testFolder})
+                    end
+                end
+            end
+        elseif (opt.type == 'test') then
+            --This code is for DIV2K dataset
+            if (opt.dataset == 'DIV2K') then
+                dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+                if (opt.model == 'vdsr') then
+                    dataDir = dataDir .. 'b'
+                end
+                paths.mkdir(paths.concat('img_output', modelName, 'test', Xs)
+                for testFile in paths.iterfiles(dataDir) do
+                    if (string.find(testFile, '.png')) then
+                        table.insert(testList, {dataDir, testFile})
+                    end
+                end
+            --We can test with our own images.
+            --Just put the images in the img_input folder.
+            else
+                for testFile in paths.iterfiles('img_input') do
+                    if (string.find(testFile, '.png') or string.find(testFile, '.jp')) then
+                        table.insert(testList, {'img_input', testFile})
+                    end
+                end
+            end
+        end
 
-	if opt.type=='bench' then
-		local dir = paths.concat('../dataset/benchmark/',inputSize)
-		for subDir in paths.iterdirs(dir) do
-			local inpDir = paths.concat(dir,subDir)
-			local resDir = paths.concat('img_output',modelName,subDir)
-			local tarDir = paths.concat('img_target',modelName,subDir)
-			local gtDir = paths.concat('../dataset/benchmark',subDir)
-			paths.mkdir(resDir)
-			paths.mkdir(tarDir)
+        local timer = torch.Timer()
+        for i = 1, #testList do
+            if (opt.progress == 'true') then
+                print('>> \t' .. testList[i][2])
+            end
+            local input = image.load(paths.concat(testList[i][1], testList[i][2])):mul(255)
+            if (input:dim() == 2 or (input:dim() == 3 and input:size(1) == 1)) then
+                input:repeatTensor(input, 3, 1, 1)
+            end
+            input:view(input, 1, table.unpack(input:size():totable()))
 
-			for imgFile in paths.iterfiles(inpDir) do
-				print('\t' .. paths.concat(inpDir,imgFile))
-				local input = image.load(paths.concat(inpDir,imgFile)):mul(255)
-				local gt = pcall(function() image.load(paths.concat(gtDir,imgFile)) end)
-					and image.load(paths.concat(gtDir,imgFile))
-					or image.load(paths.concat(gtDir,imgFile:split('%.')[1]..'.jpg'))
+            local __model = model
+            local function getOutput(input, model)
+                local output
+                if model.__typename:find('Concat') then
+                    output = {}
+                    for i = 1, model:size() do
+                        table.insert(output, getOutput(input, model:get(i)))
+                    end
+                elseif model.__typename:find('Sequential') then
+                    output = input
+                    for i = 1, #model do
+                        output = getOutput(output, model:get(i))
+                    end
+                else
+                    output = model:forward(input):clone()
+                    model = nil
+                    __model:clearState()
+                    collectgarbage()
+                end
+                return output
+            end
+            local output = getOutput(input:cuda(), model):squeeze(1):div(255)
 
-				if input:dim()==2 or (input:dim()==3 and input:size(1)==1) then input = input:repeatTensor(3,1,1) end
-				if gt:dim()==2 or (gt:dim()==3 and gt:size(1)==1) then gt = gt:repeatTensor(3,1,1) end
-				input = input:view(1,table.unpack(input:size():totable()))
-
-				-- This function prevents the gpu memory from overflowing
-				-- by passing the input layer-by-layer through the network.
-				local function getOutput(input,model)
-					local output
-					if model.__typename:find('Concat') then
-						output = {}
-						for i=1,model:size() do
-							table.insert(output,getOutput(input,model:get(i)))
-						end
-					elseif model.__typename:find('Sequential') then
-						output = input
-						for i=1,#model do
-							output = getOutput(output,model:get(i))
-						end
-					else
-						output = model:forward(input)
-					end
-					return output
-				end
-				local output = getOutput(input:cuda(),model):squeeze():div(255)
-
-				gt = gt[{{},{1,output:size(2)},{1,output:size(3)}}]
-				image.save(paths.concat(resDir,imgFile),output)
-				image.save(paths.concat(tarDir,imgFile:split('%.')[1] .. '.png'),gt)
-				collectgarbage();
-			end
-		end
-	else
-	end
-
-	::continue::
+            if (opt.type == 'bench') then
+                local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]))
+                if (target:dim() == 2 or (target:dim() == 3 and target:size(1) == 1)) then
+                    target:repeatTensor(target, 3, 1, 1)
+                end
+                target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
+                image.save(paths.concat('img_target', modelName, testList[i][3], Xs, testList[i][2]), target)
+                image.save(paths.concat('img_output', modelName, testList[i][3], Xs, testList[i][2]), output)
+            elseif (opt.type == 'test') then
+                image.save(paths.concat('img_output', modelName, 'test',Xs , testList[i][2]), output)
+            end
+        end
+        print('Elapsed time: ' .. timer:time().real)
+    end
 end
