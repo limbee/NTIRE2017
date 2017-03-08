@@ -84,6 +84,7 @@ function DataLoader:run()
                             target_batch[i]:copy(sample.target)
                         end
                         collectgarbage()
+                        collectgarbage()
                         return {
                             input = input_batch,
                             target = target_batch,
