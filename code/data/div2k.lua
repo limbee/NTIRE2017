@@ -21,6 +21,7 @@ function div2k:__init(opt, split)
 end
 
 function div2k:get(i)
+    local netType = self.opt.netType
     local idx = i
     if (self.split == 'val') then
         idx = idx + (self.size - self.opt.numVal)
@@ -50,27 +51,26 @@ function div2k:get(i)
 
     local channel, h, w = table.unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
-    local hTarget, wTarget = hInput * scale, wInput * scale
-    if (opt.netType == 'vdsr') then
+    local hTarget, wTarget = scale * hInput, scale * wInput
+    if (netType == 'vdsr') then
         hInput, wInput = hTarget, wTarget
     end
-    target = target[{{}, {1, hInput}, {1, wInput}}]
+    target = target[{{}, {1, hTarget}, {1, wTarget}}]
 
     if (self.split == 'train') then 
         local patchSize = self.opt.patchSize
         local targetPatch = patchSize
-        local inputPatch = (opt.netType == 'vdsr') and patchSize or (patchSize / scale)
+        local inputPatch = (netType == 'vdsr') and patchSize or (patchSize / scale)
         if ((wTarget < targetPatch) or (hTarget < targetPatch)) then
             return
         end
 
         local ix = torch.random(1, wInput - inputPatch + 1)
         local iy = torch.random(1, hInput - inputPatch + 1)
-        local tx, ty = (scale * (tx - 1)) + 1, (scale * (ty - 1)) + 1
-        if (opt.netType == 'vdsr') then
+        local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
+        if (netType == 'vdsr') then
             tx, ty = ix, iy
         end
-
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
