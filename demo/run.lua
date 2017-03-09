@@ -5,10 +5,10 @@ require 'image'
 
 
 local cmd = torch.CmdLine()
-cmd:option('-type',	    'test',	        'demo type: bench | test')
+cmd:option('-type',	'bench',	        'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
 cmd:option('-progress', 'false',        'show current progress')
-cmd:option('-model',    'resnet',	    'model type: resnet | vdsr')
+cmd:option('-model',    'resnet',	'model type: resnet | vdsr')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	2,		'GPU id for use')
@@ -33,13 +33,12 @@ for modelFile in paths.iterfiles('model') do
         --testList[i][3]: benchmark set name
         collectgarbage()
         if (opt.type == 'bench') then
-            --dataDir = '../../dataset/benchmark'
             dataDir = '/var/tmp/dataset/benchmark'
             local size = (opt.model == 'vdsr') and 'big' or 'small'
             for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
                 local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
                 paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
-                paths.mkdir(paths.concat('img_target', modelName, testFolder))
+                paths.mkdir(paths.concat('img_target', modelName, testFolder, Xs))
                 for testFile in paths.iterfiles(inputFolder) do
                     if (string.find(testFile, '.png')) then
                         table.insert(testList, {inputFolder, testFile, testFolder})
@@ -113,7 +112,7 @@ for modelFile in paths.iterfiles('model') do
                 image.save(paths.concat('img_target', modelName, testList[i][3], testList[i][2]), target)
                 image.save(paths.concat('img_output', modelName, testList[i][3], Xs, testList[i][2]), output)
             elseif (opt.type == 'test') then
-                image.save(paths.concat('img_output', modelName, 'test',Xs , testList[i][2]), output)
+                image.save(paths.concat('img_output', modelName, 'test', Xs , testList[i][2]), output)
             end
         end
         print('Elapsed time: ' .. timer:time().real)

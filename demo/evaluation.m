@@ -17,7 +17,10 @@ for iModel = 1:length(totalDir)
     if (modelName(1) == '.')
         continue;
     end
-    tableRow = [tableRow {[modelName '_PSNR']} {[modelName '_SSIM']}];
+    tableRow = [tableRow {[modelName '_PSNR']}];
+    if (psnrOnly == false)
+        tableRow = [tableRow {[modelName '_SSIM']}];
+    end
     modelFull = fullfile(outputDir, modelName);
     modelDir = dir(modelFull);
     row = 1;
@@ -72,12 +75,17 @@ for iModel = 1:length(totalDir)
 %                 disp(['PSNR: ' num2str(meanPSNR)])
 %                 disp(['SSIM: ' num2str(meanSSIM)])
                 tableData(row, col) = meanPSNR;
-                tableData(row, col + 1) = meanSSIM;
+                if (psnrOnly == false)
+                    tableData(row, col + 1) = meanSSIM;
+                end
                 row = row + 1;
             end
         end
     end
-    col = col + 2;
+    col = col + 1;
+    if (psnrOnly == false)
+        col = col + 1;
+    end
 end
 T = array2table(tableData, 'RowNames', tableCol, 'VariableNames', tableRow);
 disp(T);
