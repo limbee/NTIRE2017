@@ -11,89 +11,68 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    --target dataset, input dataset
-    self.dataTarget = nil
-    self.dataInput = nil
-    self.dirTar = nil
-    self.dirInp = nil
-    
     --absolute path of the dataset
     local apath = '/var/tmp/dataset/DIV2K'
-    if ((opt.datatype == 'png') or (opt.datatype == 't7split')) then
-        self.dirTar = apath .. '/DIV2K_train_HR'
-        if (opt.netType == 'vdsr') then
-            self.dirInp = paths.concat(apath .. '/DIV2K_train_LR' .. opt.degrade, 'X' .. opt.scale .. 'b')
-        else
-            self.dirInp = paths.concat(apath .. '/DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
-        end
-    elseif (opt.datatype == 't7') then
-        local dirDecoded = apath .. '/DIV2K_decoded'
-        self.dirTar = dirDecoded .. '/DIV2K_train_HR.t7'
-        if (opt.netType == 'vdsr') then
-            self.dirInp = dirDecoded .. '/DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'b.t7'
-        else
-            self.dirInp = dirDecoded .. '/DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. '.t7'
-        end
-        self.dataTarget = torch.load(self.dirTar)
-        print('Target data(.t7) prepared')
-        self.dataInput = torch.load(self.dirInp)
-        print('Input data(.t7) prepared')
+    self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
+    self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+    if (opt.netType == 'vdsr') then
+        self.dirInp = self.dirInp .. 'b'
     end
 end
 
 function div2k:get(i)
-    local idx = nil
-    if (self.split == 'train') then
-        idx = i
-    elseif (self.split == 'val') then
-        idx = (self.size - self.opt.numVal + i)
+    local idx = i
+    if (self.split == 'val') then
+        idx = idx + (self.size - self.opt.numVal)
     end
 
     local scale = self.opt.scale
-    local target = nil
     local input = nil
+    local target = nil
 
-    if ((self.opt.datatype == 'png') or (self.opt.datatype == 't7split')) then
-        local tarName = ''
-        local nDigit = math.floor(math.log10(idx)) + 1
-        for j = 1, (4 - nDigit) do
-            tarName = tarName .. '0'
-        end
-        tarName = tarName .. idx
-        local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
-        inpName = tarName .. 'x' .. scale .. ext
-        tarName = tarName .. ext
-        if (self.opt.datatype == 'png') then
-            target = image.load(paths.concat(self.dirTar, tarName), self.opt.nChannel, 'float')
-            input = image.load(paths.concat(self.dirInp, inpName), self.opt.nChannel, 'float')
-        else
-            target = torch.load(paths.concat(self.dirTar, tarName)):float()
-            input = torch.load(paths.concat(self.dirInp, inpName)):float()
-        end
-    elseif (self.opt.datatype == 't7') then
-        target = self.dataTarget[idx]:float()
-        input = self.dataInput[idx]:float()
+    --filename format: ????x?.png
+    local fileName = idx
+    local digit = idx
+    while (digit < 1000) do
+        fileName = '0' .. fileName
+        digit = digit * 10
+    end
+    local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
+    inputName = fileName .. 'x' .. scale .. ext
+    targetName = fileName .. ext
+    if (ext == 'png') then
+        input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
+        target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+    else
+        input = torch.load(paths.concat(self.dirInp, inputName)):float()
+        target = torch.load(paths.concat(self.dirTar, targetName)):float()
     end
 
-    local ch, h, w = table.unpack(target:size():totable())
-    local hh, ww = (scale * math.floor(h / scale)), (scale * math.floor(w / scale))
-    local hhi, wwi = (hh / scale), (ww / scale)
-    target = target[{{}, {1, hh}, {1, ww}}]
+    local channel, h, w = table.unpack(target:size():totable())
+    local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
+    local hTarget, wTarget = hInput * scale, wInput * scale
+    if (opt.netType == 'vdsr') then
+        hInput, wInput = hTarget, wTarget
+    end
+    target = target[{{}, {1, hInput}, {1, wInput}}]
 
     if (self.split == 'train') then 
-        local tps = self.opt.patchSize -- target patch size
-        local ips = self.opt.patchSize / scale -- input patch size
-        if ((ww < tps) or (hh < tps)) then
+        local patchSize = self.opt.patchSize
+        local targetPatch = patchSize
+        local inputPatch = (opt.netType == 'vdsr') and patchSize or (patchSize / scale)
+        if ((wTarget < targetPatch) or (hTarget < targetPatch)) then
             return
         end
 
-        local ix = torch.random(1, wwi - ips + 1)
-        local iy = torch.random(1, hhi - ips + 1)
-        local tx = (scale * (ix - 1)) + 1
-        local ty = (scale * (iy - 1)) + 1
+        local ix = torch.random(1, wInput - inputPatch + 1)
+        local iy = torch.random(1, hInput - inputPatch + 1)
+        local tx, ty = (scale * (tx - 1)) + 1, (scale * (ty - 1)) + 1
+        if (opt.netType == 'vdsr') then
+            tx, ty = ix, iy
+        end
 
-        input = input[{{}, {iy, iy + ips - 1}, {ix, ix + ips - 1}}]
-        target = target[{{}, {ty , ty + tps - 1}, {tx, tx + tps - 1}}]
+        input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
+        target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
     if (self.opt.datatype == 'png') then

@@ -33,7 +33,8 @@ for modelFile in paths.iterfiles('model') do
         --testList[i][3]: benchmark set name
         collectgarbage()
         if (opt.type == 'bench') then
-            dataDir = '../../dataset/benchmark'
+            --dataDir = '../../dataset/benchmark'
+            dataDir = '/var/tmp/dataset/benchmark'
             local size = (opt.model == 'vdsr') and 'big' or 'small'
             for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
                 local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
