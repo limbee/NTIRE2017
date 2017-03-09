@@ -12,7 +12,7 @@ function M.frequencyDividing(sample, wc)
     filter[{{hwc, h - hwc + 1}, {}}] = 0
     filter[{{}, {wwc, w - wwc + 1}}] = 0
 
-    local divide(img, wc)
+    local function divide(img, wc)
         local Fi = signal.fft2(img)
         local Flow = torch.cmul(Fi, filter)
         local Fhigh = Fi - Flow

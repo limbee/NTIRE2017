@@ -22,22 +22,22 @@ local function createModel(opt)
             end
         end
         if (not preActivation) then
-            s:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
-            s:add(bnorm(nFeat))
+            seq:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
+            seq:add(bnorm(nFeat))
+            seq:add(relu(true))
+            seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
+            seq:add(bnorm(nFeat))
         else
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
+            seq:add(bnorm(nFeat))
+            seq:add(relu(true))
+            seq:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
+            seq:add(bnorm(nFeat))
+            seq:add(relu(true))
+            seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
         end
         return nn.Sequential()
         :add(nn.ConcatTable())
-            :add(s)
+            :add(seq)
             :add(nn.Identity())
         :add(nn.CAddTable(true))
     end
@@ -47,7 +47,7 @@ local function createModel(opt)
 
     local model = nn.Sequential()
     local cat = nn.ConcatTable()
-    local resNet = require('resnet')(opt)
+    local resNet = require('model/resnet')(opt)
     
     local highNet = nn.Sequential()
     local head = nn.Sequential()

@@ -70,10 +70,12 @@ function DataLoader:run()
                         local target_batch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
                         local lowBatch = nil
                         local highBatch = nil
-                        if (netType == 'bandnet') then
+                        
+                        --[[if (netType == 'bandnet') then
                             lowBatch = torch.zeros(target_batch:size())
                             highBatch = torch.zeros(target_batch:size())
-                        end
+                        end]]
+                        print('hello')
                         for i,index in ipairs(indices:totable()) do
                             local idx_ = index
                             ::redo::
@@ -92,6 +94,7 @@ function DataLoader:run()
                                 highBatch[i]:copy(freqDiv[2])
                             end
                         end
+                        
                         collectgarbage()
                         collectgarbage()
                         if (netType == 'bandnet') then

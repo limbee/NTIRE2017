@@ -37,7 +37,7 @@ local function getLoss(opt)
         criterion:add(hf_loss, opt.fd)
     end
     if (opt.netType == 'bandnet') then
-        return nn.ParallelCriterion:add(criterion):cuda()
+        return nn.ParallelCriterion():add(criterion):cuda()
     else
         return criterion:cuda()
     end
