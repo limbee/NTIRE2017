@@ -36,7 +36,11 @@ local function getLoss(opt)
         local fd_loss = nn.FilteredDistCriterion(opt.filter_wc, opt.filter_type)
         criterion:add(hf_loss, opt.fd)
     end
-    return criterion:cuda()
+    if (opt.netType == 'bandnet') then
+        return nn.ParallelCriterion:add(criterion):cuda()
+    else
+        return criterion:cuda()
+    end
 end
 
 return getLoss

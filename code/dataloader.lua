@@ -65,10 +65,15 @@ function DataLoader:run()
                     function(indices)
                         --local batchSize = indices:size(1)
                         local tarSize = patchSize
-                        local inpSize = netType=='VDSR' and patchSize or patchSize/scale
-                        local input_batch = torch.Tensor(batchSize,nChannel,inpSize,inpSize):zero()
-                        local target_batch = torch.Tensor(batchSize,nChannel,tarSize,tarSize):zero()
-
+                        local inpSize = (netType == 'vdsr') and patchSize or patchSize/scale
+                        local input_batch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
+                        local target_batch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
+                        local lowBatch = nil
+                        local highBatch = nil
+                        if (netType == 'bandnet') then
+                            lowBatch = torch.zeros(target_batch:size())
+                            highBatch = torch.zeros(target_batch:size())
+                        end
                         for i,index in ipairs(indices:totable()) do
                             local idx_ = index
                             ::redo::
@@ -79,16 +84,27 @@ function DataLoader:run()
                             end
 
                             sample = _G.augment(sample)
-
                             input_batch[i]:copy(sample.input)
                             target_batch[i]:copy(sample.target)
+                            if (netType == 'bandnet') then
+                                local freqDiv = _G.frequencyDividing(sample.target, self.opt.netwc)
+                                lowBatch[i]:copy(freqDiv[1])
+                                highBatch[i]:copy(freqDiv[2])
+                            end
                         end
                         collectgarbage()
                         collectgarbage()
-                        return {
-                            input = input_batch,
-                            target = target_batch,
-                        }
+                        if (netType == 'bandnet') then
+                            return {
+                                input = input_batch,
+                                target = {{lowBatch, highBatch}, target_batch}
+                            }
+                        else
+                            return {
+                                input = input_batch,
+                                target = target_batch,
+                            }   
+                        end
                     end,
                     function (_sample_)
                         sample = _sample_

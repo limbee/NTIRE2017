@@ -121,11 +121,11 @@ function Trainer:test(epoch, dataloader)
             return output
         end
         local output = recursiveForward(input,model):squeeze(1)
-
-        local psnr = util:calcPSNR(output,target,self.opt.scale)
-
-        avgPSNR = avgPSNR + psnr
-        image.save(paths.concat(self.opt.save,'result',n .. '.jpg'), output:float():squeeze():div(255))
+        if (self.opt.netType == 'bandnet') then
+            output = output[2]
+        end
+        avgPSNR = avgPSNR + util:calcPSNR(output, target, self.opt.scale)
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
 
         iter = iter + 1
         collectgarbage()
@@ -138,17 +138,28 @@ function Trainer:test(epoch, dataloader)
     return avgPSNR / iter
 end
 
-function Trainer:copyInputs(sample,mode)
-    if mode == 'train' then
+function Trainer:copyInputs(sample, mode)
+    if (mode == 'train') then
         self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
-    elseif mode == 'test' then
+    elseif (mode == 'test') then
         self.input = self.input or torch.CudaTensor()
     end
 
-    self.target = self.target or torch.CudaTensor()
-
     self.input:resize(sample.input:size()):copy(sample.input)
-    self.target:resize(sample.target:size()):copy(sample.target)
+    if (self.opt.netType == 'bandnet') then
+        self.target = self.target or torch.CudaTensor()
+        self.target:resize(sample.target:size()):copy(sample.target)
+    else
+        self.target =
+        {
+            {self.target[1][1] or torch.CudaTensor(),
+            self.target[1][2] or torch.CudaTensor()},
+            self.target[2] or torch.CudaTensor()
+        }
+        self.target[1][1]:resize(sample.target[1][1]:size()):copy(sample.target[1][1])
+        self.target[1][2]:resize(sample.target[1][2]:size()):copy(sample.target[1][2])
+        self.target[2]:resize(sample.target[2]:size()):copy(sample.target[2])
+    end
 end
 
 return M.Trainer
