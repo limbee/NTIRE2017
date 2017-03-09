@@ -19,6 +19,7 @@ function DataLoader:__init(dataset, opt, split)
     local manualSeed = opt.manualSeed
     local function init()
         require('data/' .. opt.dataset)
+        torch.setdefaulttensortype('torch.FloatTensor')
     end
     local function main(idx)
         if manualSeed ~= 0 then
@@ -35,7 +36,6 @@ function DataLoader:__init(dataset, opt, split)
     self.batchSize = opt.batchSize
     self.split = split
     self.opt = opt
-    self.area = dataset.area
 end
 
 function DataLoader:size()
@@ -48,15 +48,16 @@ function DataLoader:run()
     local size, batchSize = self.__size, self.batchSize
     local perm = torch.randperm(size)
     local netType = self.opt.netType
-    local patchSize,scale = self.opt.patchSize,self.opt.scale
+    local patchSize, scale = self.opt.patchSize, self.opt.scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
+
     local function enqueue()
-        if self.split == 'train' then
+        if (self.split == 'train') then
             while threads:acceptsjob() do
                 local indices
-                if batchSize > size-idx+1 then
+                if (batchSize > (size - idx + 1)) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
@@ -65,17 +66,10 @@ function DataLoader:run()
                     function(indices)
                         --local batchSize = indices:size(1)
                         local tarSize = patchSize
-                        local inpSize = (netType == 'vdsr') and patchSize or patchSize/scale
-                        local input_batch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
-                        local target_batch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
-                        local lowBatch = nil
-                        local highBatch = nil
-                        
-                        --[[if (netType == 'bandnet') then
-                            lowBatch = torch.zeros(target_batch:size())
-                            highBatch = torch.zeros(target_batch:size())
-                        end]]
-                        print('hello')
+                        local inpSize = (netType == 'vdsr') and patchSize or patchSize / scale
+                        local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
+                        local targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
+
                         for i,index in ipairs(indices:totable()) do
                             local idx_ = index
                             ::redo::
@@ -86,28 +80,15 @@ function DataLoader:run()
                             end
 
                             sample = _G.augment(sample)
-                            input_batch[i]:copy(sample.input)
-                            target_batch[i]:copy(sample.target)
-                            if (netType == 'bandnet') then
-                                local freqDiv = _G.frequencyDividing(sample.target, self.opt.netwc)
-                                lowBatch[i]:copy(freqDiv[1])
-                                highBatch[i]:copy(freqDiv[2])
-                            end
+                            inputBatch[i]:copy(sample.input)
+                            targetBatch[i]:copy(sample.target)
                         end
-                        
                         collectgarbage()
                         collectgarbage()
-                        if (netType == 'bandnet') then
-                            return {
-                                input = input_batch,
-                                target = {{lowBatch, highBatch}, target_batch}
-                            }
-                        else
-                            return {
-                                input = input_batch,
-                                target = target_batch,
-                            }   
-                        end
+                        return {
+                            input = inputBatch,
+                            target = targetBatch,
+                        }    
                     end,
                     function (_sample_)
                         sample = _sample_
@@ -117,7 +98,7 @@ function DataLoader:run()
                 )
                 idx = idx + batchSize
             end
-        elseif self.split == 'val' then
+        elseif (self.split == 'val') then
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)

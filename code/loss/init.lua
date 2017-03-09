@@ -5,42 +5,40 @@ require 'tvnorm-nn'
 local function getLoss(opt)
     local criterion = nn.MultiCriterion()
 
-    -- 1. content loss
     if (opt.abs > 0) then
-        local abs_loss = nn.ABSCriterion()
-        abs_loss.sizeAverage = true
-        criterion:add(abs_loss, opt.abs)
+        local absLoss = nn.ABSCriterion(true)
+        criterion:add(absLoss, opt.abs)
     end
     if (opt.chbn > 0) then
-        dofile('CharbonnierCriterion.lua')
-        local chbn_loss = nn.CharbonnierCriterion(true, 0.001)
-        criterion:add(chbn_loss, opt.chbn)
+        require('loss/CharbonnierCriterion')
+        local chbnLoss = nn.CharbonnierCriterion(true, 0.001)
+        criterion:add(chbnLoss, opt.chbn)
     end
     if (opt.smoothL1 > 0) then
-        local smoothL1 = nn.smoothL1Criterion()
-        smoothL1.sizeAverage = true
+        local smoothL1 = nn.smoothL1Criterion(true)
         criterion:add(smoothL1, opt.smoothL1)
     end
     if (opt.mse > 0) then
-        local mse_loss = nn.MSECriterion()
-        mse_loss.sizeAverage = true
-        criterion:add(mse_loss, opt.mse)
+        local mseLoss = nn.MSECriterion(true)
+        criterion:add(mseLoss, opt.mse)
     end
     if (opt.ssim > 0) then
-        dofile('SSIMCriterion.lua')
-        local ssim_loss = nn.SSIMCriterion()
-        criterion:add(ssim_loss, opt.ssim)
+        require('loss/SSIMCriterion')
+        local ssimLoss = nn.SSIMCriterion()
+        criterion:add(ssimLoss, opt.ssim)
     end
     if (opt.fd > 0) then
-        dofile('FourierDistCriterion.lua')
-        local fd_loss = nn.FilteredDistCriterion(opt.filter_wc, opt.filter_type)
-        criterion:add(hf_loss, opt.fd)
+        require('loss/FourierDistCriterion')
+        local fdLoss = nn.FilteredDistCriterion(opt.filter_wc, opt.filter_type)
+        criterion:add(hfLoss, opt.fd)
     end
     if (opt.netType == 'bandnet') then
-        return nn.ParallelCriterion():add(criterion):cuda()
-    else
-        return criterion:cuda()
+        require('loss/BandCriterion')
+        local bandLoss = nn.BandCriterion(opt.netwc, true)
+        criterion:add(bandLoss, opt.mse)
     end
+        
+    return criterion:cuda()
 end
 
 return getLoss

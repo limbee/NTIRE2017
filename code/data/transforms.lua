@@ -1,45 +1,6 @@
 require 'image'
-local signal = require 'signal'
 
 local M = {}
-
-function M.frequencyDividing(sample, wc)
-    local h = (sample:dim() == 3) and sample:size(2) or sample:size(1)
-    local w = (sample:dim() == 3) and sample:size(2) or sample:size(1)
-    local hwc = math.ceil(wc * h / 2)
-    local wwc = math.ceil(wc * w / 2)
-    local filter = torch.ones(h, w)
-    filter[{{hwc, h - hwc + 1}, {}}] = 0
-    filter[{{}, {wwc, w - wwc + 1}}] = 0
-
-    local function divide(img, wc)
-        local Fi = signal.fft2(img)
-        local Flow = torch.cmul(Fi, filter)
-        local Fhigh = Fi - Flow
-
-        return {
-            signal.ifft2(Flow):narrow(3, 1, 1):squeeze(),
-            signal.ifft2(Fhigh):narrow(3, 1, 1):squeeze()
-            }
-    end
-
-    if (sample:dim() == 3) then
-        if (sample:size(1) == 1) then
-            return divide(sample[1], wc)
-        elseif (sample:size(1) == 3) then
-            local ret = {torch.Tensor(sample:size()), torch.Tensor(sample:size())}
-            for i = 1, 3 do
-                local divideChannel = divide(sample[i], wc)
-                ret[1][i] = divideChannel[1]
-                ret[2][i] = divideChannel[2]
-            end
-            return ret
-        end
-    else
-        return divide(sample, wc)
-    end
-    return {}
-end
 
 function M.Compose(transforms)
    return function(sample)

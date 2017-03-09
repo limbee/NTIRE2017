@@ -146,20 +146,8 @@ function Trainer:copyInputs(sample, mode)
     end
 
     self.input:resize(sample.input:size()):copy(sample.input)
-    if (self.opt.netType == 'bandnet') then
-        self.target = self.target or torch.CudaTensor()
-        self.target:resize(sample.target:size()):copy(sample.target)
-    else
-        self.target =
-        {
-            {self.target[1][1] or torch.CudaTensor(),
-            self.target[1][2] or torch.CudaTensor()},
-            self.target[2] or torch.CudaTensor()
-        }
-        self.target[1][1]:resize(sample.target[1][1]:size()):copy(sample.target[1][1])
-        self.target[1][2]:resize(sample.target[1][2]:size()):copy(sample.target[1][2])
-        self.target[2]:resize(sample.target[2]:size()):copy(sample.target[2])
-    end
+    self.target = self.target or torch.CudaTensor()
+    self.target:resize(sample.target:size()):copy(sample.target)
 end
 
 return M.Trainer

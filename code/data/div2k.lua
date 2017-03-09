@@ -131,9 +131,9 @@ function div2k:augment()
         return function(sample) return sample end
     end
 end
-
+--[[
 function div2k:frequencyDividing()
-    return transform.frequencyDividing
+    return transform.frequencyDividing()
 end
-
+]]
 return M.div2k

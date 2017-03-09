@@ -36,9 +36,10 @@ local function createModel(opt)
             seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
         end
         return nn.Sequential()
-        :add(nn.ConcatTable())
+        :add(nn.ConcatTable()
             :add(seq)
             :add(nn.Identity())
+        )
         :add(nn.CAddTable(true))
     end
     
@@ -50,23 +51,14 @@ local function createModel(opt)
     local resNet = require('model/resnet')(opt)
     
     local highNet = nn.Sequential()
-    local head = nn.Sequential()
-        :add(conv(opt.nChannel, opt.nFeat, 3, 3, 1, 1, 1, 1))
-        :add(relu(true))
-    
-    local body = nn.Sequential()
-    for i = 1, opt.nResBlock do
-        body:add(resBlock(opt.nFeat, 1, preActivation, blockType))
-    end
-    body:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
-    body:add(bnorm(opt.nFeat))
+    highNet:add(conv(opt.nChannel, opt.nFeat, 3, 3, 1, 1, 1, 1))
+    highNet:add(relu(true))
 
-    highNet
-    :add(head)
-    :add(nn.ConcatTable())
-        :add(body)
-        :add(nn.Identity())
-    :add(nn.CAddTable(true))
+    for i = 1, opt.nResBlock do
+        highNet:add(resBlock(opt.nFeat, 1, preActivation, blockType))
+    end
+    highNet:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
+    highNet:add(bnorm(opt.nFeat))
 
     if (opt.upsample == 'full') then
         highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 4, 4, 2, 2, 1, 1))
@@ -78,16 +70,18 @@ local function createModel(opt)
         highNet:add(shuffle(2))
         highNet:add(relu(true))
     end
-
+    highNet:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
+    
     cat:add(resNet)
     cat:add(highNet)
     model:add(cat)
     
-    local comb = nn.ConcatTable()
-    comb:add(nn.Identity())
-    comb:add(nn.CAddTable())
-    model:add(comb)
-    
+    model
+    :add(nn.ConcatTable()
+        :add(nn.Identity())
+        :add(nn.CAddTable())
+    )
+    print(model)
     return model
 end
 
