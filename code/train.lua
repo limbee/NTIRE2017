@@ -71,7 +71,9 @@ function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter,avgPSNR = 0,0
 
+    self.model:clearState()
     self.model:evaluate()
+    
     -- Following cudnn settings are to prevent cudnn errors 
     -- occasionally occur during testing.
     cudnn.fastest = false
@@ -81,45 +83,11 @@ function Trainer:test(epoch, dataloader)
 
         local input, target = self.input, self.target
         input = nn.Unsqueeze(1):cuda():forward(input)
-        if self.opt.nChannel==1 then
+        if (self.opt.nChannel == 1) then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
 
-        self.model:clearState()
-        collectgarbage()
-        collectgarbage()
-        local model = self.model:clone('weight','bias')
-
-        if torch.type(model)=='nn.DataParallelTable' then model = model:get(1) end
-        local __model = model
-
-        -- This function prevents the gpu memory from overflowing
-        -- by passing the input layer-by-layer through the network.
-        local function recursiveForward(input, m)
-            local output
-            if (m.__typename:find('Concat')) then
-                output = {}
-                for i = 1, m:size() do
-                    table.insert(output, recursiveForward(input, m:get(i)))
-                end
-            elseif (m.__typename:find('Sequential')) then
-                output = input
-                for i = 1, #m do
-                    output = recursiveForward(output, m:get(i))
-                end
-            elseif (m.__typename:find('Identity')) then
-                return input
-            else
-                output = m:forward(input):clone()
-                m = nil
-                __model:clearState()
-            end
-            input = nil
-            collectgarbage()
-            collectgarbage()
-            return output
-        end
-        local output = recursiveForward(input, model)
+        local output = util:recursiveForward(input, self.model)
         if (self.opt.netType == 'bandnet') then
             output = output[2]:squeeze(1)
         else
@@ -129,6 +97,7 @@ function Trainer:test(epoch, dataloader)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
 
         iter = iter + 1
+        self.model:clearState()
         collectgarbage()
         collectgarbage()
     end

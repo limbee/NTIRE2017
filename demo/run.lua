@@ -3,9 +3,8 @@ require 'cunn'
 require 'cudnn'
 require 'image'
 
-
 local cmd = torch.CmdLine()
-cmd:option('-type',	    'test',	        'demo type: bench | test')
+cmd:option('-type',	    'bench',	        'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
 cmd:option('-progress', 'false',        'show current progress')
 cmd:option('-model',    'bandnet',	    'model type: resnet | vdsr')
@@ -14,13 +13,15 @@ cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	2,		'GPU id for use')
 local opt = cmd:parse(arg or {})
 local now = os.date('%Y-%m-%d_%H-%M-%S')
+local util = require '../code/utils'(nil)
+
 cutorch.setDevice(opt.gpuid)
 
 local testList = {}
 
 for modelFile in paths.iterfiles('model') do
-    if (string.find(modelFile, '.t7')) then
-        local model = torch.load(paths.concat('model',modelFile)):cuda()
+    if (string.find(modelFile, '.t7') and string.find(modelFile, opt.model)) then
+        local model = torch.load(paths.concat('model', modelFile)):cuda()
         local modelName = modelFile:split('%.')[1]
         print('>> Testing model: ' .. modelName)
         model:evaluate()
@@ -80,32 +81,13 @@ for modelFile in paths.iterfiles('model') do
                 input:repeatTensor(input, 3, 1, 1)
             end
             input:view(input, 1, table.unpack(input:size():totable()))
-
-            local __model = model
-            local function getOutput(input, model)
-                local output
-                if model.__typename:find('Concat') then
-                    output = {}
-                    for i = 1, model:size() do
-                        table.insert(output, getOutput(input, model:get(i)))
-                    end
-                elseif model.__typename:find('Sequential') then
-                    output = input
-                    for i = 1, #model do
-                        output = getOutput(output, model:get(i))
-                    end
-                else
-                    output = model:forward(input):clone()
-                    model = nil
-                    __model:clearState()
-                    collectgarbage()
-                end
-                return output
-            end
-            local output = getOutput(input:cuda(), model):squeeze(1):div(255)
+            local output = util:recursiveForward(input:cuda(), model)
             if (opt.model == 'bandnet') then
-                output = output[2]
+                output = output[2]:squeeze(1):div(255)
+            else
+                output = output:squeeze(1):div(255)
             end
+
             if (opt.type == 'bench') then
                 local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]))
                 if (target:dim() == 2 or (target:dim() == 3 and target:size(1) == 1)) then
@@ -117,6 +99,11 @@ for modelFile in paths.iterfiles('model') do
             elseif (opt.type == 'test') then
                 image.save(paths.concat('img_output', modelName, 'test',Xs , testList[i][2]), output)
             end
+            input = nil
+            target = nil
+            output = nil
+            collectgarbage()
+            collectgarbage()
         end
         print('Elapsed time: ' .. timer:time().real)
     end

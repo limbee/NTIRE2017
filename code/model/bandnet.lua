@@ -8,33 +8,14 @@ local function createModel(opt)
     local shuffle = nn.PixelShuffle
     local pad = nn.Padding
 
-    local function resBlock(nFeat, stride, preActivation, bottleNeck)
+    local function resBlock(nFeat, stride)
         local seq = nn.Sequential()
-        if (bottleNeck) then
-            if (not preActivation) then
-                seq:add(conv(nFeat, nFeat, 1, 1))
-                seq:add(bnorm(nFeat))
-                seq:add(relu(true))
-            else
-                seq:add(bnorm(nFeat))
-                seq:add(relu(true))
-                seq:add(conv(nFeat, nFeat, 1, 1))
-            end
-        end
-        if (not preActivation) then
-            seq:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
-            seq:add(bnorm(nFeat))
-            seq:add(relu(true))
-            seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
-            seq:add(bnorm(nFeat))
-        else
-            seq:add(bnorm(nFeat))
-            seq:add(relu(true))
-            seq:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
-            seq:add(bnorm(nFeat))
-            seq:add(relu(true))
-            seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
-        end
+        seq:add(conv(nFeat, nFeat, 3, 3, stride, stride, 1, 1))
+        seq:add(bnorm(nFeat))
+        seq:add(relu(true))
+        seq:add(conv(nFeat, nFeat, 3, 3, 1, 1, 1, 1))
+        seq:add(bnorm(nFeat))
+
         return nn.Sequential()
         :add(nn.ConcatTable()
             :add(seq)
@@ -42,9 +23,6 @@ local function createModel(opt)
         )
         :add(nn.CAddTable(true))
     end
-    
-    local preActivation = opt.pre_act
-    local blockType = opt.bottleNeck
 
     local model = nn.Sequential()
     local cat = nn.ConcatTable()
@@ -55,20 +33,39 @@ local function createModel(opt)
     highNet:add(relu(true))
 
     for i = 1, opt.nResBlock do
-        highNet:add(resBlock(opt.nFeat, 1, preActivation, blockType))
+        highNet:add(resBlock(opt.nFeat, 1))
     end
     highNet:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
     highNet:add(bnorm(opt.nFeat))
 
     if (opt.upsample == 'full') then
-        highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 4, 4, 2, 2, 1, 1))
-        highNet:add(relu(true))
+        if (opt.scale == 2) then
+            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 4, 4, 2, 2, 1, 1))
+            highNet:add(relu(true))
+        elseif (opt.scale == 3) then
+            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 6, 6, 3, 3, 2, 2, 1, 1))
+            highNet:add(relu(true))
+        elseif (opt.scale == 4) then
+            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 8, 8, 4, 4, 2, 2))
+            highNet:add(relu(true))
+        end
     elseif (opt.upsample == 'shuffle') then
-        highNet:add(pad(2, 1, 3))
-        highNet:add(pad(3, 1, 3))
-        highNet:add(conv(opt.nFeat, opt.nFeat * 4, 4, 4, 1, 1, 1, 1))
-        highNet:add(shuffle(2))
-        highNet:add(relu(true))
+        if (opt.scale == 2) then
+            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
+            highNet:add(shuffle(2))
+            highNet:add(relu(true))
+        elseif (opt.scale == 3) then
+            highNet:add(conv(opt.nFeat, 9 * opt.nFeat, 3, 3, 1, 1, 1, 1))
+            highNet:add(shuffle(3))
+            highNet:add(relu(true))
+        elseif (opt.scale == 4) then
+            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
+            highNet:add(shuffle(2))
+            highNet:add(relu(true))
+            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
+            highNet:add(shuffle(2))
+            highNet:add(relu(true))
+        end
     end
     highNet:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
 

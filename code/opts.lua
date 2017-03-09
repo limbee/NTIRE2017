@@ -39,13 +39,12 @@ function M.parse(arg)
     cmd:option('-lrLow',        1,          'Relative learning rate of low frequency components')
     cmd:option('-lrHigh',       2,          'Relative learning rate of high frequency components')
     cmd:option('-momentum',     0.9,        'SGD momentum')
-    cmd:option('-beta1',        0.9,        'ADAM momentum')
-    cmd:option('-weightDecay',  0,          'weight decay')
+    cmd:option('-beta1',        0.9,        'ADAM beta1')
+    cmd:option('-beta2',        0.999,      'ADAM beta2')
+    cmd:option('-epsilon',      1e-8,       'ADAM epsilon')
     -- Model
     cmd:option('-netType',      'bandnet',  'SR network architecture. Options: resnet | vdsr')
     cmd:option('-netwc',        0.2,        'Cut-off frequency of bandnet')
-    cmd:option('-pre_act',      'false',    'Pre-activation architecture (for ResNet)')
-    cmd:option('-bottleneck',   'false',    'Use bottleneck architecture (for ResNet and preResNet)')
     cmd:option('-nLayer',       20,         'Number of convolution layer (for VDSR)')
     cmd:option('-nResBlock',    16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',     3,          'Number of input image channels: 1 or 3')
@@ -61,9 +60,6 @@ function M.parse(arg)
     cmd:text()
 
     local opt = cmd:parse(arg or {})
-
-    opt.pre_act = opt.pre_act=='true'
-    opt.bottleneck = opt.bottleneck=='true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -98,12 +94,12 @@ function M.parse(arg)
 
     opt.optimState = {
         learningRate = opt.lr,
-        weightDecay = opt.weightDecay,
         momentum = opt.momentum,
         dampening = 0,
-        learningRateDecay = 1e-5,
         nesterov = true,
-        beta1 = opt.beta1
+        beta1 = opt.beta1,
+        beta2 = opt.beta2,
+        epsilon = opt.epsilon
     }
     if opt.optimMethod == 'SGD' then 
         opt.optimState.method = optim.sgd
