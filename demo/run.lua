@@ -8,7 +8,7 @@ local cmd = torch.CmdLine()
 cmd:option('-type',	    'test',	        'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
 cmd:option('-progress', 'false',        'show current progress')
-cmd:option('-model',    'resnet',	    'model type: resnet | vdsr')
+cmd:option('-model',    'bandnet',	    'model type: resnet | vdsr')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	2,		'GPU id for use')
@@ -103,7 +103,9 @@ for modelFile in paths.iterfiles('model') do
                 return output
             end
             local output = getOutput(input:cuda(), model):squeeze(1):div(255)
-
+            if (opt.model == 'bandnet') then
+                output = output[2]
+            end
             if (opt.type == 'bench') then
                 local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]))
                 if (target:dim() == 2 or (target:dim() == 3 and target:size(1) == 1)) then

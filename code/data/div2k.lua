@@ -92,9 +92,9 @@ function div2k:get(i)
 end
 
 function div2k:__size()
-    if self.split == 'train' then
+    if (self.split == 'train') then
         return self.size - self.opt.numVal
-    elseif self.split == 'val' then
+    elseif (self.split == 'val') then
         return self.opt.numVal
     end
 end
@@ -114,7 +114,7 @@ local pca = {
 }
 
 function div2k:augment()
-    if self.split == 'train' then
+    if (self.split == 'train') then
         return transform.Compose{
             --[[
             transform.ColorJitter({
@@ -127,9 +127,13 @@ function div2k:augment()
             transform.HorizontalFlip(0.5),
             transform.Rotation(1)
         }
-    elseif self.split == 'val' then
+    elseif (self.split == 'val') then
         return function(sample) return sample end
     end
+end
+
+function div2k:frequencyDividing()
+    return transform.frequencyDividing
 end
 
 return M.div2k
