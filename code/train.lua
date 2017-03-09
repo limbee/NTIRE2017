@@ -108,30 +108,22 @@ function Trainer:test(epoch, dataloader)
                     output = recursiveForward(output, m:get(i))
                 end
             elseif (m.__typename:find('Identity')) then
-                if (type(input) == 'table') then
-
-                else
-                    output = m:forward(input):clone()
-                end
-                m = nil
-                __model:clearState()
-                collectgarbage()
-                collectgarbage()
+                return input
             else
                 output = m:forward(input):clone()
                 m = nil
                 __model:clearState()
-                collectgarbage()
-                collectgarbage()
             end
             input = nil
             collectgarbage()
             collectgarbage()
             return output
         end
-        local output = recursiveForward(input,model):squeeze(1)
+        local output = recursiveForward(input, model)
         if (self.opt.netType == 'bandnet') then
-            output = output[2]
+            output = output[2]:squeeze(1)
+        else
+            output = output:squeeze(1)
         end
         avgPSNR = avgPSNR + util:calcPSNR(output, target, self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))

@@ -1,4 +1,6 @@
 require 'nn'
+require 'cunn'
+require 'cudnn'
 
 local M = {}
 local util = torch.class('sr.util',M)
@@ -109,6 +111,10 @@ function util:rgb2y(img)
     y:add(img[3] * 25.064 / 256)
     y:clamp(16,235)
     return y
+end
+
+function util:recursiveForward(input, model)
+
 end
 
 return M.util
