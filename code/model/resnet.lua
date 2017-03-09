@@ -7,114 +7,75 @@ local function createModel(opt)
     local bnorm = nn.SpatialBatchNormalization
     local shuffle = nn.PixelShuffle
     local pad = nn.Padding
+    local seq = nn.Sequential
+    local concat = nn.ConcatTable
+    local id = nn.Identity
+    local cadd = nn.CAddTable
+    local deconv = nn.SpatialFullConvolution
 
-    local function basicblock(nFeat, stride, preActivation)
+    local function convBlock(nFeat)
         local s = nn.Sequential()
-        if not preActivation then
-            s:add(conv(nFeat,nFeat,3,3,stride,stride,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,3,3,1,1,1,1))
-            s:add(bnorm(nFeat))
-        else
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,3,3,stride,stride,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,3,3,1,1,1,1))
-        end
-
-        return nn.Sequential()
-            :add(nn.ConcatTable()
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+            :add(bnorm(nFeat))
+            :add(relu(true))
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+            :add(bnorm(nFeat))
+        return seq()
+            :add(concat()
                 :add(s)
-                :add(nn.Identity()))
-            :add(nn.CAddTable(true))
+                :add(id()))
+            :add(cadd(true))
     end
-
-    local function bottleneck(nFeat, stride, preActivation)
-        local s = nn.Sequential()
-        if not preActivation then
-            s:add(conv(nFeat,nFeat,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,3,3,stride,stride,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,1,1))
-            s:add(bnorm(nFeat))
-        else
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,3,3,stride,stride,1,1))
-            s:add(bnorm(nFeat))
-            s:add(relu(true))
-            s:add(conv(nFeat,nFeat,1,1))
-        end
-
-        return nn.Sequential()
-            :add(nn.ConcatTable()
-                :add(s)
-                :add(nn.Identity()))
-            :add(nn.CAddTable(true))
+   
+    local body = seq()
+    for i=1,opt.nResBlock do
+        body:add(convBlock(opt.nFeat))
     end
-    
-    local preActivation = opt.pre_act
-    local conv_block = opt.bottleneck and bottleneck or basicblock
+    body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
+    body:add(bnorm(opt.nFeat))
 
-    local head = nn.Sequential()
+    model = seq()
         :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
         :add(relu(true))
-
-    local model = nn.Sequential()
-    for i=1,opt.nResBlock do
-        model:add(conv_block(opt.nFeat, 1, preActivation))
-    end
-    if opt.netType == 'preResNet' then
-        head:remove(2) -- remove relu (duplicated)
-        model:add(bnorm(opt.nFeat))
-    end
-    model:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
-    model:add(bnorm(opt.nFeat))
-
-    model = nn.Sequential()
-        :add(head)
-        :add(nn.ConcatTable()
-            :add(model)
-            :add(nn.Identity()))
-        :add(nn.CAddTable(true))
+        :add(concat()
+            :add(body)
+            :add(id()))
+        :add(cadd(true))
 
     if opt.upsample == 'full' then
-        model:add(nn.SpatialFullConvolution(opt.nFeat,opt.nFeat, 4,4, 2,2, 1,1))
-        model:add(relu(true))
-        --model:add(nn.SpatialFullConvolution(opt.nFeat,opt.nFeat, 4,4, 2,2, 1,1))
-        --model:add(relu(true))
+        if opt.scale == 2 then
+            model:add(deconv(opt.nFeat,opt.nFeat, 4,4, 2,2, 1,1))
+            model:add(relu(true))
+        elseif opt.scale == 3 then
+            model:add(deconv(opt.nFeat,opt.nFeat, 6,6, 3,3, 2,2, 1,1))
+            model:add(relu(true))
+        elseif opt.scale == 4 then
+            model:add(deconv(opt.nFeat,opt.nFeat, 8,8, 4,4, 2,2))
+            model:add(relu(true))
+        end
     elseif opt.upsample == 'shuffle' then -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
-        local upFeat = opt.nFeat * 2 * 2
-        model:add(pad(2,1,3))
-        model:add(pad(3,1,3))
-        model:add(conv(opt.nFeat,upFeat, 4,4, 1,1, 1,1))
-        model:add(shuffle(2))
-        model:add(relu(true))
-        --model:add(pad(2,1,3))
-        --model:add(pad(3,1,3))
-        --model:add(conv(opt.nFeat,upFeat, 4,4, 1,1, 1,1))
-        --model:add(shuffle(2))
-        --model:add(relu(true))
+        if opt.scale == 2 then
+            model:add(conv(opt.nFeat,4*opt.nFeat, 3,3, 1,1, 1,1))
+            model:add(shuffle(2))
+            model:add(relu(true))
+        elseif opt.scale == 3 then
+            model:add(conv(opt.nFeat,9*opt.nFeat, 3,3, 1,1, 1,1))
+            model:add(shuffle(3))
+            model:add(relu(true))
+        elseif opt.scale == 4 then
+            model:add(conv(opt.nFeat,4*opt.nFeat, 3,3, 1,1, 1,1))
+            model:add(shuffle(2))
+            model:add(relu(true))
+            model:add(conv(opt.nFeat,4*opt.nFeat, 3,3, 1,1, 1,1))
+            model:add(shuffle(2))
+            model:add(relu(true))
+        end
 
-    --
-    -- Currently bilinear option is not supported
-    --
-    -- elseif opt.upsample == 'bilinear' then
-    --     model:add(nn.SpatialUpSamplingBilinear({owidth=opt.patchSize/2,oheight=opt.patchSize/2}))
-    --     model:add(conv(opt.nFeat,opt.nFeat,filt_deconv,filt_deconv,1,1,pad_deconv,pad_deconv))
-    --     model:add(relu(true))
-    --     model:add(nn.SpatialUpSamplingBilinear({owidth=opt.patchSize,oheight=opt.patchSize}))
-    --     model:add(conv(opt.nFeat,opt.nFeat,filt_deconv,filt_deconv,1,1,pad_deconv,pad_deconv))
-    --     model:add(relu(true))
+        -- model:add(pad(2,1,3)) -- 1 pixel padding at bottom
+        -- model:add(pad(3,1,3)) -- 1 pixel padding at right
+        -- model:add(conv(opt.nFeat,4*upFeat, 4,4, 1,1, 1,1)) -- even size of kernel removes checkerboard artifacts
+        -- model:add(shuffle(2))
+        -- model:add(relu(true))
     end
 
     model:add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))

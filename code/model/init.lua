@@ -10,13 +10,12 @@ local function getModel(opt)
         assert(paths.filep(modelPath), 'Saved model not found in ' .. opt.save)
         print('Resuming model from ' .. modelPath)
         model = torch.load(modelPath)
+        if torch.type(model) == 'nn.DataParallelTable' then
+            model = model:get(1)
+        end
     else 
         print('Creating model from file: models/' .. opt.netType .. '.lua')
         model = require('model/' .. opt.netType)(opt)
-    end
-
-    if torch.type(model) == 'nn.DataParallelTable' then
-        model = model:get(1)
     end
 
     model = cudnn.convert(model,cudnn)
