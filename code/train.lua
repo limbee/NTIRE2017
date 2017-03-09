@@ -36,7 +36,6 @@ function Trainer:train(epoch, dataloader)
         self.model:forward(self.input)
         self.err = self.criterion(self.model.output, self.target)
         self.model:backward(self.input, self.criterion.gradInput)
-
         if self.opt.clip > 0 then
             self.gradParams:clamp(-self.opt.clip/self.opt.lr,self.opt.clip/self.opt.lr)
         end

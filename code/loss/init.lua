@@ -6,7 +6,8 @@ local function getLoss(opt)
     local criterion = nn.MultiCriterion()
 
     if (opt.abs > 0) then
-        local absLoss = nn.ABSCriterion(true)
+        local absLoss = nn.ABSCriterion()
+        absLoss.sizeAverage = true
         criterion:add(absLoss, opt.abs)
     end
     if (opt.chbn > 0) then
@@ -15,11 +16,13 @@ local function getLoss(opt)
         criterion:add(chbnLoss, opt.chbn)
     end
     if (opt.smoothL1 > 0) then
-        local smoothL1 = nn.smoothL1Criterion(true)
+        local smoothL1 = nn.smoothL1Criterion()
+        smoothL1.sizeAverage = true
         criterion:add(smoothL1, opt.smoothL1)
     end
     if (opt.mse > 0) then
-        local mseLoss = nn.MSECriterion(true)
+        local mseLoss = nn.MSECriterion()
+        mseLoss.sizeAverage = true
         criterion:add(mseLoss, opt.mse)
     end
     if (opt.ssim > 0) then
@@ -35,7 +38,7 @@ local function getLoss(opt)
     if (opt.netType == 'bandnet') then
         require('loss/BandCriterion')
         local bandLoss = nn.BandCriterion(opt.netwc, true)
-        criterion:add(bandLoss, opt.mse)
+        criterion:add(bandLoss, opt.netweight)
     end
         
     return criterion:cuda()

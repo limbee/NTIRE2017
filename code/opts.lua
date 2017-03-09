@@ -42,6 +42,7 @@ function M.parse(arg)
     -- Model
     cmd:option('-netType',      'bandnet',  'SR network architecture. Options: resnet | vdsr')
     cmd:option('-netwc',        0.5,        'Cut-off frequency of bandnet')
+    cmd:option('-netweight',    1,          'Band loss weight')
     cmd:option('-pre_act',      'false',    'Pre-activation architecture (for ResNet)')
     cmd:option('-bottleneck',   'false',    'Use bottleneck architecture (for ResNet and preResNet)')
     cmd:option('-nLayer',       20,         'Number of convolution layer (for VDSR)')

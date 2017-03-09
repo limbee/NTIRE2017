@@ -71,7 +71,7 @@ local function createModel(opt)
         highNet:add(relu(true))
     end
     highNet:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
-    
+
     cat:add(resNet)
     cat:add(highNet)
     model:add(cat)
@@ -81,7 +81,7 @@ local function createModel(opt)
         :add(nn.Identity())
         :add(nn.CAddTable())
     )
-    print(model)
+
     return model
 end
 
