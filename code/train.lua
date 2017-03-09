@@ -97,16 +97,26 @@ function Trainer:test(epoch, dataloader)
         -- by passing the input layer-by-layer through the network.
         local function recursiveForward(input, m)
             local output
-            if m.__typename:find('Concat') then
+            if (m.__typename:find('Concat')) then
                 output = {}
                 for i = 1, m:size() do
                     table.insert(output, recursiveForward(input, m:get(i)))
                 end
-            elseif m.__typename:find('Sequential') then
+            elseif (m.__typename:find('Sequential')) then
                 output = input
                 for i = 1, #m do
                     output = recursiveForward(output, m:get(i))
                 end
+            elseif (m.__typename:find('Identity')) then
+                if (type(input) == 'table') then
+
+                else
+                    output = m:forward(input):clone()
+                end
+                m = nil
+                __model:clearState()
+                collectgarbage()
+                collectgarbage()
             else
                 output = m:forward(input):clone()
                 m = nil
