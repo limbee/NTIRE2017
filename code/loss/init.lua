@@ -30,15 +30,10 @@ local function getLoss(opt)
         local ssimLoss = nn.SSIMCriterion()
         criterion:add(ssimLoss, opt.ssim)
     end
-    if (opt.fd > 0) then
-        require('loss/FourierDistCriterion')
-        local fdLoss = nn.FilteredDistCriterion(opt.filter_wc, opt.filter_type)
-        criterion:add(hfLoss, opt.fd)
-    end
-    if (opt.netType == 'bandnet') then
+    if (opt.band > 0) then
         require('loss/BandCriterion')
-        local bandLoss = nn.BandCriterion(opt.netwc, true)
-        criterion:add(bandLoss, opt.netweight)
+        local bandLoss = nn.BandCriterion(opt.netwc, opt.lrLow, opt.lrHigh, true)
+        criterion:add(bandLoss, opt.band)
     end
         
     return criterion:cuda()
