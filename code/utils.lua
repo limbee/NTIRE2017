@@ -1,4 +1,6 @@
 require 'nn'
+require 'cunn'
+require 'cudnn'
 
 local M = {}
 local util = torch.class('sr.util',M)
@@ -116,6 +118,7 @@ function util:recursiveForward(input, model)
     if (torch.type(model) == 'nn.DataParallelTable') then
         __model = __model:get(1)
     end
+
     local function _recursion(input, subModel)
         local output
         if (subModel.__typename:find('ConcatTable')) then

@@ -20,6 +20,7 @@ function M.parse(arg)
     -- Data
     cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
     cmd:option('-datatype',     't7',       'dataset type: png | t7')
+    cmd:option('-dataSize',     'small',    'input image size: small | big')
     cmd:option('-degrade',      'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',       10,         'number of images for validation')
     -- Training
@@ -36,16 +37,19 @@ function M.parse(arg)
     -- Optimization
     cmd:option('-optimMethod',  'ADAM',     'Optimization method')
     cmd:option('-lr',           1e-4,       'initial learning rate')
+    cmd:option('-lrLow',        1,          'Relative learning rate of low frequency components')
+    cmd:option('-lrHigh',       1,          'Relative learning rate of high frequency components')
     cmd:option('-momentum',     0.9,        'SGD momentum')
     cmd:option('-beta1',        0.9,        'ADAM beta1')
     cmd:option('-beta2',        0.999,      'ADAM beta2')
     cmd:option('-epsilon',      1e-8,       'ADAM epsilon')
     -- Model
-    cmd:option('-netType',      'resnet',   'Generator network architecture. Options: resnet | vdsr')
+    cmd:option('-netType',      'resnet',  'SR network architecture. Options: resnet | vdsr | bandnet')
+    cmd:option('-netwc',        0.5,        'Cut-off frequency of bandnet')
     cmd:option('-nLayer',       20,         'Number of convolution layer (for VDSR)')
-    cmd:option('-nResBlock',    16,         'Number of residual blocks in generator network (for SRResNet, SRGAN)')
+    cmd:option('-nResBlock',    16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',     3,          'Number of input image channels: 1 or 3')
-    cmd:option('-nFeat',        64,         'Number of feature maps in residual blocks in generator network')
+    cmd:option('-nFeat',        64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',     'shuffle',  'Upsampling method: full | bilinear | shuffle')
     -- Loss
     cmd:option('-abs',          0,          'L1 loss weight')
@@ -53,9 +57,7 @@ function M.parse(arg)
     cmd:option('-smoothL1',     0,          'Smooth L1 loss weight')
     cmd:option('-mse',          1,          'MSE loss weight')
     cmd:option('-ssim',         0,          'SSIM loss weight')
-    cmd:option('-fd',           0,          'Frequency domain loss weight')
-    cmd:option('-filter_wc',    0,          'Cut-off frequency for frequency loss')
-    cmd:option('-filter_type',  'high_enhance',       'Filter type for frequency loss')
+    cmd:option('-band',         0,          'Band loss weight')
     cmd:text()
 
     local opt = cmd:parse(arg or {})
@@ -94,6 +96,7 @@ function M.parse(arg)
     opt.optimState = {
         learningRate = opt.lr,
         momentum = opt.momentum,
+        dampening = 0,
         nesterov = true,
         beta1 = opt.beta1,
         beta2 = opt.beta2,

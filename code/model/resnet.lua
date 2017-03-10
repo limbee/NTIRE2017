@@ -26,7 +26,7 @@ local function createModel(opt)
                 :add(id()))
             :add(cadd(true))
     end
-   
+
     local body = seq()
     for i=1,opt.nResBlock do
         body:add(convBlock(opt.nFeat))
@@ -70,12 +70,6 @@ local function createModel(opt)
             model:add(shuffle(2))
             model:add(relu(true))
         end
-
-        -- model:add(pad(2,1,3)) -- 1 pixel padding at bottom
-        -- model:add(pad(3,1,3)) -- 1 pixel padding at right
-        -- model:add(conv(opt.nFeat,4*upFeat, 4,4, 1,1, 1,1)) -- even size of kernel removes checkerboard artifacts
-        -- model:add(shuffle(2))
-        -- model:add(relu(true))
     end
 
     model:add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))

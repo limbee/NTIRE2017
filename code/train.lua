@@ -11,109 +11,125 @@ function Trainer:__init(model, criterion, opt)
     self.opt = opt
     self.optimState = opt.optimState
 
-    self.err = 0
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
 end
 
 function Trainer:train(epoch, dataloader)
+    local size = dataloader:size()
+    local trainTimer = torch.Timer()
+    local dataTimer = torch.Timer()
+    local trainTime, dataTime = 0, 0
+    local iter, err = 0, 0
+
     cudnn.fastest = true
     cudnn.benchmark = true
-
-    local size = dataloader:size()
-    local timer = torch.Timer()
-    local dataTimer = torch.Timer()
-    local trainTime, dataTime = 0,0
-    local iter, err = 0,0
 
     self.model:training()
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
         
-        self:copyInputs(sample,'train') -- Copy input and target to the GPU
+        --Copy input and target to the GPU
+        self:copyInputs(sample, 'train')
+        sample = nil
+        collectgarbage()
+        collectgarbage()
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        self.err = self.criterion(self.model.output, self.target)
+        err = err + self.criterion(self.model.output, self.target)
         self.model:backward(self.input, self.criterion.gradInput)
-
         if self.opt.clip > 0 then
-            self.gradParams:clamp(-self.opt.clip/self.opt.lr,self.opt.clip/self.opt.lr)
+            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
         end
         self.optimState.method(self.feval, self.params, self.optimState)
-
-        err = err + self.err
-
-        trainTime = trainTime + timer:time().real
-        timer:reset()
-        dataTimer:reset()
+        trainTime = trainTime + trainTimer:time().real
 
         iter = iter + 1
         if n % self.opt.printEvery == 0 then
-            local it = (epoch-1)*self.opt.testEvery + n
-            if it>1000 then it = string.format('%.1fk',it/1000) end
-            print(('[Iter: ' .. it .. '] Time: %.3f (data: %.3f),\terr: %.6f')
-                :format(trainTime, dataTime, err/iter))
-            if n % self.opt.testEvery ~= 0 then
-                err, iter = 0,0
-                trainTime, dataTime = 0,0
-            end
+            local it = (epoch - 1) * self.opt.testEvery + n
+            print(('[Iter: %.1fk] Time: %.2f (data: %.2f),\terr: %.6f')
+                :format(it / 1000, trainTime, dataTime, err/iter))
+            err, iter = 0, 0
+            trainTime, dataTime = 0, 0
         end
 
         if (n % self.opt.testEvery == 0) then
             break
         end
+
+        trainTimer:reset()
+        dataTimer:reset()
     end
     
-    return err/iter
+    return err / iter
 end
 
 function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
-    local iter,avgPSNR = 0,0
+    local iter, avgPSNR = 0, 0
 
     self.model:clearState()
     self.model:evaluate()
-    -- Following cudnn settings are to prevent cudnn errors 
-    -- occasionally occur during testing.
+    collectgarbage()
+    collectgarbage()
+
     cudnn.fastest = false
     cudnn.benchmark = false
+    
     for n, sample in dataloader:run() do
         self:copyInputs(sample,'test')
+        sample = nil
+        collectgarbage()
+        collectgarbage()
 
-        local input, target = self.input, self.target
-        input = nn.Unsqueeze(1):cuda():forward(input)
-        if self.opt.nChannel==1 then
+        local input = nn.Unsqueeze(1):cuda():forward(self.input)
+        if (self.opt.nChannel == 1) then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local output = util:recursiveForward(input, self.model):squeeze(1)
+        local outputFull = util:recursiveForward(input, self.model)
+        if (self.opt.netType == 'bandnet') then
+            output = outputFull[2]:squeeze(1)
+        else
+            output = outputFull:squeeze(1)
+        end
 
-        avgPSNR = avgPSNR + util:calcPSNR(output,target,self.opt.scale)
-        image.save(paths.concat(self.opt.save,'result',n .. '.jpg'), output:float():squeeze():div(255))
-
+        avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
+        if (self.opt.netType == 'bandnet') then
+            local outputLow = outputFull[1][1]:squeeze(1):div(255)
+            local outputHigh = outputFull[1][2]:squeeze(1):div(255)
+            image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
+            image.save(paths.concat(self.opt.save, 'result', n .. '_high.png'), outputHigh)
+        end
         iter = iter + 1
         self.model:clearState()
+        output = nil
+        outputFull = nil
         collectgarbage()
         collectgarbage()
     end
 
-    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.2f,  Test time: %.2f\n')
+    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f\n')
         :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
 
     return avgPSNR / iter
 end
 
-function Trainer:copyInputs(sample,mode)
-    if mode == 'train' then
+function Trainer:copyInputs(sample, mode)
+    if (mode == 'train') then
         self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
-    elseif mode == 'test' then
+    elseif (mode == 'test') then
         self.input = self.input or torch.CudaTensor()
     end
 
-    self.target = self.target or torch.CudaTensor()
-
     self.input:resize(sample.input:size()):copy(sample.input)
+    self.target = self.target or torch.CudaTensor()
     self.target:resize(sample.target:size()):copy(sample.target)
+
+    sample = nil
+    collectgarbage()
+    collectgarbage()
 end
 
 return M.Trainer

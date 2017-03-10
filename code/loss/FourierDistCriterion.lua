@@ -243,14 +243,6 @@ end
 function FilteredDistCriterion:updateOutput(input, target)
     if ((self.sz[1] ~= input:size(1)) or (self.sz[2] ~= input:size(2))
         or (self.sz[3] ~= input:size(3)) or (self.sz[4] ~= input:size(4))) then
-        --[[print(self.sz[1])
-        print(self.sz[2])
-        print(self.sz[3])
-        print(self.sz[4])
-        print(input:size(1))
-        print(input:size(2))
-        print(input:size(3))
-        print(input:size(4))]]
         self:_setMask(input:size())
     end
     self.Fi = self.transformI:forward(input)

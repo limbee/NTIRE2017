@@ -19,6 +19,7 @@ function DataLoader:__init(dataset, opt, split)
     local manualSeed = opt.manualSeed
     local function init()
         require('data/' .. opt.dataset)
+        torch.setdefaulttensortype('torch.FloatTensor')
     end
     local function main(idx)
         if manualSeed ~= 0 then
@@ -35,7 +36,6 @@ function DataLoader:__init(dataset, opt, split)
     self.batchSize = opt.batchSize
     self.split = split
     self.opt = opt
-    self.area = dataset.area
 end
 
 function DataLoader:size()
@@ -48,47 +48,47 @@ function DataLoader:run()
     local size, batchSize = self.__size, self.batchSize
     local perm = torch.randperm(size)
     local netType = self.opt.netType
-    local patchSize,scale = self.opt.patchSize,self.opt.scale
+    local dataSize = self.opt.dataSize
+    local patchSize, scale = self.opt.patchSize, self.opt.scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
+
     local function enqueue()
-        if self.split == 'train' then
+        if (self.split == 'train') then
             while threads:acceptsjob() do
                 local indices
-                if batchSize > size-idx+1 then
+                if (batchSize > (size - idx + 1)) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
                 indices = perm:narrow(1, idx, batchSize)
                 threads:addjob(
                     function(indices)
-                        --local batchSize = indices:size(1)
                         local tarSize = patchSize
-                        local inpSize = netType=='VDSR' and patchSize or patchSize/scale
-                        local input_batch = torch.Tensor(batchSize,nChannel,inpSize,inpSize):zero()
-                        local target_batch = torch.Tensor(batchSize,nChannel,tarSize,tarSize):zero()
+                        local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
+                        local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
+                        local targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
 
-                        for i,index in ipairs(indices:totable()) do
-                            local idx_ = index
-                            ::redo::
-                            local sample = _G.dataset:get(idx_)
-                            if not sample then 
-                                idx_ = torch.random(size)
-                                goto redo
-                            end
+                        for i = 1, batchSize do
+                            local sample = nil
+                            local sample_i = i
+                            repeat
+                                sample = _G.dataset:get(sample_i)
+                                sample_i = torch.random(size)
+                            until (sample)
 
                             sample = _G.augment(sample)
-
-                            input_batch[i]:copy(sample.input)
-                            target_batch[i]:copy(sample.target)
+                            inputBatch[i]:copy(sample.input)
+                            targetBatch[i]:copy(sample.target)
+                            sample = nil
                         end
                         collectgarbage()
                         collectgarbage()
                         return {
-                            input = input_batch,
-                            target = target_batch,
-                        }
+                            input = inputBatch,
+                            target = targetBatch,
+                        }    
                     end,
                     function (_sample_)
                         sample = _sample_
@@ -98,7 +98,7 @@ function DataLoader:run()
                 )
                 idx = idx + batchSize
             end
-        elseif self.split == 'val' then
+        elseif (self.split == 'val') then
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)
