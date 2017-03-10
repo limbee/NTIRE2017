@@ -79,12 +79,13 @@ function DataLoader:run()
                             until (sample)
 
                             sample = _G.augment(sample)
-                            inputBatch[i]:copy(sample.input)
-                            targetBatch[i]:copy(sample.target)
+                            inputBatch[i] = sample.input:clone()
+                            targetBatch[i] = sample.target:clone()
                             sample = nil
                         end
                         collectgarbage()
                         collectgarbage()
+
                         return {
                             input = inputBatch,
                             target = targetBatch,
@@ -92,6 +93,10 @@ function DataLoader:run()
                     end,
                     function (_sample_)
                         sample = _sample_
+                        _sample_ = nil
+                        collectgarbage()
+                        collectgarbage()
+
                         return sample
                     end,
                     indices
@@ -103,13 +108,19 @@ function DataLoader:run()
                 threads:addjob(
                     function(idx)
                         local sample = _G.dataset:get(idx)
-                        return {
-                            input = sample.input,
-                            target = sample.target
-                        }
+                        local ret = {sample.input:clone(), sample.target:clone()}
+                        sample = nil
+                        collectgarbage()
+                        collectgarbage()
+
+                        return ret
                     end,
                     function (_sample_)
                         sample = _sample_
+                        _sample_ = nil
+                        collectgarbage()
+                        collectgarbage()
+                        
                         return sample
                     end,
                     idx

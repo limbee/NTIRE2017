@@ -20,7 +20,7 @@ function BandCriterion:updateOutput(input, target)
     local errLow = self.lowBand:forward(input[1][1], target)
     local errHigh = self.highBand:forward(input[1][2], target)
     local errTotal = self.total:forward(input[2], target)
-    self.output = (errLow + errHigh + errTotal) / 3
+    self.output = (errLow + errHigh + errTotal) / 2
 
     return self.output
 end
@@ -31,8 +31,8 @@ function BandCriterion:updateGradInput(input, target)
     local gradTotal = self.total:updateGradInput(input[2], target)
     self.gradInput =
     {
-        {self.lrLow * gradLow / 3, self.lrHigh * gradHigh / 3},
-        gradTotal / 3
+        {self.lrLow * gradLow / 2, self.lrHigh * gradHigh / 2},
+        gradTotal / 2
     }
     
     return self.gradInput
