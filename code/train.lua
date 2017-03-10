@@ -10,6 +10,9 @@ function Trainer:__init(model, criterion, opt)
     self.criterion = criterion
     self.opt = opt
     self.optimState = opt.optimState
+    
+    self.input = nil
+    self.target = nil
 
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
