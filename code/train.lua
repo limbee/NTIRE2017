@@ -10,6 +10,9 @@ function Trainer:__init(model, criterion, opt)
     self.criterion = criterion
     self.opt = opt
     self.optimState = opt.optimState
+    
+    self.input = nil
+    self.target = nil
 
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
@@ -28,9 +31,10 @@ function Trainer:train(epoch, dataloader)
     self.model:training()
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-        
         --Copy input and target to the GPU
-        self:copyInputs(sample, 'train')
+        --self:copyInputs(sample, 'train')
+        self.input = sample.input:clone():cuda()
+        self.target = sample.target:clone():cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -48,7 +52,7 @@ function Trainer:train(epoch, dataloader)
         iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
-            print(('[Iter: %.1fk] Time: %.2f (data: %.2f),\terr: %.6f')
+            print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
                 :format(it / 1000, trainTime, dataTime, err/iter))
             err, iter = 0, 0
             trainTime, dataTime = 0, 0
@@ -80,7 +84,9 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
     
     for n, sample in dataloader:run() do
-        self:copyInputs(sample,'test')
+        --self:copyInputs(sample,'test')
+        self.input = sample.input:clone():cuda()
+        self.target = sample.target:clone():cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -89,6 +95,7 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
+        
         local outputFull = util:recursiveForward(input, self.model)
         if self.opt.netType == 'bandnet' then
             output = outputFull[2]:squeeze(1)
@@ -115,6 +122,7 @@ function Trainer:test(epoch, dataloader)
             image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
             image.save(paths.concat(self.opt.save, 'result', n .. '_high.png'), outputHigh)
         end
+        
         iter = iter + 1
         self.model:clearState()
         output = nil

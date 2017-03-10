@@ -19,6 +19,7 @@ function M.parse(arg)
     cmd:option('-save',         now,        'subdirectory to save/log experiments in')
     -- Data
     cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
+    cmd:option('-dataAvg',      0,          'mean pixel value of dataset')
     cmd:option('-datatype',     't7',       'dataset type: png | t7')
     cmd:option('-dataSize',     'small',    'input image size: small | big')
     cmd:option('-degrade',      'bicubic',  'degrade type: bicubic | unknwon')
