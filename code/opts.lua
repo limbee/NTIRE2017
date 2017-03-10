@@ -26,6 +26,7 @@ function M.parse(arg)
     -- Training
     cmd:option('-nEpochs',      0,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-epochNumber',  1,          'Manual epoch number (useful on restarts)')
+    cmd:option('-manualDecay',  1e8,         'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',    32,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',    96,         'Training patch size')
     cmd:option('-scale',        2,          'Super-resolution upscale factor')

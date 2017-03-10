@@ -54,6 +54,11 @@ function Trainer:train(epoch, dataloader)
             local it = (epoch - 1) * self.opt.testEvery + n
             print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
                 :format(it / 1000, trainTime, dataTime, err / iter))
+            if epoch % self.opt.manualDecay == 0 then
+                local prevlr = self.optimState.learningRate
+                self.optimState.learningRate = prevlr / 2
+                print('Learning rate decreased: ' prevlr .. ' -> ' .. prevlr / 2)
+            end
             if n % self.opt.testEvery ~= 0 then
                 err, iter = 0, 0
             end
