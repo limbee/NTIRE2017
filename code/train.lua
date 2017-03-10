@@ -53,8 +53,10 @@ function Trainer:train(epoch, dataloader)
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
             print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, trainTime, dataTime, err/iter))
-            err, iter = 0, 0
+                :format(it / 1000, trainTime, dataTime, err / iter))
+            if n % self.opt.testEvery ~= 0 then
+                err, iter = 0, 0
+            end
             trainTime, dataTime = 0, 0
         end
 
