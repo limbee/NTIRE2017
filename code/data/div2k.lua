@@ -15,13 +15,14 @@ function div2k:__init(opt, split)
     local apath = '/var/tmp/dataset/DIV2K'
     self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
     self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
-    if (opt.netType == 'vdsr') then
+    if (opt.dataSize == 'big') then
         self.dirInp = self.dirInp .. 'b'
     end
 end
 
 function div2k:get(i)
     local netType = self.opt.netType
+    local dataSize = self.opt.dataSize
     local idx = i
     if (self.split == 'val') then
         idx = idx + (self.size - self.opt.numVal)
@@ -52,7 +53,7 @@ function div2k:get(i)
     local channel, h, w = table.unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
-    if (netType == 'vdsr') then
+    if (dataSize == 'big') then
         hInput, wInput = hTarget, wTarget
     end
     target = target[{{}, {1, hTarget}, {1, wTarget}}]
@@ -60,7 +61,7 @@ function div2k:get(i)
     if (self.split == 'train') then 
         local patchSize = self.opt.patchSize
         local targetPatch = patchSize
-        local inputPatch = (netType == 'vdsr') and patchSize or (patchSize / scale)
+        local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
         if ((wTarget < targetPatch) or (hTarget < targetPatch)) then
             return
         end
@@ -68,7 +69,7 @@ function div2k:get(i)
         local ix = torch.random(1, wInput - inputPatch + 1)
         local iy = torch.random(1, hInput - inputPatch + 1)
         local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
-        if (netType == 'vdsr') then
+        if (dataSize == 'big') then
             tx, ty = ix, iy
         end
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
@@ -101,16 +102,16 @@ end
 
 -- Computed from random subset of ImageNet training images
 local meanstd = {
-   mean = { 0.485, 0.456, 0.406 },
-   std = { 0.229, 0.224, 0.225 },
+    mean = { 0.485, 0.456, 0.406 },
+    std = { 0.229, 0.224, 0.225 },
 }
 local pca = {
-   eigval = torch.Tensor{ 0.2175, 0.0188, 0.0045 },
-   eigvec = torch.Tensor{
-      { -0.5675,  0.7192,  0.4009 },
-      { -0.5808, -0.0045, -0.8140 },
-      { -0.5836, -0.6948,  0.4203 },
-   },
+    eigval = torch.Tensor{ 0.2175, 0.0188, 0.0045 },
+    eigvec = torch.Tensor{
+        { -0.5675,  0.7192,  0.4009 },
+        { -0.5808, -0.0045, -0.8140 },
+        { -0.5836, -0.6948,  0.4203 },
+    },
 }
 
 function div2k:augment()

@@ -48,6 +48,7 @@ function DataLoader:run()
     local size, batchSize = self.__size, self.batchSize
     local perm = torch.randperm(size)
     local netType = self.opt.netType
+    local dataSize = self.opt.dataSize
     local patchSize, scale = self.opt.patchSize, self.opt.scale
     local nChannel = self.opt.nChannel
 
@@ -64,24 +65,23 @@ function DataLoader:run()
                 indices = perm:narrow(1, idx, batchSize)
                 threads:addjob(
                     function(indices)
-                        --local batchSize = indices:size(1)
                         local tarSize = patchSize
-                        local inpSize = (netType == 'vdsr') and patchSize or patchSize / scale
+                        local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
                         local targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
 
-                        for i,index in ipairs(indices:totable()) do
-                            local idx_ = index
-                            ::redo::
-                            local sample = _G.dataset:get(idx_)
-                            if not sample then 
-                                idx_ = torch.random(size)
-                                goto redo
-                            end
+                        for i = 1, batchSize do
+                            local sample = nil
+                            local sample_i = i
+                            repeat
+                                sample = _G.dataset:get(sample_i)
+                                sample_i = torch.random(size)
+                            until (sample)
 
                             sample = _G.augment(sample)
                             inputBatch[i]:copy(sample.input)
                             targetBatch[i]:copy(sample.target)
+                            sample = nil
                         end
                         collectgarbage()
                         collectgarbage()
