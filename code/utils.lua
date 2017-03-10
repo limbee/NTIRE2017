@@ -13,20 +13,20 @@ function util:__init(opt)
 end
 
 function util:plot(tb,name)
-    local fig = gnuplot.pdffigure(paths.concat(self.save,name .. '.pdf'))
+    local fig = gnuplot.pdffigure(paths.concat(self.save, name .. '.pdf'))
     local lines = {}
     if torch.type(tb[1]):find('Tensor') then
         local nLine = tb[1]:size(1)
         local value = {}
-        for i=1,nLine do 
+        for i = 1, nLine do 
             value[i] = torch.Tensor(#tb)
-            for j=1,#tb do
+            for j = 1, #tb do
                 value[i][j] = tb[j][i]
             end
-            table.insert(lines, {name..' x'..tostring(i+1), value[i],'-'})
+            table.insert(lines, {name .. ' x' .. tostring(i + 1) , value[i], '-'})
         end
     else
-        table.insert(lines,{name,torch.Tensor(tb),'-'})
+        table.insert(lines, {name, torch.Tensor(tb), '-'})
     end
     gnuplot.plot(lines)
     gnuplot.grid(true)
@@ -34,50 +34,51 @@ function util:plot(tb,name)
     gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
     if torch.type(tb[1]):find('Tensor') then
         if tb[1][1] < tb[#tb][1] then
-            gnuplot.movelegend('right','bottom')
+            gnuplot.movelegend('right', 'bottom')
         else
-            gnuplot.movelegend('right','top')
+            gnuplot.movelegend('right', 'top')
         end
     else
         if tb[1] < tb[#tb] then
-            gnuplot.movelegend('right','bottom')
+            gnuplot.movelegend('right', 'bottom')
         else
-            gnuplot.movelegend('right','top')
+            gnuplot.movelegend('right', 'top')
         end
     end
 	gnuplot.plotflush(fig)
 	gnuplot.closeall()  
 end
 
-function util:checkpoint(model,criterion,loss,psnr)
+function util:checkpoint(model, criterion, loss, psnr)
     if torch.type(model) == 'nn.DataParallelTable' then
         model = model:get(1)
     end
 
     model:clearState()
 
-    torch.save(paths.concat(self.save,'model','model_' .. #loss .. '.t7'),model)
-    torch.save(paths.concat(self.save,'model','model_latest.t7'),model)
+    torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model)
+    torch.save(paths.concat(self.save, 'model', 'model_latest.t7'), model)
 
-    torch.save(paths.concat(self.save,'loss.t7'),loss)
-    torch.save(paths.concat(self.save,'psnr.t7'),psnr)
-    torch.save(paths.concat(self.save,'opt.t7'),self.opt)
+    torch.save(paths.concat(self.save, 'loss.t7'), loss)
+    torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
+    torch.save(paths.concat(self.save, 'opt.t7'), self.opt)
 end
 
 function util:load()
     local ok, loss, psnr
     if self.opt.load then
-        ok,loss,psnr,opt = pcall(function()
-	    local loss = torch.load(paths.concat(self.save,'loss.t7'))
-            local psnr = torch.load(paths.concat(self.save,'psnr.t7'))
-            local opt = torch.load(paths.concat(self.save,'opt.t7'))
-            return loss,psnr,opt
+        ok, loss, psnr, opt = 
+        pcall(function()
+	        local loss = torch.load(paths.concat(self.save, 'loss.t7'))
+            local psnr = torch.load(paths.concat(self.save, 'psnr.t7'))
+            local opt = torch.load(paths.concat(self.save, 'opt.t7'))
+            return loss, psnr, opt
         end)
         if ok then
-            print(('loaded history (%d epoch * %d iter/epoch)\n'):format(#loss,self.opt.testEvery))
+            print(('loaded history (%d epoch * %d iter/epoch)\n'):format(#loss, self.opt.testEvery))
         else
             print('history (loss, psnr, options) does not exist')
-            loss, psnr = {},{}
+            loss, psnr = {}, {}
         end
     else
         ok = false
