@@ -32,30 +32,6 @@ function M.Rotation(prob)
     end
 end
 
--- Lighting noise (AlexNet-style PCA-based noise)
-function M.Lighting(alphastd, eigval, eigvec)
-    return function(sample)
-        if alphastd == 0 then
-            return sample
-        end
-
-        local alpha = torch.Tensor(3):normal(0, alphastd)
-        local rgb = eigvec:clone()
-            :cmul(alpha:view(1, 3):expand(3, 3))
-            :cmul(eigval:view(1, 3):expand(3, 3))
-            :sum(2)
-            :squeeze()
-
-        sample.input = sample.input:clone()
-        sample.target = sample.target:clone()
-        for i=1,3 do
-            sample.input[i]:add(rgb[i])
-            sample.target[i]:add(rgb[i])
-        end
-        return sample 
-    end
-end
-
 local function blend(img1, img2, alpha)
     return img1:mul(alpha):add(1 - alpha, img2)
 end
@@ -136,9 +112,9 @@ function M.RandomOrder(ts)
 end
 
 function M.ColorJitter(opt)
-    local brightness = opt.brightness or 0
-    local contrast = opt.contrast or 0
-    local saturation = opt.saturation or 0
+    local brightness = 0.1
+    local contrast = 0.1
+    local saturation = 0.1
 
     local ts = {}
     if brightness ~= 0 then

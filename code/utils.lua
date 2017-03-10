@@ -90,27 +90,14 @@ end
 function util:calcPSNR(output,target,scale)
     output = output:squeeze()
     target = target:squeeze()
-    -- if output:dim()==3 then
-    --     output = self:rgb2y(output:float())
-    --     target = self:rgb2y(target:float())
-    -- end
 
     local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
-    local psnr = 10*math.log10(255*255/mse)
+    local psnr = -10*math.log10(mse)
 
     return psnr
-end
-
-function util:rgb2y(img)
-    local y = img.new():resize(img:size(2),img:size(3)):fill(16)
-    y:add(img[1] * 65.738 / 256)
-    y:add(img[2] * 129.057 / 256)
-    y:add(img[3] * 25.064 / 256)
-    y:clamp(16,235)
-    return y
 end
 
 function util:recursiveForward(input, model)

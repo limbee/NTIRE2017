@@ -1,7 +1,6 @@
 local image = require 'image'
 local paths = require 'paths'
 local transform = require 'data/transforms'
-local util = require 'utils'()
 
 local M = {}
 local div2k = torch.class('sr.div2k', M)
@@ -18,7 +17,16 @@ function div2k:__init(opt, split)
     if opt.dataSize == 'big' then
         self.dirInp = self.dirInp .. 'b'
     end
-end
+
+    -- R,G,B order
+    self.mean = torch.Tensor({0.4488, 0.4371, 0.4040})
+    self.std = torch.Tensor({0.2845, 0.2701, 0.2910})
+    self.mean = self.mean:reshape(3,1,1)
+    self.std = self.std:reshape(3,1,1)
+
+    opt.mean = self.mean
+    opt.std = self.std
+ end
 
 function div2k:get(i)
     local netType = self.opt.netType
@@ -46,8 +54,8 @@ function div2k:get(i)
         input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     else
-        input = torch.load(paths.concat(self.dirInp, inputName)):float()
-        target = torch.load(paths.concat(self.dirTar, targetName)):float()
+        input = torch.load(paths.concat(self.dirInp, inputName)):float():div(255)
+        target = torch.load(paths.concat(self.dirTar, targetName)):float():div(255)
     end
 
     local channel, h, w = table.unpack(target:size():totable())
@@ -76,15 +84,11 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if self.opt.datatype == 'png' then
-        input:mul(255)
-        target:mul(255)
-    end
-
-    if self.opt.nChannel == 1 then
-        input = util:rgb2y(input)
-        target = util:rgb2y(target)
-    end
+    local ips, tps = input:size(2), target:size(2)
+    input:add(-1, self.mean:repeatTensor(1, input:size(2), input:size(3)))
+    target:add(-1, self.mean:repeatTensor(1, target:size(2), target:size(3)))
+    input:cdiv(self.std:repeatTensor(1, input:size(2), input:size(3)))
+    target:cdiv(self.std:repeatTensor(1, target:size(2), target:size(3)))
 
     return {
         input = input,
@@ -102,17 +106,20 @@ end
 
 function div2k:augment()
     if self.split == 'train' then
-        return transform.Compose{
-            --[[
-            transform.ColorJitter({
-                brightness = 0.1,
-                contrast = 0.1,
-                saturation = 0.1
-            }),
-            --]]
-            transform.HorizontalFlip(0.5),
-            transform.Rotation(1)
-        }
+        local transforms = {}
+        if self.opt.colorAug then
+            table.insert(transforms,
+                transform.ColorJitter({
+                    brightness = 0.1,
+                    contrast = 0.1,
+                    saturation = 0.1
+                })
+            )
+        end
+        table.insert(transforms, transform.HorizontalFlip(0.5))
+        table.insert(transforms, transform.Rotation(1))
+
+        return transform.Compose(transforms)
     elseif self.split == 'val' then
         return function(sample) return sample end
     end

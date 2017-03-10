@@ -68,6 +68,8 @@ end
 function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter, avgPSNR = 0, 0
+    local mean = self.opt.mean:clone():cuda()
+    local std = self.opt.std:clone():cuda()
 
     self.model:clearState()
     self.model:evaluate()
@@ -93,6 +95,12 @@ function Trainer:test(epoch, dataloader)
         else
             output = outputFull:squeeze(1)
         end
+
+        local h,w = output:size(2), output:size(3)
+        output:cmul(std:repeatTensor(1,h,w))
+        output:add(1, mean:repeatTensor(1,h,w))
+        self.target:cmul(std:repeatTensor(1,h,w))
+        self.target:add(1, mean:repeatTensor(1,h,w))
 
         avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))

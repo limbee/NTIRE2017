@@ -23,6 +23,7 @@ function M.parse(arg)
     cmd:option('-dataSize',     'small',    'input image size: small | big')
     cmd:option('-degrade',      'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',       10,         'number of images for validation')
+    cmd:option('-colorAug',     'false',    'apply color augmentation (brightness, contrast, saturation')
     -- Training
     cmd:option('-nEpochs',      0,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-epochNumber',  1,          'Manual epoch number (useful on restarts)')
@@ -61,6 +62,8 @@ function M.parse(arg)
     cmd:text()
 
     local opt = cmd:parse(arg or {})
+
+    opt.colorAug = opt.colorAug == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
