@@ -115,23 +115,23 @@ end
 
 function util:recursiveForward(input, model)
     local __model = model:clone('weight', 'bias')
-    if (torch.type(model) == 'nn.DataParallelTable') then
+    if torch.type(model) == 'nn.DataParallelTable' then
         __model = __model:get(1)
     end
 
     local function _recursion(input, subModel)
         local output
-        if (subModel.__typename:find('ConcatTable')) then
+        if subModel.__typename:find('ConcatTable') then
             output = {}
             for i = 1, subModel:size() do 
                 table.insert(output, _recursion(input, subModel:get(i)))
             end
-        elseif (subModel.__typename:find('Sequential')) then
+        elseif subModel.__typename:find('Sequential') then
             output = input
             for i = 1, #subModel do
                 output = _recursion(output, subModel:get(i))
             end
-        elseif (subModel.__typename:find('Identity')) then
+        elseif subModel.__typename:find('Identity') then
             output = input
         else
             output = subModel:forward(input):clone()

@@ -26,11 +26,11 @@ local trainer = Trainer(model, criterion, opt)
 print('Train start')
 local startEpoch = load and #loss+1 or opt.epochNumber
 for epoch = startEpoch, opt.nEpochs do
-    loss[#loss+1] = trainer:train(epoch, trainLoader)
-    psnr[#psnr+1] = trainer:test(epoch, valLoader)
+    loss[#loss + 1] = trainer:train(epoch, trainLoader)
+    psnr[#psnr + 1] = trainer:test(epoch, valLoader)
 
     util:plot(loss,'loss')
     util:plot(psnr,'PSNR')
 
-    util:checkpoint(model,criterion,loss,psnr)
+    util:checkpoint(model, criterion, loss, psnr)
 end

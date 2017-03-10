@@ -15,7 +15,7 @@ function div2k:__init(opt, split)
     local apath = '/var/tmp/dataset/DIV2K'
     self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
     self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
-    if (opt.dataSize == 'big') then
+    if opt.dataSize == 'big' then
         self.dirInp = self.dirInp .. 'b'
     end
 end
@@ -24,7 +24,7 @@ function div2k:get(i)
     local netType = self.opt.netType
     local dataSize = self.opt.dataSize
     local idx = i
-    if (self.split == 'val') then
+    if self.split == 'val' then
         idx = idx + (self.size - self.opt.numVal)
     end
 
@@ -42,7 +42,7 @@ function div2k:get(i)
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
     inputName = fileName .. 'x' .. scale .. ext
     targetName = fileName .. ext
-    if (ext == 'png') then
+    if ext == 'png' then
         input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     else
@@ -53,35 +53,35 @@ function div2k:get(i)
     local channel, h, w = table.unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
-    if (dataSize == 'big') then
+    if dataSize == 'big' then
         hInput, wInput = hTarget, wTarget
     end
     target = target[{{}, {1, hTarget}, {1, wTarget}}]
 
-    if (self.split == 'train') then 
+    if self.split == 'train' then 
         local patchSize = self.opt.patchSize
         local targetPatch = patchSize
         local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
-        if ((wTarget < targetPatch) or (hTarget < targetPatch)) then
+        if (wTarget < targetPatch) or (hTarget < targetPatch) then
             return
         end
 
         local ix = torch.random(1, wInput - inputPatch + 1)
         local iy = torch.random(1, hInput - inputPatch + 1)
         local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
-        if (dataSize == 'big') then
+        if dataSize == 'big' then
             tx, ty = ix, iy
         end
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if (self.opt.datatype == 'png') then
+    if self.opt.datatype == 'png' then
         input:mul(255)
         target:mul(255)
     end
 
-    if (self.opt.nChannel == 1) then
+    if self.opt.nChannel == 1 then
         input = util:rgb2y(input)
         target = util:rgb2y(target)
     end
@@ -93,9 +93,9 @@ function div2k:get(i)
 end
 
 function div2k:__size()
-    if (self.split == 'train') then
+    if self.split == 'train' then
         return self.size - self.opt.numVal
-    elseif (self.split == 'val') then
+    elseif self.split == 'val' then
         return self.opt.numVal
     end
 end
@@ -115,7 +115,7 @@ local pca = {
 }
 
 function div2k:augment()
-    if (self.split == 'train') then
+    if self.split == 'train' then
         return transform.Compose{
             --[[
             transform.ColorJitter({
@@ -128,13 +128,9 @@ function div2k:augment()
             transform.HorizontalFlip(0.5),
             transform.Rotation(1)
         }
-    elseif (self.split == 'val') then
+    elseif self.split == 'val' then
         return function(sample) return sample end
     end
 end
---[[
-function div2k:frequencyDividing()
-    return transform.frequencyDividing()
-end
-]]
+
 return M.div2k

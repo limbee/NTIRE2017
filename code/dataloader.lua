@@ -55,10 +55,10 @@ function DataLoader:run()
     local idx, sample = 1, nil
 
     local function enqueue()
-        if (self.split == 'train') then
+        if self.split == 'train' then
             while threads:acceptsjob() do
                 local indices
-                if (batchSize > (size - idx + 1)) then
+                if batchSize > (size - idx + 1) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
@@ -98,7 +98,7 @@ function DataLoader:run()
                 )
                 idx = idx + batchSize
             end
-        elseif (self.split == 'val') then
+        elseif self.split == 'val' then
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)

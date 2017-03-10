@@ -54,7 +54,7 @@ function Trainer:train(epoch, dataloader)
             trainTime, dataTime = 0, 0
         end
 
-        if (n % self.opt.testEvery == 0) then
+        if n % self.opt.testEvery == 0 then
             break
         end
 
@@ -84,11 +84,11 @@ function Trainer:test(epoch, dataloader)
         collectgarbage()
 
         local input = nn.Unsqueeze(1):cuda():forward(self.input)
-        if (self.opt.nChannel == 1) then
+        if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
         local outputFull = util:recursiveForward(input, self.model)
-        if (self.opt.netType == 'bandnet') then
+        if self.opt.netType == 'bandnet' then
             output = outputFull[2]:squeeze(1)
         else
             output = outputFull:squeeze(1)
@@ -96,7 +96,7 @@ function Trainer:test(epoch, dataloader)
 
         avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
-        if (self.opt.netType == 'bandnet') then
+        if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
             local outputHigh = outputFull[1][2]:squeeze(1):div(255)
             image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
@@ -117,9 +117,9 @@ function Trainer:test(epoch, dataloader)
 end
 
 function Trainer:copyInputs(sample, mode)
-    if (mode == 'train') then
+    if mode == 'train' then
         self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
-    elseif (mode == 'test') then
+    elseif mode == 'test' then
         self.input = self.input or torch.CudaTensor()
     end
 

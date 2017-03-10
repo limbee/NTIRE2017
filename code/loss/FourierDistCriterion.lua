@@ -55,8 +55,8 @@ function DFT2D:_setSize(sz)
 end
 
 function DFT2D:updateOutput(input)
-    if ((self.sz[1] ~= input:size(1)) or (self.sz[2] ~= input:size(2))
-        or (self.sz[3] ~= input:size(3)) or (self.sz[4] ~= input:size(4))) then
+    if (self.sz[1] ~= input:size(1)) or (self.sz[2] ~= input:size(2))
+        or (self.sz[3] ~= input:size(3)) or (self.sz[4] ~= input:size(4)) then
         self:_setSize(input:size())
     end
     local bc, w, h = self.sz[1] * self.sz[2], self.sz[3], self.sz[4]
@@ -100,7 +100,7 @@ local ComplexDistCriterion, parent = torch.class('nn.ComplexDistCriterion', 'nn.
 function ComplexDistCriterion:__init(sizeAverage)
     parent.__init(self)
 
-    if (sizeAverage ~= nil) then
+    if sizeAverage ~= nil then
         self.sizeAverage = sizeAverage
     else
         self.sizeAverage = true
@@ -113,7 +113,7 @@ function ComplexDistCriterion:updateOutput(input, target)
     
     local d = torch.pow(input[1] - target[1], 2) + torch.pow(input[2] - target[2], 2)
     self.output = d:sum()
-    if (self.sizeAverage) then
+    if self.sizeAverage then
         self.output = self.output / input[1]:nElement()
     end
     --This one is slow
@@ -127,7 +127,7 @@ end
 function ComplexDistCriterion:updateGradInput(input, target)
 
     self.gradInput = {(input[1] - target[1]):mul(2), (input[2] - target[2]):mul(2)}
-    if (self.sizeAverage) then
+    if self.sizeAverage then
         self.gradInput[1] = self.gradInput[1] / input[1]:nElement()
         self.gradInput[2] = self.gradInput[2] / input[2]:nElement()
     end
@@ -195,7 +195,7 @@ local FilteredDistCriterion, parent = torch.class('nn.FilteredDistCriterion', 'n
 
 function FilteredDistCriterion:__init(wc, filter, sizeAverage)
     parent.__init(self)
-    if (sizeAverage ~= nil) then
+    if sizeAverage ~= nil then
         self.sizeAverage = sizeAverage
     else
         self.sizeAverage = true
@@ -228,9 +228,9 @@ function FilteredDistCriterion:_setMask(sz)
     local b, c, w, h = self.sz[1], self.sz[2], self.sz[3], self.sz[4]
     self.mask = self:_makeLMask(self.wc)
     local eF = 1
-    if (self.filter == 'highpass') then
+    if self.filter == 'highpass' then
         self.mask = torch.ones(b * c, w, h) - self.mask
-    elseif (self.filter == 'high_enhance') then
+    elseif self.filter == 'high_enhance' then
         eF = 3
         local hfMask = torch.ones(b * c, w, h) - self.mask
         self.mask = torch.ones(b * c, w, h) + hfMask:mul(eF - 1)
@@ -241,8 +241,8 @@ function FilteredDistCriterion:_setMask(sz)
 end
 
 function FilteredDistCriterion:updateOutput(input, target)
-    if ((self.sz[1] ~= input:size(1)) or (self.sz[2] ~= input:size(2))
-        or (self.sz[3] ~= input:size(3)) or (self.sz[4] ~= input:size(4))) then
+    if (self.sz[1] ~= input:size(1)) or (self.sz[2] ~= input:size(2))
+        or (self.sz[3] ~= input:size(3)) or (self.sz[4] ~= input:size(4)) then
         self:_setMask(input:size())
     end
     self.Fi = self.transformI:forward(input)
