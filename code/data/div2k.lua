@@ -100,20 +100,6 @@ function div2k:__size()
     end
 end
 
--- Computed from random subset of ImageNet training images
-local meanstd = {
-    mean = { 0.485, 0.456, 0.406 },
-    std = { 0.229, 0.224, 0.225 },
-}
-local pca = {
-    eigval = torch.Tensor{ 0.2175, 0.0188, 0.0045 },
-    eigvec = torch.Tensor{
-        { -0.5675,  0.7192,  0.4009 },
-        { -0.5808, -0.0045, -0.8140 },
-        { -0.5836, -0.6948,  0.4203 },
-    },
-}
-
 function div2k:augment()
     if self.split == 'train' then
         return transform.Compose{
@@ -124,7 +110,6 @@ function div2k:augment()
                 saturation = 0.1
             }),
             --]]
-            --transform.Lighting(0.1, pca.eigval, pca.eigvec),
             transform.HorizontalFlip(0.5),
             transform.Rotation(1)
         }
