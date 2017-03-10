@@ -13,8 +13,11 @@ local util = require 'utils'(opt)
 local load, loss, psnr = util:load()
 if load then
     local prevlr = opt.lr
-    opt.lr = opt.lr / math.pow(2, math.floor(#loss / opt.manualDecay)
-    print('Learning rate decreased: ' prevlr .. ' -> ' .. opt.lr)
+    opt.lr = opt.lr / math.pow(2, math.floor(#loss / opt.manualDecay))
+    if opt.lr ~= prevlr then
+        print(string.format('Learning rate decreased: %.6f -> %.6f',
+        prevlr, opt.lr))
+    end
 end
 
 local DataLoader = require 'dataloader'

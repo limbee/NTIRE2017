@@ -57,7 +57,8 @@ function Trainer:train(epoch, dataloader)
             if epoch % self.opt.manualDecay == 0 then
                 local prevlr = self.optimState.learningRate
                 self.optimState.learningRate = prevlr / 2
-                print('Learning rate decreased: ' prevlr .. ' -> ' .. prevlr / 2)
+                print(string.format('Learning rate decreased: %.6f -> %.6f',
+                prevlr, self.optimState.learningRate))
             end
             if n % self.opt.testEvery ~= 0 then
                 err, iter = 0, 0
