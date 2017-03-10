@@ -98,12 +98,12 @@ function Trainer:test(epoch, dataloader)
 
         if self.opt.subMean then
             local h,w = output:size(2), output:size(3)
-            output:add(1, mean:repeatTensor(1,h,w))
-            self.target:add(1, mean:repeatTensor(1,h,w))
             if self.opt.divStd then
                 output:cmul(std:repeatTensor(1,h,w))
                 self.target:cmul(std:repeatTensor(1,h,w))
             end
+            output:add(1, mean:repeatTensor(1,h,w))
+            self.target:add(1, mean:repeatTensor(1,h,w))
         end
 
         avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)

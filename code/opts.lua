@@ -26,7 +26,6 @@ function M.parse(arg)
     cmd:option('-colorAug',     'false',    'apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',      'true',     'data pre-processing: subtract mean')
     cmd:option('-divStd',       'true',     'data pre-processing: subtract mean and divide std')
-    cmd:option('-mulImg',       1,          'data pre-processing: multiply constant value to image')
     -- Training
     cmd:option('-nEpochs',      0,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-epochNumber',  1,          'Manual epoch number (useful on restarts)')
