@@ -96,14 +96,19 @@ function Trainer:test(epoch, dataloader)
             output = outputFull:squeeze(1)
         end
 
-        local h,w = output:size(2), output:size(3)
-        output:cmul(std:repeatTensor(1,h,w))
-        output:add(1, mean:repeatTensor(1,h,w))
-        self.target:cmul(std:repeatTensor(1,h,w))
-        self.target:add(1, mean:repeatTensor(1,h,w))
+        if self.opt.subMean then
+            local h,w = output:size(2), output:size(3)
+            output:add(1, mean:repeatTensor(1,h,w))
+            self.target:add(1, mean:repeatTensor(1,h,w))
+            if self.opt.divStd then
+                output:cmul(std:repeatTensor(1,h,w))
+                self.target:cmul(std:repeatTensor(1,h,w))
+            end
+        end
 
         avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+
         if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
             local outputHigh = outputFull[1][2]:squeeze(1):div(255)

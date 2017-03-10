@@ -84,11 +84,15 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    local ips, tps = input:size(2), target:size(2)
-    input:add(-1, self.mean:repeatTensor(1, input:size(2), input:size(3)))
-    target:add(-1, self.mean:repeatTensor(1, target:size(2), target:size(3)))
-    input:cdiv(self.std:repeatTensor(1, input:size(2), input:size(3)))
-    target:cdiv(self.std:repeatTensor(1, target:size(2), target:size(3)))
+    if self.opt.subMean then
+        local ips, tps = input:size(2), target:size(2)
+        input:add(-1, self.mean:repeatTensor(1, input:size(2), input:size(3)))
+        target:add(-1, self.mean:repeatTensor(1, target:size(2), target:size(3)))
+        if self.opt.divStd then
+            input:cdiv(self.std:repeatTensor(1, input:size(2), input:size(3)))
+            target:cdiv(self.std:repeatTensor(1, target:size(2), target:size(3)))
+        end
+    end
 
     return {
         input = input,
