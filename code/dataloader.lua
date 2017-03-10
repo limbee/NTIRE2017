@@ -108,7 +108,10 @@ function DataLoader:run()
                 threads:addjob(
                     function(idx)
                         local sample = _G.dataset:get(idx)
-                        local ret = {sample.input:clone(), sample.target:clone()}
+                        local ret = {
+                            input = sample.input:clone(),
+                            target = sample.target:clone()
+                        }
                         sample = nil
                         collectgarbage()
                         collectgarbage()
@@ -120,7 +123,7 @@ function DataLoader:run()
                         _sample_ = nil
                         collectgarbage()
                         collectgarbage()
-                        
+
                         return sample
                     end,
                     idx
@@ -142,6 +145,7 @@ function DataLoader:run()
         end
         enqueue()
         n = n + 1
+
         return n, sample
     end
 
