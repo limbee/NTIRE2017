@@ -17,15 +17,6 @@ function div2k:__init(opt, split)
     if opt.dataSize == 'big' then
         self.dirInp = self.dirInp .. 'b'
     end
-
-    -- R,G,B order
-    self.mean = torch.Tensor({0.4488, 0.4371, 0.4040})
-    self.std = torch.Tensor({0.2845, 0.2701, 0.2910})
-    self.mean = self.mean:reshape(3,1,1)
-    self.std = self.std:reshape(3,1,1)
-
-    opt.mean = self.mean
-    opt.std = self.std
  end
 
 function div2k:get(i)
@@ -84,15 +75,8 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if self.opt.subMean then
-        local ips, tps = input:size(2), target:size(2)
-        input:add(-1, self.mean:repeatTensor(1, input:size(2), input:size(3)))
-        target:add(-1, self.mean:repeatTensor(1, target:size(2), target:size(3)))
-        if self.opt.divStd then
-            input:cdiv(self.std:repeatTensor(1, input:size(2), input:size(3)))
-            target:cdiv(self.std:repeatTensor(1, target:size(2), target:size(3)))
-        end
-    end
+    input:mul(self.opt.mulImg)
+    target:mul(self.opt.mulImg)
 
     return {
         input = input,
