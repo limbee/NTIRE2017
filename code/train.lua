@@ -48,7 +48,6 @@ function Trainer:train(epoch, dataloader)
         end
         self.optimState.method(self.feval, self.params, self.optimState)
         trainTime = trainTime + trainTimer:time().real
-
         iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n

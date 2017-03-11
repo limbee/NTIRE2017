@@ -12,11 +12,11 @@ local opt = opts.parse(arg)
 local util = require 'utils'(opt)
 local load, loss, psnr = util:load()
 if load then
-    local prevlr = opt.lr
-    opt.lr = opt.lr / math.pow(2, math.floor(#loss / opt.manualDecay))
-    if opt.lr ~= prevlr then
+    local prevlr = opt.optimState.learningRate
+    opt.optimState.learningRate = prevlr / math.pow(2, math.floor(#loss / opt.manualDecay))
+    if opt.optimState.learningRate ~= prevlr then
         print(string.format('Learning rate decreased: %.6f -> %.6f',
-        prevlr, opt.lr))
+        prevlr, opt.optimState.learningRate))
     end
 end
 
