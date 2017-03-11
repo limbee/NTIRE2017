@@ -105,6 +105,7 @@ function div2k:augment()
             )
         end
         table.insert(transforms, transform.HorizontalFlip(0.5))
+        table.insert(transforms, transform.VerticalFlip(0.5))
         table.insert(transforms, transform.Rotation(1))
 
         return transform.Compose(transforms)
