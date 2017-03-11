@@ -108,7 +108,16 @@ function util:recursiveForward(input, model)
     end
 
     local function _recursion(input, subModel)
-        local output
+        local output, gpuid
+        if self.opt then
+            gpuid = self.opt.gpuid
+        else
+            gpuid = 1
+        end
+        local free, total = cutorch.getMemoryUsage(gpuid)
+        -- Gives an extra. Not sure whether this is necessary or not.
+        free = free - 4e9
+
         if subModel.__typename:find('ConcatTable') then
             output = {}
             for i = 1, subModel:size() do 
@@ -125,25 +134,29 @@ function util:recursiveForward(input, model)
             for i = 1, #subModel do
                 output = _recursion(output, subModel:get(i))
             end
-        elseif subModel.__typename:find('Identity') then
-            output = input:clone()
-        else
-            if subModel.__typename:find('Convolution') and subModel.nInputPlane + subModel.nOutputPlane > 256 then
-                assert(input:dim() == 4, 'Input dimension should be 4')
-                local splitSize, idx = 64, 0
-                local nInputPlane, nOutputPlane = subModel.nInputPlane, subModel.nOutputPlane
-                local kH,kW, dH,dW = subModel.kH, subModel.kW, subModel.dH, subModel.dW
-                local padH, padW = subModel.padH, subModel.padW
-                local oH, oW
-                if subModel.__typename:find('SpatialConvolution') then
-                    oH = math.floor((input:size(3) + 2*padH - kH) / dH + 1)
-                    oW = math.floor((input:size(4) + 2*padW - kW) / dW + 1)
-                elseif subModel.__typename:find('SpatialFullConvolution') then
-                    oH = (input:size(3) - 1) * dH - 2 * padH + kH + subModel.adjH
-                    oW = (input:size(4) - 1) * dW - 2 * padW + kW + subModel.adjW
-                end
-                local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
+        elseif subModel.__typename:find('Convolution') then
+            assert(input:dim() == 4, 'Input dimension should be 4')
+            local nInputPlane, nOutputPlane = subModel.nInputPlane, subModel.nOutputPlane
+            local kH,kW, dH,dW = subModel.kH, subModel.kW, subModel.dH, subModel.dW
+            local padH, padW = subModel.padH, subModel.padW
+            local oH, oW
+            if subModel.__typename:find('SpatialConvolution') then
+                oH = math.floor((input:size(3) + 2*padH - kH) / dH + 1)
+                oW = math.floor((input:size(4) + 2*padW - kW) / dW + 1)
+            elseif subModel.__typename:find('SpatialFullConvolution') then
+                oH = (input:size(3) - 1) * dH - 2 * padH + kH + subModel.adjH
+                oW = (input:size(4) - 1) * dW - 2 * padW + kW + subModel.adjW
+            end
 
+            local nOutputPixel = nOutputPlane * oH * oW
+            if 4 * 2 * nOutputPixel < free then
+                output = subModel:forward(input):clone()
+            elseif 4 * nOutputPixel < free then
+                output = subModel:forward(input)
+                output = output:float():clone()
+            else -- If input and output cannot reside in the memory at the same time
+                local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
+                local splitSize, idx = 64, 0
                 while idx < nOutputPlane do
                     local split = math.min(nOutputPlane - idx, splitSize)
                     local conv
@@ -159,6 +172,9 @@ function util:recursiveForward(input, model)
 
                     conv = cudnn.convert(conv, cudnn)
 
+                    local splitOutput = conv:cuda():forward(input):float():clone()
+                    floatOutput[{{},{idx + 1, idx + split}}]:copy(splitOutput)
+
                     conv:clearState()
                     conv = nil
                     splitOutput = nil
@@ -167,38 +183,55 @@ function util:recursiveForward(input, model)
 
                     idx = idx + split
                 end
-                output = floatOutput:cuda()
+                output = floatOutput:clone()
                 floatOutput = nil
-            elseif subModel.__typename:find('Shuffle') then
-                local sc = subModel.upscaleFactor
-                if input:size(2) * (1 + 1 / (sc * sc)) > 512 then
-                    -- Then, input:size(2) should be (n^2)*m, where n is the parameter of PixelShuffle layer.
-                    -- Restrict m < 64 at each forward
-                    local nInputPlane, nOutputPlane = input:size(2), input:size(2) / (sc * sc)
-                    local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3) * sc, input:size(4) * sc)
-                    local splitSize, idx = 256, 0
-                    
-                    while idx < nInputPlane do
-                        local splitSizeInput = math.min(nInputPlane - idx, splitSize)
-                        local splitSizeOutput = splitSizeInput / (sc * sc)
-                        local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]                    
-                        local splitOutput = subModel:forward(splitInput):clone():float()
-                        local idxOutput = idx / (sc * sc)
-                        floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
-
-                        subModel:clearState()
-                        splitOutput = nil
-                        collectgarbage()
-                        collectgarbage()
-
-                        idx = idx + splitSizeInput
-                    end
-                    output = floatOutput:cuda()
-                    floatOutput = nil
-                end
-            else
-                output = subModel:forward(input):clone()
             end
+            input = nil
+            collectgarbage()
+            collectgarbage()
+            output = output:cuda()
+        elseif subModel.__typename:find('Shuffle') then
+            local sc = subModel.upscaleFactor
+            local nOutputPixel = input:numel()
+            if 4 * 2 * nOutputPixel < free then
+                output = subModel:forward(input):clone()
+            elseif 4 * nOutputPixel < free then
+                output = subModel:forward(input)
+                output = output:float():clone()
+            else
+                local nInputPlane, nOutputPlane = input:size(2), input:size(2) / (sc * sc)
+                local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3) * sc, input:size(4) * sc)
+                local splitSize, idx = 288, 0 -- 288 % (3^2 * 4^2) = 0
+                
+                while idx < nInputPlane do
+                    local splitSizeInput = math.min(nInputPlane - idx, splitSize)
+                    local splitSizeOutput = splitSizeInput / (sc * sc)
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]                    
+                    local splitOutput = subModel:forward(splitInput):clone():float()
+                    local idxOutput = idx / (sc * sc)
+                    floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
+
+                    subModel:clearState()
+                    splitOutput = nil
+                    collectgarbage()
+                    collectgarbage()
+
+                    idx = idx + splitSizeInput
+                end
+                output = floatOutput:clone()
+                floatOutput = nil
+            end
+            input = nil
+            collectgarbage()
+            collectgarbage()
+            output = output:cuda()
+        else
+            if not pcall(function() output = subModel:forward(input):clone() end) then
+                sm = subModel
+                ii = input
+                require 'trepl'()
+            end
+            
         end
         input = nil
         subModel:clearState()
