@@ -64,13 +64,12 @@ local function createModel(opt)
     end
 
     local model = nn.Sequential()
-        :add(nn.Copy('torch.FloatTensor', 'torch.CudaTensor'))
         :add(nn.SpatialConvolution(nChannel,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
         
     local concat = nn.Concat(2)
     do
         local path1 = ResNet(nBlocks, fltsz, nFeat)
-        local upsampler = Upsampler(scale, nChannel, nFeat)
+        local upsampler = Upsampler(scale, nFeat, nFeat)
         for i = 1, upsampler:size() do
             path1:insert(upsampler:get(i), i)
         end
