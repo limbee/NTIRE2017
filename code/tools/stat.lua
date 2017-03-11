@@ -85,22 +85,22 @@ print(('%s has the maximum area: %d'):format(maxImg, maxArea))
 print('Following files have the save maximum area')
 print(maxImgsTable)
 
--- print('\nCalculating variance...')
--- mean = mean:reshape(3,1,1)
--- for i=1,numImg do
---     local filename = getName(i)
---     local img = torch.load(filename):float():div(255)
+print('\nCalculating variance...')
+mean = mean:reshape(3,1,1)
+for i=1,numImg do
+    local filename = getName(i)
+    local img = torch.load(filename):float():div(255)
 
---     img:add(-1, mean:repeatTensor(1,img:size(2),img:size(3)))
---     var:add(1, img:pow(2):sum(2):sum(3))
+    img:add(-1, mean:repeatTensor(1,img:size(2),img:size(3)))
+    var:add(1, img:pow(2):sum(2):sum(3))
 
---     img = nil
---     collectgarbage()
---     collectgarbage()
--- end
+    img = nil
+    collectgarbage()
+    collectgarbage()
+end
 
--- var = var:squeeze()
--- var:div(numPixels)
--- local std = var:sqrt()
+var = var:squeeze()
+var:div(numPixels)
+local std = var:sqrt()
 
--- print(('Std R,G,B = %.4f, %.4f, %.4f'):format(std[1], std[2], std[3]))
+print(('Std R,G,B = %.4f, %.4f, %.4f'):format(std[1], std[2], std[3]))
