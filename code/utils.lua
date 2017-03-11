@@ -193,6 +193,7 @@ function util:recursiveForward(input, model)
         elseif subModel.__typename:find('Shuffle') then
             local sc = subModel.upscaleFactor
             local nOutputPixel = input:numel()
+            free = free - 2e9
             if 4 * 2 * nOutputPixel < free then
                 output = subModel:forward(input):clone()
             elseif 4 * nOutputPixel < free then
@@ -231,7 +232,6 @@ function util:recursiveForward(input, model)
                 ii = input
                 require 'trepl'()
             end
-            
         end
         input = nil
         subModel:clearState()

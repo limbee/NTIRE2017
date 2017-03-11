@@ -74,6 +74,8 @@ for modelFile in paths.iterfiles('model') do
             end
         end
 
+        table.sort(testList, function(a,b) return a[2] < b[2] end)
+
         local timer = torch.Timer()
         for i = 1, #testList do
             local timerLocal = torch.Timer()
