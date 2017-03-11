@@ -33,8 +33,8 @@ function Trainer:train(epoch, dataloader)
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
         --self:copyInputs(sample, 'train')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -83,8 +83,8 @@ function Trainer:test(epoch, dataloader)
     
     for n, sample in dataloader:run() do
         --self:copyInputs(sample,'test')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
