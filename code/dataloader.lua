@@ -50,41 +50,42 @@ function DataLoader:run()
     local netType = self.opt.netType
     local dataSize = self.opt.dataSize
     local patchSize, scale = self.opt.patchSize, self.opt.scale
+    local tarSize = patchSize
+    local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
 
     local function enqueue()
-        if (self.split == 'train') then
+        if self.split == 'train' then
             while threads:acceptsjob() do
                 local indices
-                if (batchSize > (size - idx + 1)) then
+                if batchSize > (size - idx + 1) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
                 indices = perm:narrow(1, idx, batchSize)
                 threads:addjob(
                     function(indices)
-                        local tarSize = patchSize
-                        local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
                         local targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
 
                         for i = 1, batchSize do
                             local sample = nil
-                            local sample_i = i
+                            local sample_i = indices[i]
                             repeat
                                 sample = _G.dataset:get(sample_i)
                                 sample_i = torch.random(size)
                             until (sample)
 
                             sample = _G.augment(sample)
-                            inputBatch[i]:copy(sample.input)
-                            targetBatch[i]:copy(sample.target)
+                            inputBatch[i] = sample.input:clone()
+                            targetBatch[i] = sample.target:clone()
                             sample = nil
                         end
                         collectgarbage()
                         collectgarbage()
+
                         return {
                             input = inputBatch,
                             target = targetBatch,
@@ -92,24 +93,37 @@ function DataLoader:run()
                     end,
                     function (_sample_)
                         sample = _sample_
+                        _sample_ = nil
+                        collectgarbage()
+                        collectgarbage()
+
                         return sample
                     end,
                     indices
                 )
                 idx = idx + batchSize
             end
-        elseif (self.split == 'val') then
+        elseif self.split == 'val' then
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)
                         local sample = _G.dataset:get(idx)
-                        return {
-                            input = sample.input,
-                            target = sample.target
+                        local ret = {
+                            input = sample.input:clone(),
+                            target = sample.target:clone()
                         }
+                        sample = nil
+                        collectgarbage()
+                        collectgarbage()
+
+                        return ret
                     end,
                     function (_sample_)
                         sample = _sample_
+                        _sample_ = nil
+                        collectgarbage()
+                        collectgarbage()
+
                         return sample
                     end,
                     idx
@@ -131,6 +145,7 @@ function DataLoader:run()
         end
         enqueue()
         n = n + 1
+
         return n, sample
     end
 

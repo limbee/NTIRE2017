@@ -19,17 +19,21 @@ function M.parse(arg)
     cmd:option('-save',         now,        'subdirectory to save/log experiments in')
     -- Data
     cmd:option('-dataset',      'div2k',    'dataset for training: div2k | imagenet')
-    cmd:option('-datatype',     'png',       'dataset type: png | t7')
+    cmd:option('-dataAvg',      0,          'mean pixel value of dataset')
+    cmd:option('-datatype',     't7',       'dataset type: png | t7')
     cmd:option('-dataSize',     'small',    'input image size: small | big')
     cmd:option('-degrade',      'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',       10,         'number of images for validation')
+    cmd:option('-colorAug',     'false',    'apply color augmentation (brightness, contrast, saturation')
+    cmd:option('-subMean',      'true',     'data pre-processing: subtract mean')
+    cmd:option('-divStd',       'true',     'data pre-processing: subtract mean and divide std')
     -- Training
     cmd:option('-nEpochs',      0,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-epochNumber',  1,          'Manual epoch number (useful on restarts)')
     cmd:option('-batchSize',    32,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',    96,         'Training patch size')
     cmd:option('-scale',        2,          'Super-resolution upscale factor')
-    cmd:option('-testOnly',    false,       'Run on validation set only')
+    cmd:option('-testOnly',    'false',       'Run on validation set only')
     cmd:option('-printEvery',   1e2,        'Print log every # iterations')
     cmd:option('-testEvery',    1e3,        'Test every # iterations')
     cmd:option('-load',         '.',        'Load saved training model, history, etc.')
@@ -62,6 +66,10 @@ function M.parse(arg)
     cmd:text()
 
     local opt = cmd:parse(arg or {})
+
+    opt.colorAug = opt.colorAug == 'true'
+    opt.subMean = opt.subMean == 'true'
+    opt.divStd = opt.divStd == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load

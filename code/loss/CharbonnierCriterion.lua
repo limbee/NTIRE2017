@@ -10,13 +10,13 @@ local CharbonnierCriterion, parent = torch.class('nn.CharbonnierCriterion', 'nn.
 
 function CharbonnierCriterion:__init(sizeAverage, eps)
     parent.__init(self)
-    if (sizeAverage ~= nil) then
+    if sizeAverage ~= nil then
         self.sizeAverage = sizeAverage
     else
         self.sizeAverage = true
     end
 
-    if (eps ~= nil) then
+    if eps ~= nil then
         self.eps = eps * eps
     else
         self.eps = 0.001 * 0.001
@@ -28,7 +28,7 @@ end
 function CharbonnierCriterion:updateOutput(input, target)
     self.buffer = torch.sqrt(torch.pow(input - target, 2):add(self.eps))
     self.output = self.buffer:sum()
-    if (self.sizeAverage) then
+    if self.sizeAverage then
         self.output = self.output / input:nElement()
     end
     return self.output
@@ -36,14 +36,14 @@ end
 
 function CharbonnierCriterion:updateGradInput(input, target)
     self.gradInput = (input - target):cdiv(self.buffer)
-    if (self.sizeAverage) then
+    if self.sizeAverage then
         self.gradInput = self.gradInput / input:nElement()
     end
     return self.gradInput
 end
 
 
---test code
+--[[test code
 local input = torch.randn(5, 5)
 local target = torch.randn(5, 5)
 print(input)
@@ -57,6 +57,7 @@ print(cri_imp:forward(input, target))
 
 print(cri_ref:backward(input, target))
 print(cri_imp:backward(input, target))
+]]
 --------------------------------------------------------------------------------
 
 --[[

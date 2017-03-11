@@ -27,7 +27,7 @@ function SSIMCriterion:__init(params)
     self.vy = nil
     self.cov = nil
 
-    if (params == nil) then
+    if params == nil then
         self.L = 1
         self.k1 = 0.01
         self.k2 = 0.03
@@ -45,7 +45,7 @@ function SSIMCriterion:__init(params)
 end
 
 function SSIMCriterion:updateOutput(input, target)
-    if (input:dim() ~= 4) then
+    if input:dim() ~= 4 then
         self.mx = input:mean()
         self.my = target:mean()
         self.vx = torch.pow(input, 2):mean() - (self.mx * self.mx)
@@ -90,7 +90,7 @@ function SSIMCriterion:updateOutput(input, target)
 end
 
 function SSIMCriterion:updateGradInput(input, target)
-    if (input:dim() ~= 4) then
+    if input:dim() ~= 4 then
         local ne = input:nElement()
         local dMdmu = 2 * ((self.my * self.md) - (self.mx * self.mn)) / self.md^2
         local dMdx = torch.CudaTensor(input:size()):fill(dMdmu / ne)

@@ -10,6 +10,9 @@ function Trainer:__init(model, criterion, opt)
     self.criterion = criterion
     self.opt = opt
     self.optimState = opt.optimState
+    
+    self.input = nil
+    self.target = nil
 
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
@@ -28,9 +31,10 @@ function Trainer:train(epoch, dataloader)
     self.model:training()
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-        
         --Copy input and target to the GPU
-        self:copyInputs(sample, 'train')
+        --self:copyInputs(sample, 'train')
+        self.input = sample.input:clone():cuda()
+        self.target = sample.target:clone():cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -48,13 +52,13 @@ function Trainer:train(epoch, dataloader)
         iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
-            print(('[Iter: %.1fk] Time: %.2f (data: %.2f),\terr: %.6f')
+            print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
                 :format(it / 1000, trainTime, dataTime, err/iter))
             err, iter = 0, 0
             trainTime, dataTime = 0, 0
         end
 
-        if (n % self.opt.testEvery == 0) then
+        if n % self.opt.testEvery == 0 then
             break
         end
 
@@ -68,6 +72,8 @@ end
 function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter, avgPSNR = 0, 0
+    local mean = self.opt.mean:clone():cuda()
+    local std = self.opt.std:clone():cuda()
 
     self.model:clearState()
     self.model:evaluate()
@@ -78,30 +84,45 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
     
     for n, sample in dataloader:run() do
-        self:copyInputs(sample,'test')
+        --self:copyInputs(sample,'test')
+        self.input = sample.input:clone():cuda()
+        self.target = sample.target:clone():cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
 
         local input = nn.Unsqueeze(1):cuda():forward(self.input)
-        if (self.opt.nChannel == 1) then
+        if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
+        
         local outputFull = util:recursiveForward(input, self.model)
-        if (self.opt.netType == 'bandnet') then
+        if self.opt.netType == 'bandnet' then
             output = outputFull[2]:squeeze(1)
         else
             output = outputFull:squeeze(1)
         end
 
+        if self.opt.subMean then
+            local h,w = output:size(2), output:size(3)
+            if self.opt.divStd then
+                output:cmul(std:repeatTensor(1,h,w))
+                self.target:cmul(std:repeatTensor(1,h,w))
+            end
+            output:add(1, mean:repeatTensor(1,h,w))
+            self.target:add(1, mean:repeatTensor(1,h,w))
+        end
+
         avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
-        if (self.opt.netType == 'bandnet') then
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+
+        if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
             local outputHigh = outputFull[1][2]:squeeze(1):div(255)
             image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
             image.save(paths.concat(self.opt.save, 'result', n .. '_high.png'), outputHigh)
         end
+        
         iter = iter + 1
         self.model:clearState()
         output = nil
@@ -117,9 +138,9 @@ function Trainer:test(epoch, dataloader)
 end
 
 function Trainer:copyInputs(sample, mode)
-    if (mode == 'train') then
+    if mode == 'train' then
         self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
-    elseif (mode == 'test') then
+    elseif mode == 'test' then
         self.input = self.input or torch.CudaTensor()
     end
 
