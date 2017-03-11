@@ -125,29 +125,38 @@ function util:recursiveForward(input, model)
                 output = _recursion(output, subModel:get(i))
             end
         elseif subModel.__typename:find('Identity') then
-            output = input
+            output = input:clone()
         else
-            if subModel.__typename:find('Convolution') and subModel.nInputPlane + subModel.nOutputPlane > 512 then
+            if subModel.__typename:find('Convolution') and subModel.nInputPlane + subModel.nOutputPlane > 256 then
+                assert(input:dim() == 4, 'Input dimension should be 4')
                 local splitSize, idx = 64, 0
                 local nInputPlane, nOutputPlane = subModel.nInputPlane, subModel.nOutputPlane
                 local kH,kW, dH,dW = subModel.kH, subModel.kW, subModel.dH, subModel.dW
                 local padH, padW = subModel.padH, subModel.padW
-                local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3), input:size(4))
+                local oH, oW
+                if subModel.__typename:find('SpatialConvolution') then
+                    oH = math.floor((input:size(3) + 2*padH - kH) / dH + 1)
+                    oW = math.floor((input:size(4) + 2*padW - kW) / dW + 1)
+                elseif subModel.__typename:find('SpatialFullConvolution') then
+                    oH = (input:size(3) - 1) * dH - 2 * padH + kH + subModel.adjH
+                    oW = (input:size(4) - 1) * dW - 2 * padW + kW + subModel.adjW
+                end
+                local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
 
                 while idx < nOutputPlane do
                     local split = math.min(nOutputPlane - idx, splitSize)
-                    local conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
+                    local conv
                     if subModel.__typename:find('SpatialConvolution') then
+                        conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
                         conv.weight:copy(subModel.weight[{{idx + 1, idx + split}}])
                     elseif subModel.__typename:find('SpatialFullConvolution') then
+                        local adjH, adjW = subModel.adjH, subModel.adjW
+                        conv = nn.SpatialFullConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW, adjH, adjW)
                         conv.weight:copy(subModel.weight[{{},{idx + 1, idx + split}}])
                     end
                     conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
 
                     conv = cudnn.convert(conv, cudnn)
-                    
-                    local splitOutput = conv:cuda():forward(input):clone():float()
-                    floatOutput[{{},{idx + 1, idx + split}}]:copy(splitOutput)
 
                     conv:clearState()
                     conv = nil
