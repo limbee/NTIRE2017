@@ -101,7 +101,7 @@ function Trainer:test(epoch, dataloader)
             output = outputFull:squeeze(1)
         end
 
-        avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
+        avgPSNR = avgPSNR + util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
 
         if self.opt.netType == 'bandnet' then
