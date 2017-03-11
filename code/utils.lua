@@ -127,16 +127,15 @@ function util:recursiveForward(input, model)
         elseif subModel.__typename:find('Identity') then
             output = input
         else
-            if subModel.__typename:find('Convolution') and subModel.nInputPlane + subModel.nOutputPlane > 256 then
+            if subModel.__typename:find('Convolution') and subModel.nInputPlane + subModel.nOutputPlane > 512 then
                 local splitSize, idx = 64, 0
-                local convolutions, outputSizes = {}, {}
                 local nInputPlane, nOutputPlane = subModel.nInputPlane, subModel.nOutputPlane
                 local kH,kW, dH,dW = subModel.kH, subModel.kW, subModel.dH, subModel.dW
                 local padH, padW = subModel.padH, subModel.padW
                 local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3), input:size(4))
 
                 while idx < nOutputPlane do
-                    local split = math.min(nOutputPlane-idx, splitSize)
+                    local split = math.min(nOutputPlane - idx, splitSize)
                     local conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
                     if subModel.__typename:find('SpatialConvolution') then
                         conv.weight:copy(subModel.weight[{{idx + 1, idx + split}}])
@@ -158,11 +157,35 @@ function util:recursiveForward(input, model)
 
                     idx = idx + split
                 end
-
-                elseif subModel.__typename:find('SpatialFullConvolution') then
-                end
-
                 output = floatOutput:cuda()
+                floatOutput = nil
+            elseif subModel.__typename:find('Shuffle') then
+                local sc = subModel.upscaleFactor
+                if input:size(2) * (1 + 1 / (sc * sc)) > 512 then
+                    -- Then, input:size(2) should be (n^2)*m, where n is the parameter of PixelShuffle layer.
+                    -- Restrict m < 64 at each forward
+                    local nInputPlane, nOutputPlane = input:size(2), input:size(2) / (sc * sc)
+                    local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3) * sc, input:size(4) * sc)
+                    local splitSize, idx = 256, 0
+                    
+                    while idx < nInputPlane do
+                        local splitSizeInput = math.min(nInputPlane - idx, splitSize)
+                        local splitSizeOutput = splitSizeInput / (sc * sc)
+                        local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]                    
+                        local splitOutput = subModel:forward(splitInput):clone():float()
+                        local idxOutput = idx / (sc * sc)
+                        floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
+
+                        subModel:clearState()
+                        splitOutput = nil
+                        collectgarbage()
+                        collectgarbage()
+
+                        idx = idx + splitSizeInput
+                    end
+                    output = floatOutput:cuda()
+                    floatOutput = nil
+                end
             else
                 output = subModel:forward(input):clone()
             end
