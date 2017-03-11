@@ -72,8 +72,6 @@ end
 function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter, avgPSNR = 0, 0
-    local mean = self.opt.mean:clone():cuda()
-    local std = self.opt.std:clone():cuda()
 
     self.model:clearState()
     self.model:evaluate()
@@ -103,17 +101,7 @@ function Trainer:test(epoch, dataloader)
             output = outputFull:squeeze(1)
         end
 
-        if self.opt.subMean then
-            local h,w = output:size(2), output:size(3)
-            if self.opt.divStd then
-                output:cmul(std:repeatTensor(1,h,w))
-                self.target:cmul(std:repeatTensor(1,h,w))
-            end
-            output:add(1, mean:repeatTensor(1,h,w))
-            self.target:add(1, mean:repeatTensor(1,h,w))
-        end
-
-        avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
+        avgPSNR = avgPSNR + util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
 
         if self.opt.netType == 'bandnet' then
