@@ -79,8 +79,8 @@ function DataLoader:run()
                             until (sample)
 
                             sample = _G.augment(sample)
-                            inputBatch[i] = sample.input:clone()
-                            targetBatch[i] = sample.target:clone()
+                            inputBatch[i]:copy(sample.input)
+                            targetBatch[i]:copy(sample.target)
                             sample = nil
                         end
                         collectgarbage()

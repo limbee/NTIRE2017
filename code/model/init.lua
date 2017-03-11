@@ -21,7 +21,9 @@ local function getModel(opt)
     -- Assumes R,G,B order
     if opt.subMean then
         assert(opt.mulImg == 1, 'Can not multiply a conatant bigger than 1 if you choose the -subMean')
-        model = nn.Sequential():add(model) -- in case the outermost shell is not a nn.Sequential
+        if torch.type(model) ~= 'nn.Sequential' then
+            model = nn.Sequential():add(model) -- in case the outermost shell is not a nn.Sequential
+        end
 
         local subMean = nn.SpatialConvolution(3, 3, 1, 1)
         subMean.weight:copy(torch.eye(3, 3):reshape(3, 3, 1, 1))
@@ -29,7 +31,7 @@ local function getModel(opt)
         local addMean = nn.SpatialConvolution(3, 3, 1, 1)
         addMean.weight:copy(torch.eye(3,3):reshape(3, 3, 1, 1))
         addMean.bias:copy(torch.Tensor({0.4488, 0.4371, 0.4040}))
-
+        
         if opt.divStd then
             local divStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
             divStd.weight:copy(torch.Tensor({{1/0.2845, 0, 0},

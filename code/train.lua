@@ -33,8 +33,8 @@ function Trainer:train(epoch, dataloader)
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
         --self:copyInputs(sample, 'train')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -48,13 +48,14 @@ function Trainer:train(epoch, dataloader)
         end
         self.optimState.method(self.feval, self.params, self.optimState)
         trainTime = trainTime + trainTimer:time().real
-
         iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
             print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, trainTime, dataTime, err/iter))
-            err, iter = 0, 0
+                :format(it / 1000, trainTime, dataTime, err / iter))
+            if n % self.opt.testEvery ~= 0 then
+                err, iter = 0, 0
+            end
             trainTime, dataTime = 0, 0
         end
 
@@ -64,6 +65,12 @@ function Trainer:train(epoch, dataloader)
 
         trainTimer:reset()
         dataTimer:reset()
+    end
+    if epoch % self.opt.manualDecay == 0 then
+        local prevlr = self.optimState.learningRate
+        self.optimState.learningRate = prevlr / 2
+        print(string.format('Learning rate decreased: %.6f -> %.6f',
+        prevlr, self.optimState.learningRate))
     end
     
     return err / iter
@@ -83,8 +90,8 @@ function Trainer:test(epoch, dataloader)
     
     for n, sample in dataloader:run() do
         --self:copyInputs(sample,'test')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
