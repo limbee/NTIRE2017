@@ -135,25 +135,30 @@ function util:recursiveForward(input, model)
                 local padH, padW = subModel.padH, subModel.padW
                 local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3), input:size(4))
 
-                if subModel.__typename:find('SpatialConvolution') then
-                    while idx < nOutputPlane do
-                        local split = math.min(nOutputPlane-idx, splitSize)
-                        local conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
+                while idx < nOutputPlane do
+                    local split = math.min(nOutputPlane-idx, splitSize)
+                    local conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
+                    if subModel.__typename:find('SpatialConvolution') then
                         conv.weight:copy(subModel.weight[{{idx + 1, idx + split}}])
-                        conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
-                        conv = cudnn.convert(conv, cudnn)
-                        
-                        local splitOutput = conv:cuda():forward(input):clone():float()
-                        floatOutput[{{},{idx + 1, idx + split}}]:copy(splitOutput)
-
-                        conv:clearState()
-                        conv = nil
-                        splitOutput = nil
-                        collectgarbage()
-                        collectgarbage()
-
-                        idx = idx + split
+                    elseif subModel.__typename:find('SpatialFullConvolution') then
+                        conv.weight:copy(subModel.weight[{{},{idx + 1, idx + split}}])
                     end
+                    conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
+
+                    conv = cudnn.convert(conv, cudnn)
+                    
+                    local splitOutput = conv:cuda():forward(input):clone():float()
+                    floatOutput[{{},{idx + 1, idx + split}}]:copy(splitOutput)
+
+                    conv:clearState()
+                    conv = nil
+                    splitOutput = nil
+                    collectgarbage()
+                    collectgarbage()
+
+                    idx = idx + split
+                end
+
                 elseif subModel.__typename:find('SpatialFullConvolution') then
                 end
 
