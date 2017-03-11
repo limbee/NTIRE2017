@@ -104,9 +104,9 @@ function div2k:augment()
                 })
             )
         end
-        table.insert(transforms, transform.HorizontalFlip(0.5))
-        table.insert(transforms, transform.VerticalFlip(0.5))
-        table.insert(transforms, transform.Rotation(1))
+        -- We don't need vertical flip, since hflip + rotation covers it
+        table.insert(transforms, transform.HorizontalFlip())
+        table.insert(transforms, transform.Rotation())
 
         return transform.Compose(transforms)
     elseif self.split == 'val' then

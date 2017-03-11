@@ -11,9 +11,9 @@ function M.Compose(transforms)
     end
 end
 
-function M.HorizontalFlip(prob)
+function M.HorizontalFlip()
     return function(sample)
-        if torch.uniform() < prob then
+        if torch.uniform() < 0.5 then
             sample.input = image.hflip(sample.input)
             sample.target = image.hflip(sample.target)
         end
@@ -21,24 +21,12 @@ function M.HorizontalFlip(prob)
     end
 end
 
-function M.VerticalFlip(prob)
+function M.Rotation()
     return function(sample)
-        if torch.uniform() < prob then
-            sample.input = image.vflip(sample.input)
-            sample.target = image.vflip(sample.target)
-        end
+        local theta = torch.random(0,3)
+        sample.input = image.rotate(sample.input, theta * math.pi/2)
+        sample.target = image.rotate(sample.target, theta * math.pi/2)
         return sample
-    end
-end
-
-function M.Rotation(prob)
-    return function(sample)
-        if torch.uniform() < prob then
-            local theta = torch.random(0,1) -- given hor/ver flips, rotation is partly redundant
-            sample.input = image.rotate(sample.input, theta * math.pi/2)
-            sample.target = image.rotate(sample.target, theta * math.pi/2)
-            return sample
-        end
     end
 end
 

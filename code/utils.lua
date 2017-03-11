@@ -101,8 +101,7 @@ function util:calcPSNR(output,target,scale)
 end
 
 function util:recursiveForward(input, model)
-    -- local __model = model:clone('weight', 'bias')
-    local __model = model:clone()
+    local __model = model:clone():clearState()
     if torch.type(model) == 'nn.DataParallelTable' then
         __model = __model:get(1)
     end
