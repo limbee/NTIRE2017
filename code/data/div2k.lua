@@ -11,7 +11,7 @@ function div2k:__init(opt, split)
     self.split = split
 
     --absolute path of the dataset
-    local apath = '/var/tmp/dataset/DIV2K'
+    local apath = paths.concat(opt.datadir, 'dataset/DIV2K') -- '/var/tmp/dataset/DIV2K'
     self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
     self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
     if opt.dataSize == 'big' then

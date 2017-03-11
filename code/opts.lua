@@ -18,6 +18,7 @@ function M.parse(arg)
     cmd:option('-nThreads',         3,          'number of data loading threads')
     cmd:option('-save',             now,        'subdirectory to save/log experiments in')
     -- Data
+    cmd:option('-datadir',          '/var/tmp',  'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
     cmd:option('-datatype',         't7',       'dataset type: png | t7')
     cmd:option('-dataSize',         'small',    'input image size: small | big')
