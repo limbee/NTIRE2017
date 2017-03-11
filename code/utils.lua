@@ -101,7 +101,8 @@ function util:calcPSNR(output,target,scale)
 end
 
 function util:recursiveForward(input, model)
-    local __model = model:clone('weight', 'bias')
+    -- local __model = model:clone('weight', 'bias')
+    local __model = model:clone()
     if torch.type(model) == 'nn.DataParallelTable' then
         __model = __model:get(1)
     end
@@ -113,6 +114,12 @@ function util:recursiveForward(input, model)
             for i = 1, subModel:size() do 
                 table.insert(output, _recursion(input, subModel:get(i)))
             end
+        elseif subModel.__typename:find('Concat') then  -- nn.Concat layer
+            output = {}
+            for i = 1, subModel:size() do
+                table.insert(output, _recursion(input, subModel:get(i)))
+            end
+            output = torch.cat(output, subModel.dimension)
         elseif subModel.__typename:find('Sequential') then
             output = input
             for i = 1, #subModel do

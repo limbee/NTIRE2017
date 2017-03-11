@@ -41,7 +41,7 @@ function div2k:get(i)
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
     inputName = fileName .. 'x' .. scale .. ext
     targetName = fileName .. ext
-    if ext == 'png' then
+    if ext == '.png' then
         input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     else
