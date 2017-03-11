@@ -50,6 +50,8 @@ function DataLoader:run()
     local netType = self.opt.netType
     local dataSize = self.opt.dataSize
     local patchSize, scale = self.opt.patchSize, self.opt.scale
+    local tarSize = patchSize
+    local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
@@ -65,8 +67,6 @@ function DataLoader:run()
                 indices = perm:narrow(1, idx, batchSize)
                 threads:addjob(
                     function(indices)
-                        local tarSize = patchSize
-                        local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
                         local targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
 
@@ -79,8 +79,8 @@ function DataLoader:run()
                             until (sample)
 
                             sample = _G.augment(sample)
-                            inputBatch[i] = sample.input:clone()
-                            targetBatch[i] = sample.target:clone()
+                            inputBatch[i]:copy(sample.input)
+                            targetBatch[i]:copy(sample.target)
                             sample = nil
                         end
                         collectgarbage()

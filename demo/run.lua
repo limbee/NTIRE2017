@@ -2,19 +2,23 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
+require 'optim'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',	    'bench',	        'demo type: bench | test')
+cmd:option('-type',	    'test', 	    'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
+cmd:option('-dataSize', 'small',        'test data size')
+cmd:option('-mulImg',   1,              'multiply constant to input image')
 cmd:option('-progress', 'false',        'show current progress')
-cmd:option('-model',    'bandnet',	    'model type: resnet | vdsr')
+cmd:option('-model',    'resnet',	    'model type: resnet | vdsr | bandnet')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
-cmd:option('-gpuid',	2,		'GPU id for use')
+cmd:option('-gpuid',	1,		        'GPU id for use')
 local opt = cmd:parse(arg or {})
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
 
+torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
 
 local testList = {}
@@ -36,9 +40,8 @@ for modelFile in paths.iterfiles('model') do
         if opt.type == 'bench' then
             --dataDir = '../../dataset/benchmark'
             dataDir = '/var/tmp/dataset/benchmark'
-            local size = (opt.model == 'vdsr') and 'big' or 'small'
-            for testFolder in paths.iterdirs(paths.concat(dataDir, size)) do
-                local inputFolder = paths.concat(dataDir, size, testFolder, Xs)
+            for testFolder in paths.iterdirs(paths.concat(dataDir, opt.dataSize)) do
+                local inputFolder = paths.concat(dataDir, opt.dataSize, testFolder, Xs)
                 paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
                 paths.mkdir(paths.concat('img_target', modelName, testFolder))
                 for testFile in paths.iterfiles(inputFolder) do
@@ -51,7 +54,7 @@ for modelFile in paths.iterfiles('model') do
             --This code is for DIV2K dataset
             if opt.dataset == 'DIV2K' then
                 dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
-                if opt.model == 'vdsr' then
+                if opt.dataSize == 'big' then
                     dataDir = dataDir .. 'b'
                 end
                 paths.mkdir(paths.concat('img_output', modelName, 'test', Xs))
@@ -76,23 +79,17 @@ for modelFile in paths.iterfiles('model') do
             if opt.progress == 'true' then
                 print('>> \t' .. testList[i][2])
             end
-            local input = image.load(paths.concat(testList[i][1], testList[i][2])):mul(255)
-            if input:dim() == 2 or (input:dim() == 3 and input:size(1) == 1) then
-                input:repeatTensor(input, 3, 1, 1)
-            end
-            input:view(input, 1, table.unpack(input:size():totable()))
-            local output = util:recursiveForward(input:cuda(), model)
+            local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
+            input = nn.Unsqueeze(1):forward(input)
+            local output = util:recursiveForward(input:cuda(), model):div(opt.mulImg)
             if opt.model == 'bandnet' then
-                output = output[2]:squeeze(1):div(255)
+                output = output[2]:squeeze(1)
             else
-                output = output:squeeze(1):div(255)
+                output = output:squeeze(1)
             end
 
             if opt.type == 'bench' then
-                local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]))
-                if target:dim() == 2 or (target:dim() == 3 and target:size(1) == 1) then
-                    target:repeatTensor(target, 3, 1, 1)
-                end
+                local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]), 3, 'float')
                 target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
                 image.save(paths.concat('img_target', modelName, testList[i][3], testList[i][2]), target)
                 image.save(paths.concat('img_output', modelName, testList[i][3], Xs, testList[i][2]), output)

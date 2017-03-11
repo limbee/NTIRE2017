@@ -1,7 +1,6 @@
 local image = require 'image'
 local paths = require 'paths'
 local transform = require 'data/transforms'
-local util = require 'utils'()
 
 local M = {}
 local div2k = torch.class('sr.div2k', M)
@@ -12,13 +11,13 @@ function div2k:__init(opt, split)
     self.split = split
 
     --absolute path of the dataset
-    local apath = '/var/tmp/dataset/DIV2K'
+    local apath = paths.concat(opt.datadir, 'dataset/DIV2K') -- '/var/tmp/dataset/DIV2K'
     self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
     self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
     if opt.dataSize == 'big' then
         self.dirInp = self.dirInp .. 'b'
     end
-end
+ end
 
 function div2k:get(i)
     local netType = self.opt.netType
@@ -42,12 +41,12 @@ function div2k:get(i)
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
     inputName = fileName .. 'x' .. scale .. ext
     targetName = fileName .. ext
-    if ext == 'png' then
+    if ext == '.png' then
         input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     else
-        input = torch.load(paths.concat(self.dirInp, inputName)):float()
-        target = torch.load(paths.concat(self.dirTar, targetName)):float()
+        input = torch.load(paths.concat(self.dirInp, inputName)):float():div(255)
+        target = torch.load(paths.concat(self.dirTar, targetName)):float():div(255)
     end
 
     local channel, h, w = table.unpack(target:size():totable())
@@ -76,15 +75,8 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if self.opt.datatype == 'png' then
-        input:mul(255)
-        target:mul(255)
-    end
-
-    if self.opt.nChannel == 1 then
-        input = util:rgb2y(input)
-        target = util:rgb2y(target)
-    end
+    input:mul(self.opt.mulImg)
+    target:mul(self.opt.mulImg)
 
     return {
         input = input,
@@ -100,34 +92,23 @@ function div2k:__size()
     end
 end
 
--- Computed from random subset of ImageNet training images
-local meanstd = {
-    mean = { 0.485, 0.456, 0.406 },
-    std = { 0.229, 0.224, 0.225 },
-}
-local pca = {
-    eigval = torch.Tensor{ 0.2175, 0.0188, 0.0045 },
-    eigvec = torch.Tensor{
-        { -0.5675,  0.7192,  0.4009 },
-        { -0.5808, -0.0045, -0.8140 },
-        { -0.5836, -0.6948,  0.4203 },
-    },
-}
-
 function div2k:augment()
     if self.split == 'train' then
-        return transform.Compose{
-            --[[
-            transform.ColorJitter({
-                brightness = 0.1,
-                contrast = 0.1,
-                saturation = 0.1
-            }),
-            --]]
-            --transform.Lighting(0.1, pca.eigval, pca.eigvec),
-            transform.HorizontalFlip(0.5),
-            transform.Rotation(1)
-        }
+        local transforms = {}
+        if self.opt.colorAug then
+            table.insert(transforms,
+                transform.ColorJitter({
+                    brightness = 0.1,
+                    contrast = 0.1,
+                    saturation = 0.1
+                })
+            )
+        end
+        -- We don't need vertical flip, since hflip + rotation covers it
+        table.insert(transforms, transform.HorizontalFlip())
+        table.insert(transforms, transform.Rotation())
+
+        return transform.Compose(transforms)
     elseif self.split == 'val' then
         return function(sample) return sample end
     end

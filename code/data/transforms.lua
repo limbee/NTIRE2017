@@ -11,9 +11,9 @@ function M.Compose(transforms)
     end
 end
 
-function M.HorizontalFlip(prob)
+function M.HorizontalFlip()
     return function(sample)
-        if torch.uniform() < prob then
+        if torch.uniform() < 0.5 then
             sample.input = image.hflip(sample.input)
             sample.target = image.hflip(sample.target)
         end
@@ -21,38 +21,12 @@ function M.HorizontalFlip(prob)
     end
 end
 
-function M.Rotation(prob)
+function M.Rotation()
     return function(sample)
-        if torch.uniform() < prob then
-            local theta = torch.random(0,3)
-            sample.input = image.rotate(sample.input, theta * math.pi/2)
-            sample.target = image.rotate(sample.target, theta * math.pi/2)
-            return sample
-        end
-    end
-end
-
--- Lighting noise (AlexNet-style PCA-based noise)
-function M.Lighting(alphastd, eigval, eigvec)
-    return function(sample)
-        if alphastd == 0 then
-            return sample
-        end
-
-        local alpha = torch.Tensor(3):normal(0, alphastd)
-        local rgb = eigvec:clone()
-            :cmul(alpha:view(1, 3):expand(3, 3))
-            :cmul(eigval:view(1, 3):expand(3, 3))
-            :sum(2)
-            :squeeze()
-
-        sample.input = sample.input:clone()
-        sample.target = sample.target:clone()
-        for i=1,3 do
-            sample.input[i]:add(rgb[i])
-            sample.target[i]:add(rgb[i])
-        end
-        return sample 
+        local theta = torch.random(0,3)
+        sample.input = image.rotate(sample.input, theta * math.pi/2)
+        sample.target = image.rotate(sample.target, theta * math.pi/2)
+        return sample
     end
 end
 
@@ -136,9 +110,9 @@ function M.RandomOrder(ts)
 end
 
 function M.ColorJitter(opt)
-    local brightness = opt.brightness or 0
-    local contrast = opt.contrast or 0
-    local saturation = opt.saturation or 0
+    local brightness = 0.1
+    local contrast = 0.1
+    local saturation = 0.1
 
     local ts = {}
     if brightness ~= 0 then

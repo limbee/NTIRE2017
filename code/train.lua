@@ -33,8 +33,8 @@ function Trainer:train(epoch, dataloader)
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
         --self:copyInputs(sample, 'train')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -90,8 +90,8 @@ function Trainer:test(epoch, dataloader)
     
     for n, sample in dataloader:run() do
         --self:copyInputs(sample,'test')
-        self.input = sample.input:clone():cuda()
-        self.target = sample.target:clone():cuda()
+        self.input = sample.input:cuda()
+        self.target = sample.target:cuda()
         sample = nil
         collectgarbage()
         collectgarbage()
@@ -108,8 +108,9 @@ function Trainer:test(epoch, dataloader)
             output = outputFull:squeeze(1)
         end
 
-        avgPSNR = avgPSNR + util:calcPSNR(output, self.target, self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze():div(255))
+        avgPSNR = avgPSNR + util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+
         if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
             local outputHigh = outputFull[1][2]:squeeze(1):div(255)
