@@ -30,7 +30,7 @@ function M.parse(arg)
     cmd:option('-mulImg',           1,          'data pre-processing: multiply constant value to both input and output')
     -- Training
     cmd:option('-nEpochs',          0,          'Number of total epochs to run. 0: Infinite')
-    cmd:option('-epochNumber',      1,          'Manual epoch number (useful on restarts)')
+    cmd:option('-startEpoch',       0,          'Manual epoch number for resuming the training. Default is the end')
     cmd:option('-manualDecay',      1e8,        'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',        32,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')

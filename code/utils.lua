@@ -65,27 +65,52 @@ function util:checkpoint(model, criterion, loss, psnr)
 end
 
 function util:load()
-    local ok, loss, psnr
+    local ok, loss, psnr, startEpoch
     if self.opt.load then
-        ok, loss, psnr, opt = 
-        pcall(function()
-	        local loss = torch.load(paths.concat(self.save, 'loss.t7'))
-            local psnr = torch.load(paths.concat(self.save, 'psnr.t7'))
-            local opt = torch.load(paths.concat(self.save, 'opt.t7'))
-            return loss, psnr, opt
-        end)
+        ok, loss, psnr, opt = pcall(
+            function()
+                local loss = torch.load(paths.concat(self.save, 'loss.t7'))
+                local psnr = torch.load(paths.concat(self.save, 'psnr.t7'))
+                local opt = torch.load(paths.concat(self.save, 'opt.t7'))
+                return loss, psnr, opt
+            end)
         if ok then
-            print(('loaded history (%d epoch * %d iter/epoch)\n'):format(#loss, self.opt.testEvery))
+            print(('Loaded history (%d epoch * %d iter/epoch)\n'):format(#loss, self.opt.testEvery))
+            if self.opt.startEpoch > #loss + 1 then
+                error(('Start epoch cannot be bigger than history (%d epochs)'):format(#loss))
+            elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= #loss then
+                print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
+                local _loss, _psnr = {}, {}
+                for i = 1, self.opt.startEpoch - 1 do
+                    _loss[i] = loss[i]
+                    _psnr[i] = psnr[i]
+                end
+                loss = _loss
+                psnr = _psnr
+                startEpoch = self.opt.startEpoch
+            else
+                if self.opt.startEpoch == 1 then
+                    print('Set startEpoch to 1. Start train from the scratch again...')
+                    startEpoch = 1
+                    ok = false
+                    loss, psnr = {}, {}
+                    self.opt.load = false
+                else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
+                    print(('Start training from %d epochs'):format(#loss+1))
+                    startEpoch = #loss + 1
+                end
+                ok = false
+            end
         else
-            print('history (loss, psnr, options) does not exist')
-            loss, psnr = {}, {}
+            error('history (loss, psnr, options) does not exist')
         end
     else
         ok = false
-        loss, psnr = {},{}
+        loss, psnr = {}, {}
+        startEpoch = 1
     end
 
-    return ok, loss, psnr
+    return ok, loss, psnr, startEpoch
 end
 
 function util:calcPSNR(output,target,scale)

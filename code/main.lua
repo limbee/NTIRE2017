@@ -10,7 +10,7 @@ local opts = require 'opts'
 local opt = opts.parse(arg)
 
 local util = require 'utils'(opt)
-local load, loss, psnr = util:load()
+local load, loss, psnr, startEpoch = util:load()
 if load then
     local prevlr = opt.optimState.learningRate
     opt.optimState.learningRate = prevlr / math.pow(2, math.floor(#loss / opt.manualDecay))
@@ -24,7 +24,7 @@ local DataLoader = require 'dataloader'
 local Trainer = require 'train'
 
 print('loading model and criterion...')
-local model = require 'model/init'(opt)
+local model = require 'model/init'(opt, startEpoch)
 local criterion = require 'loss/init'(opt)
 
 print('Creating data loader...')
@@ -32,10 +32,9 @@ local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
 print('Train start')
-local startEpoch = load and #loss + 1 or opt.epochNumber
 for epoch = startEpoch, opt.nEpochs do
-    loss[#loss + 1] = trainer:train(epoch, trainLoader)
-    psnr[#psnr + 1] = trainer:test(epoch, valLoader)
+    loss[epoch] = trainer:train(epoch, trainLoader)
+    psnr[epoch] = trainer:test(epoch, valLoader)
 
     util:plot(loss,'loss')
     util:plot(psnr,'PSNR')

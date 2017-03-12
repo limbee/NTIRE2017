@@ -6,7 +6,12 @@ local function getModel(opt)
     local model
 
     if opt.load then
-        local modelPath = paths.concat(opt.save,'model','model_latest.t7')
+        local modelPath
+        if opt.startEpoch == 0 then
+            modelPath = paths.concat(opt.save,'model','model_latest.t7')
+        else
+            modelPath = paths.concat(opt.save, 'model', 'model_' .. opt.startEpoch - 1 .. '.t7')
+        end
         assert(paths.filep(modelPath), 'Saved model not found in ' .. opt.save)
         print('Resuming model from ' .. modelPath)
         model = torch.load(modelPath)
