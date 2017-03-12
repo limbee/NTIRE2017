@@ -66,25 +66,41 @@ local function createModel(opt)
     local model = nn.Sequential()
         :add(nn.SpatialConvolution(nChannel,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
         
-    local concat = nn.Concat(2)
-    do
+    local concat = nn.ConcatTable()
+    do  -- fine
         local path1 = ResNet(nBlocks, fltsz, nFeat)
-        local upsampler = Upsampler(scale, nFeat, nFeat)
+        local upsampler = Upsampler(scale, nFeat, nFeat):clone()
         for i = 1, upsampler:size() do
-            path1:insert(upsampler:get(i), i)
+            path1:insert(upsampler:get(i):clone(), i)
         end
         concat:add(path1)
     end
-    do
+    do  -- mid
         local path2 = ResNet(nBlocks, fltsz, nFeat)
         local upsampler = Upsampler(scale, nFeat, nFeat)
         for i = 1, upsampler:size() do
-            path2:insert(upsampler:get(i), i)
+            path2:add(upsampler:get(i):clone())
         end
         concat:add(path2)
     end
+    do  -- coarse
+        local path3 = ResNet(nBlocks, fltsz, nFeat)
+        local downsampler = nn.SpatialConvolution(nFeat,nFeat,fltsz,fltsz,2,2,padsz,padsz)
+        path3:insert(downsampler, 1)
+        local upsampler = Upsampler(scale, nFeat, nFeat)
+        for i = 1, upsampler:size() do
+            path3:add(upsampler:get(i))
+        end
+        local upsampler2 = Upsampler(2, nFeat, nFeat)
+        for i = 1, upsampler2:size() do
+            path3:add(upsampler2:get(i))
+        end
+        concat:add(path3)
+    end
     model:add(concat)
-    model:add(nn.SpatialConvolution(nFeat*2, nChannel, fltsz,fltsz,1,1,padsz,padsz))
+    model:add(nn.JoinTable(2))
+
+    model:add(nn.SpatialConvolution(nFeat*3, nChannel, fltsz,fltsz,1,1,padsz,padsz))
     model:reset()
 
     return model
