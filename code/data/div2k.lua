@@ -45,8 +45,8 @@ function div2k:get(i)
         input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     else
-        input = torch.load(paths.concat(self.dirInp, inputName)):float():div(255)
-        target = torch.load(paths.concat(self.dirTar, targetName)):float():div(255)
+        input = torch.load(paths.concat(self.dirInp, inputName)):float()
+        target = torch.load(paths.concat(self.dirTar, targetName)):float()
     end
 
     local channel, h, w = table.unpack(target:size():totable())
@@ -75,8 +75,9 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    input:mul(self.opt.mulImg)
-    target:mul(self.opt.mulImg)
+    local mulConst = (ext == '.t7') and (255 * self.opt.mulImg) or self.opt.mulImg
+    input:mul(mulConst)
+    target:mul(mulConst)
 
     return {
         input = input,

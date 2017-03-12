@@ -6,7 +6,7 @@ local function getLoss(opt)
     local criterion = nn.MultiCriterion()
 
     if opt.abs > 0 then
-        local absLoss = nn.ABSCriterion()
+        local absLoss = nn.AbsCriterion()
         absLoss.sizeAverage = true
         criterion:add(absLoss, opt.abs)
     end
