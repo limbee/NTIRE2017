@@ -1,6 +1,5 @@
 local image = require 'image'
 local optim = require 'optim'
-local util = require 'utils'()
 
 local M = {}
 local Trainer = torch.class('sr.Trainer', M)
@@ -16,6 +15,8 @@ function Trainer:__init(model, criterion, opt)
 
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
+
+    self.util = require 'utils'(opt)
 end
 
 function Trainer:train(epoch, dataloader)
@@ -101,14 +102,14 @@ function Trainer:test(epoch, dataloader)
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
         
-        local outputFull = util:recursiveForward(input, self.model)
+        local outputFull = self.util:recursiveForward(input, self.model)
         if self.opt.netType == 'bandnet' then
             output = outputFull[2]:squeeze(1)
         else
             output = outputFull:squeeze(1)
         end
 
-        avgPSNR = avgPSNR + util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
+        avgPSNR = avgPSNR + self.util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
 
         if self.opt.netType == 'bandnet' then

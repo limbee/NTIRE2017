@@ -74,10 +74,14 @@ for modelFile in paths.iterfiles('model') do
             end
         end
 
+        table.sort(testList, function(a,b) return a[2] < b[2] end)
+
         local timer = torch.Timer()
         for i = 1, #testList do
+            local timerLocal = torch.Timer()
             if opt.progress == 'true' then
-                print('>> \t' .. testList[i][2])
+                io.write(('>> \t [%d/%d] %s ......'):format(i,#testList,testList[i][2]))
+                io.flush()
             end
             local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
             input = nn.Unsqueeze(1):forward(input)
@@ -101,6 +105,8 @@ for modelFile in paths.iterfiles('model') do
             output = nil
             collectgarbage()
             collectgarbage()
+            io.write(('\t done. (time: %.2fs) \n'):format(timerLocal:time().real))
+            io.flush()
         end
         print('Elapsed time: ' .. timer:time().real)
     end
