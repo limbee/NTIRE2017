@@ -59,12 +59,11 @@ function DataLoader:run()
     local function enqueue()
         if self.split == 'train' then
             while threads:acceptsjob() do
-                local indices
                 if batchSize > (size - idx + 1) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
-                indices = perm:narrow(1, idx, batchSize)
+                local indices = perm:narrow(1, idx, batchSize)
                 threads:addjob(
                     function(indices)
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
@@ -72,10 +71,10 @@ function DataLoader:run()
 
                         for i = 1, batchSize do
                             local sample = nil
-                            local sample_i = indices[i]
+                            local si = i
                             repeat
-                                sample = _G.dataset:get(sample_i)
-                                sample_i = torch.random(size)
+                                sample = _G.dataset:get(indices[si])
+                                si = torch.random(size)
                             until (sample)
 
                             sample = _G.augment(sample)
