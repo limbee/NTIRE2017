@@ -103,6 +103,15 @@ function util:load()
         startEpoch = 1
     end
 
+    if ok then
+        local prevlr = self.opt.optimState.learningRate
+        self.opt.optimState.learningRate = prevlr / math.pow(2, math.floor((#loss + 1) / self.opt.manualDecay))
+        if self.opt.optimState.learningRate ~= prevlr then
+            print(string.format('Learning rate decreased: %.6f -> %.6f',
+            prevlr, self.opt.optimState.learningRate))
+        end
+    end
+
     return ok, loss, psnr, startEpoch
 end
 
