@@ -75,7 +75,7 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    local mulConst = (ext == '.t7') and (255 * self.opt.mulImg) or self.opt.mulImg
+    local mulConst = (ext == '.t7') and (self.opt.mulImg / 255) or self.opt.mulImg
     input:mul(mulConst)
     target:mul(mulConst)
 
