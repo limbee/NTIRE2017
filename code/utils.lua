@@ -244,43 +244,46 @@ function util:recursiveForward(input, model)
                 floatOutput = nil
             end
         elseif subModel.__typename:find('Identity') or subModel.__typename:find('ReLU') then
-            if 4 * input:numel() < free then
-                output = subModel:forward(input):clone()
-            -- elseif 4 * input:numel() < free then
-            --     print(('\t case 2: %.1f / %.1f'):format(4*input:numel()/ 1e9, free / 1e9))
-            --     print(input:type())
-            --     output = subModel:forward(input)
-            --     output = output:float():clone()
+            if subModel.__typename:find('Identity') and (type(input) == 'table') then
+                output = input
             else
-                local splitSize, idx = 64, 0
-                local floatOutput = torch.FloatTensor(input:size())
+                if 4 * input:numel() < free then
+                    output = subModel:forward(input):clone()
+                -- elseif 4 * input:numel() < free then
+                --     print(('\t case 2: %.1f / %.1f'):format(4*input:numel()/ 1e9, free / 1e9))
+                --     print(input:type())
+                --     output = subModel:forward(input)
+                --     output = output:float():clone()
+                else
+                    local splitSize, idx = 64, 0
+                    local floatOutput = torch.FloatTensor(input:size())
 
-                while idx < input:size(2) do
-                    local splitSizeInput = math.min(input:size(2) - idx, splitSize)
-                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
-                    local splitOutput = subModel:forward(splitInput):clone():float()
-                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
+                    while idx < input:size(2) do
+                        local splitSizeInput = math.min(input:size(2) - idx, splitSize)
+                        local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
+                        local splitOutput = subModel:forward(splitInput):clone():float()
+                        floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
 
-                    subModel:clearState()
-                    splitOutput = nil
-                    splitInput = nil
-                    collectgarbage()
-                    collectgarbage()
+                        subModel:clearState()
+                        splitOutput = nil
+                        splitInput = nil
+                        collectgarbage()
+                        collectgarbage()
 
-                    idx = idx + splitSizeInput
+                        idx = idx + splitSizeInput
+                    end
+                    output = floatOutput:clone()
+                    floatOutput = nil
                 end
-                output = floatOutput:clone()
-                floatOutput = nil
             end
         else -- What else? Please add other modules manually
             output = subModel:forward(input):clone()
         end
 
         input = nil
+        __model:clearState()
         subModel:clearState()
         subModel = nil
-        __model:clearState()
-        collectgarbage()
         collectgarbage()
         collectgarbage()
 

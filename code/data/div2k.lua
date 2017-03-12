@@ -12,10 +12,37 @@ function div2k:__init(opt, split)
 
     --absolute path of the dataset
     local apath = paths.concat(opt.datadir, 'dataset/DIV2K') -- '/var/tmp/dataset/DIV2K'
-    self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
-    self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
-    if opt.dataSize == 'big' then
-        self.dirInp = self.dirInp .. 'b'
+    if opt.datatype == 't7pack' then
+        self.dirTar = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_HR')
+        self.dirInp = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale)
+        if opt.dataSize == 'big' then
+            self.dirInp = self.dirInp .. 'b'
+        end
+        local t7Tar = torch.load(self.dirTar .. '.t7')
+        local t7Inp = torch.load(self.dirInp .. '.t7')
+        self.t7TarPack = {}
+        self.t7InpPack = {}
+        if split == 'train' then
+            for i = 1, (self.size - opt.numVal) do
+                table.insert(self.t7TarPack, i, t7Tar[i])
+                table.insert(self.t7InpPack, i, t7Inp[i])
+            end
+        elseif split == 'val' then
+            for i = 1, opt.numVal do
+                table.insert(self.t7TarPack, i, t7Tar[self.size - opt.numVal + i])
+                table.insert(self.t7InpPack, i, t7Inp[self.size - opt.numVal + i])
+            end
+        end
+        t7Tar = nil
+        t7Inp = nil
+        collectgarbage()
+        collectgarbage()
+    else
+        self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
+        self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+        if opt.dataSize == 'big' then
+            self.dirInp = self.dirInp .. 'b'
+        end
     end
  end
 
@@ -23,30 +50,35 @@ function div2k:get(i)
     local netType = self.opt.netType
     local dataSize = self.opt.dataSize
     local idx = i
-    if self.split == 'val' then
+    if (self.split == 'val') and (self.opt.datatype ~= 't7pack') then
         idx = idx + (self.size - self.opt.numVal)
     end
 
     local scale = self.opt.scale
     local input = nil
     local target = nil
-
-    --filename format: ????x?.png
-    local fileName = idx
-    local digit = idx
-    while (digit < 1000) do
-        fileName = '0' .. fileName
-        digit = digit * 10
-    end
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
-    inputName = fileName .. 'x' .. scale .. ext
-    targetName = fileName .. ext
-    if ext == '.png' then
-        input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
-        target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+    
+    if self.opt.datatype == 't7pack' then
+        input = self.t7InpPack[idx]
+        target = self.t7TarPack[idx]
     else
-        input = torch.load(paths.concat(self.dirInp, inputName)):float()
-        target = torch.load(paths.concat(self.dirTar, targetName)):float()
+        --filename format: ????x?.png
+        local fileName = idx
+        local digit = idx
+        while (digit < 1000) do
+            fileName = '0' .. fileName
+            digit = digit * 10
+        end
+        inputName = fileName .. 'x' .. scale .. ext
+        targetName = fileName .. ext
+        if ext == '.png' then
+            input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
+            target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+        else
+            input = torch.load(paths.concat(self.dirInp, inputName)):float()
+            target = torch.load(paths.concat(self.dirTar, targetName)):float()
+        end
     end
 
     local channel, h, w = table.unpack(target:size():totable())
@@ -75,7 +107,12 @@ function div2k:get(i)
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    local mulConst = (ext == '.t7') and (self.opt.mulImg / 255) or self.opt.mulImg
+    local mulConst = self.opt.mulImg
+    if ext == '.t7' then
+        mulConst = mulConst / 255
+        input = input:float()
+        target = target:float()
+    end
     input:mul(mulConst)
     target:mul(mulConst)
 
