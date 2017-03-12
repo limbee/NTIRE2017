@@ -77,7 +77,7 @@ for modelFile in paths.iterfiles('model') do
         table.sort(testList, function(a,b) return a[2] < b[2] end)
 
         local timer = torch.Timer()
-        for i = 54, #testList do
+        for i = 1, #testList do
             local timerLocal = torch.Timer()
             if opt.progress == 'true' then
                 io.write(('>> \t [%d/%d] %s ......'):format(i,#testList,testList[i][2]))
