@@ -115,8 +115,6 @@ function util:recursiveForward(input, model)
             gpuid = 1
         end
         local free, total = cutorch.getMemoryUsage(gpuid)
-        -- Gives an extra. Not sure whether this is necessary or not.
-        free = free - 4e9
 
         if subModel.__typename:find('ConcatTable') then
             output = {}
@@ -149,9 +147,9 @@ function util:recursiveForward(input, model)
             end
 
             local nOutputPixel = nOutputPlane * oH * oW
-            if 4 * 2 * nOutputPixel < free then
+            if 2 * (4 * 2 * nOutputPixel) < free then -- This is not a typo
                 output = subModel:forward(input):clone()
-            elseif 4 * nOutputPixel < free then
+            elseif 2 * (4 * nOutputPixel) < free then
                 output = subModel:forward(input)
                 output = output:float():clone()
             else -- If input and output cannot reside in the memory at the same time
@@ -186,14 +184,9 @@ function util:recursiveForward(input, model)
                 output = floatOutput:clone()
                 floatOutput = nil
             end
-            input = nil
-            collectgarbage()
-            collectgarbage()
-            output = output:cuda()
         elseif subModel.__typename:find('Shuffle') then
             local sc = subModel.upscaleFactor
-            local nOutputPixel = input:numel()
-            free = free - 2e9
+            local nOutputPixel = input:numel() * sc * sc
             if 4 * 2 * nOutputPixel < free then
                 output = subModel:forward(input):clone()
             elseif 4 * nOutputPixel < free then
@@ -207,13 +200,14 @@ function util:recursiveForward(input, model)
                 while idx < nInputPlane do
                     local splitSizeInput = math.min(nInputPlane - idx, splitSize)
                     local splitSizeOutput = splitSizeInput / (sc * sc)
-                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]                    
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
                     local splitOutput = subModel:forward(splitInput):clone():float()
                     local idxOutput = idx / (sc * sc)
                     floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
 
                     subModel:clearState()
                     splitOutput = nil
+                    splitInput = nil
                     collectgarbage()
                     collectgarbage()
 
@@ -222,23 +216,63 @@ function util:recursiveForward(input, model)
                 output = floatOutput:clone()
                 floatOutput = nil
             end
-            input = nil
-            collectgarbage()
-            collectgarbage()
-            output = output:cuda()
-        else
-            if not pcall(function() output = subModel:forward(input):clone() end) then
-                sm = subModel
-                ii = input
-                require 'trepl'()
+        elseif subModel.__typename:find('Identity') or subModel.__typename:find('ReLU') then
+            if 4 * input:numel() < free then
+                output = subModel:forward(input):clone()
+            -- elseif 4 * input:numel() < free then
+            --     print(('\t case 2: %.1f / %.1f'):format(4*input:numel()/ 1e9, free / 1e9))
+            --     print(input:type())
+            --     output = subModel:forward(input)
+            --     output = output:float():clone()
+            else
+                local splitSize, idx = 64, 0
+                local floatOutput = torch.FloatTensor(input:size())
+
+                while idx < input:size(2) do
+                    local splitSizeInput = math.min(input:size(2) - idx, splitSize)
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
+                    local splitOutput = subModel:forward(splitInput):clone():float()
+                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
+
+                    subModel:clearState()
+                    splitOutput = nil
+                    splitInput = nil
+                    collectgarbage()
+                    collectgarbage()
+
+                    idx = idx + splitSizeInput
+                end
+                output = floatOutput:clone()
+                floatOutput = nil
             end
+        else -- What else? Please add other modules manually
+            output = subModel:forward(input):clone()
         end
+
         input = nil
         subModel:clearState()
         subModel = nil
         __model:clearState()
         collectgarbage()
         collectgarbage()
+        collectgarbage()
+
+        local function recursiveCuda(elem)
+            if type(elem) == 'table' then
+                for k,v in pairs(elem) do
+                    v = recursiveCuda(v)
+                end
+                return elem
+            elseif type(elem) == 'userdata' then
+                elem = elem:cuda()
+                return elem
+            else
+                ee = elem
+                require 'trepl'()
+            end
+        end
+
+        output = recursiveCuda(output)
 
         return output
     end
