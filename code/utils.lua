@@ -78,6 +78,8 @@ function util:load()
             print(('Loaded history (%d epoch * %d iter/epoch)\n'):format(#loss, self.opt.testEvery))
             if self.opt.startEpoch > #loss + 1 then
                 error(('Start epoch cannot be bigger than history (%d epochs)'):format(#loss))
+            elseif self.opt.startEpoch == 1 then
+                error('Please set -startEpoch bigger than 1, if you want to resume the training')
             elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= #loss then
                 print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
                 local _loss, _psnr = {}, {}
@@ -88,18 +90,9 @@ function util:load()
                 loss = _loss
                 psnr = _psnr
                 startEpoch = self.opt.startEpoch
-            else
-                if self.opt.startEpoch == 1 then
-                    print('Set startEpoch to 1. Start train from the scratch again...')
-                    startEpoch = 1
-                    ok = false
-                    loss, psnr = {}, {}
-                    self.opt.load = false
-                else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
-                    print(('Start training from %d epochs'):format(#loss+1))
-                    startEpoch = #loss + 1
-                end
-                ok = false
+            else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
+                print(('Continue training (%d epochs~)'):format(#loss + 1))
+                startEpoch = #loss + 1
             end
         else
             error('history (loss, psnr, options) does not exist')
