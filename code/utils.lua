@@ -118,7 +118,6 @@ end
 function util:calcPSNR(output,target,scale)
     output = output:squeeze()
     target = target:squeeze()
-
     local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]

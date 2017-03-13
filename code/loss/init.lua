@@ -46,8 +46,8 @@ local function getLoss(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
     end
     if opt.fd > 0 then
-        require('FourierDistCriterion')
-        local fdLoss = nn.FourierDistCriterion(opt, true)
+        require('loss/FourierDistCriterion')
+        local fdLoss = nn.FilteredDistCriterion(opt, true)
         criterion:add(fdLoss, opt.fd)
     end
     return criterion:cuda()
