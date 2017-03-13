@@ -50,7 +50,7 @@ function M.parse(arg)
     cmd:option('-beta2',            0.999,      'ADAM beta2')
     cmd:option('-epsilon',          1e-8,       'ADAM epsilon')
     -- Model
-    cmd:option('-netType',          'resnet',  'SR network architecture. Options: resnet | vdsr | bandnet | msresnet')
+    cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | bandnet | msresnet')
     cmd:option('-netwc',            0.5,        'Cut-off frequency of bandnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,         'Number of convolution layer (for VDSR)')
