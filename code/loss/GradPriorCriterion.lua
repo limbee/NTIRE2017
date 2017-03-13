@@ -13,7 +13,7 @@ function GradPriorCriterion:__init(opt)
     self.criterion:add(nn.Sum(2))
     self.criterion:add(nn.Power(opt.gradPower / 2))
     self.criterion:add(nn.SpatialAveragePooling(opt.patchSize - 1, opt.patchSize - 1))
-    self.criterion:add(nn.View(opt.batchSize))
+    self.criterion:add(nn.View(opt.batchSize * opt.nChannel))
     self.criterion:add(nn.Mean())
     self.criterion = self.criterion:cuda()
     parent.cuda(self)
@@ -21,7 +21,12 @@ end
 
 function GradPriorCriterion:updateOutput(input, target)
     self.output = self.criterion:forward(input)
-    return self.output
+--[[    
+    for i = 1, #self.criterion do
+        print(self.criterion:get(i).output:size())
+    end
+]]
+    return self.output[1]
 end
 
 function GradPriorCriterion:updateGradInput(input, target)

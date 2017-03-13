@@ -37,12 +37,12 @@ local function getLoss(opt)
     end
     if opt.grad > 0 then
         require('loss/GradCriterion')
-        local gradLoss = nn.GradCriterion()
+        local gradLoss = nn.GradCriterion(opt)
         criterion:add(gradLoss, opt.grad)
     end
     if opt.gradPrior > 0 then
         require('loss/GradPriorCriterion')
-        local gradPriorLoss = nn.GradPriorCriterion()
+        local gradPriorLoss = nn.GradPriorCriterion(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
     end
         
