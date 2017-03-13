@@ -23,7 +23,7 @@ function div2k:__init(opt, split)
             self.t7Inp = torch.load(self.dirInp .. '.t7')
             local valTar = {}
             local valInp = {}
-            for i = (self.size - opt.numVal), self.size do
+            for i = (self.size - opt.numVal + 1), self.size do
                 table.insert(valTar, self.t7Tar[i])
                 table.insert(valInp, self.t7Inp[i])
             end
@@ -114,7 +114,7 @@ function div2k:get(i)
         input:mul(self.opt.mulImg)
         target:mul(self.opt.mulImg)
     end
-
+    
     return {
         input = input,
         target = target

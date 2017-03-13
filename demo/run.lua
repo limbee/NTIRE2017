@@ -9,7 +9,7 @@ cmd:option('-type',	    'test', 	    'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
 cmd:option('-dataSize', 'small',        'test data size')
 cmd:option('-mulImg',   1,              'multiply constant to input image')
-cmd:option('-progress', 'false',        'show current progress')
+cmd:option('-progress', 'true',        'show current progress')
 cmd:option('-model',    'resnet',	    'model type: resnet | vdsr | bandnet')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
@@ -105,8 +105,10 @@ for modelFile in paths.iterfiles('model') do
             output = nil
             collectgarbage()
             collectgarbage()
-            io.write(('\t done. (time: %.2fs) \n'):format(timerLocal:time().real))
-            io.flush()
+            if opt.progress == 'true' then
+                io.write(('\t done. (time: %.2fs) \n'):format(timerLocal:time().real))
+                io.flush()
+            end
         end
         print('Elapsed time: ' .. timer:time().real)
     end
