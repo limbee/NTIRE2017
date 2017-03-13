@@ -114,7 +114,7 @@ function div2k:get(i)
         input:mul(self.opt.mulImg)
         target:mul(self.opt.mulImg)
     end
-
+    
     return {
         input = input,
         target = target
