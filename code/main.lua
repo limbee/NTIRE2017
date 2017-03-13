@@ -27,7 +27,7 @@ if opt.testOnly == 'true' then
     print('Test Only')
     trainer:test(startEpoch, valLoader)
 
-elseif opt.testOnly == 'flase' then
+elseif opt.testOnly == 'false' then
     print('Train start')
     for epoch = startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)

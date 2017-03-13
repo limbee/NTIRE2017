@@ -73,7 +73,11 @@ function div2k:get(i)
             fileName = '0' .. fileName
             digit = digit * 10
         end
-        inputName = fileName .. 'x' .. scale .. ext
+        if self.opt.netType == 'recurVDSR' then
+            inputName = 'SRres'..fileName .. 'x' .. scale .. ext
+        else
+            inputName = fileName .. 'x' .. scale .. ext
+        end
         targetName = fileName .. ext
         if ext == '.png' then
             input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')

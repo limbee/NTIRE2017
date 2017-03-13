@@ -276,6 +276,10 @@ function util:recursiveForward(input, model)
                     floatOutput = nil
                 end
             end
+        elseif subModel.__typename:find('CAddTable') then
+            output =(input[#input-1]+input[#input])
+        elseif subModel.__typename:find('FlattenTable') then
+            output = input[#input] --choose output which you want
         else -- What else? Please add other modules manually
             output = subModel:forward(input):clone()
         end
