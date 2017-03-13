@@ -193,7 +193,7 @@ end
 --------------------------------------------------------------------------------
 local FilteredDistCriterion, parent = torch.class('nn.FilteredDistCriterion', 'nn.Criterion')
 
-function FilteredDistCriterion:__init(wc, filter, sizeAverage)
+function FilteredDistCriterion:__init(opt, sizeAverage)
     parent.__init(self)
     if sizeAverage ~= nil then
         self.sizeAverage = sizeAverage
@@ -204,8 +204,8 @@ function FilteredDistCriterion:__init(wc, filter, sizeAverage)
     self.transformT = nn.DFT2D()
 
     self.sz = torch.LongStorage({-1, -1, -1, -1})
-    self.wc = wc / 2
-    self.filter = filter
+    self.wc = opt.fdwc / 2
+    self.filter = opt.fdFilter
     self.criterion = nn.ComplexDistCriterion(sizeAverage)
     
     parent.cuda(self)
