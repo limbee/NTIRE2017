@@ -108,18 +108,12 @@ function Trainer:test(epoch, dataloader)
         else
             output = outputFull:squeeze(1)
         end
-        --local quantizer = 255 / self.opt.mulImg
-        --image.save(n .. 'o.png', output / 255)
-        --image.save(n .. 't.png', self.target / 255)
-        --output = output:mul(quantizer):byte():float():div(255)
-        --self.target = self.target:mul(quantizer):byte():float():div(255)
         output:div(self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze()) 
         local qout = image.load(paths.concat(self.opt.save, 'result', n .. '.png')):cuda()
         local psnr = self.util:calcPSNR(qout, self.target, self.opt.scale)
         avgPSNR = avgPSNR + psnr
-        --image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
 
         if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
