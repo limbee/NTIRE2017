@@ -35,6 +35,11 @@ local function getLoss(opt)
         local bandLoss = nn.BandCriterion(opt.netwc, opt.lrLow, opt.lrHigh, true)
         criterion:add(bandLoss, opt.band)
     end
+    if opt.grad > 0 then
+        require('loss/GradCriterion')
+        local gradLoss = nn.GradCriterion(opt)
+        criterion:add(gradLoss, opt.grad)
+    end
         
     return criterion:cuda()
 end
