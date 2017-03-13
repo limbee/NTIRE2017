@@ -110,7 +110,15 @@ function Trainer:test(epoch, dataloader)
         end
 
         avgPSNR = avgPSNR + self.util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+        --image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+        local fileName = n
+        local digit = n
+            while (digit < 1000) do
+                fileName = '0' .. fileName
+                digit = digit * 10
+            end
+        image.save(paths.concat(self.opt.save, 'result', 'SRres' .. fileName .. 'x' .. self.opt.scale ..'.png'), output:float():squeeze())
+        torch.save(paths.concat(self.opt.save, 'result', 'SRres' .. fileName .. 'x' .. self.opt.scale ..'.t7'), output:mul(255):float():squeeze())
 
         if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)

@@ -22,7 +22,14 @@ local function getLoss(opt)
     end
     if opt.mse > 0 then
         local mseLoss = nn.MSECriterion()
-        mseLoss.sizeAverage = true
+        mseLoss.sizeAverage = true  
+        if opt.mse > 1 then
+            criterion = nn.ParallelCriterion()
+            criterion.repeatTarget = true
+            for j=2,opt.mse do
+                criterion:add(mseLoss, opt.mse)
+            end
+        end
         criterion:add(mseLoss, opt.mse)
     end
     if opt.ssim > 0 then

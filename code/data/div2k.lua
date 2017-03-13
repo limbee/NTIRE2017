@@ -43,7 +43,10 @@ function div2k:__init(opt, split)
         if opt.dataSize == 'big' then
             self.dirInp = self.dirInp .. 'b'
         end
-    end
+        if opt.netType == 'recurVDSR' then  --SRresOutput
+            self.dirInp = self.dirInp .. '_SRresOutput'
+        end
+    end 
  end
 
 function div2k:get(i)
