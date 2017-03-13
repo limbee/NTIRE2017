@@ -16,7 +16,7 @@ local function getLoss(opt)
         criterion:add(chbnLoss, opt.chbn)
     end
     if opt.smoothL1 > 0 then
-        local smoothL1 = nn.smoothL1Criterion()
+        local smoothL1 = nn.SmoothL1Criterion()
         smoothL1.sizeAverage = true
         criterion:add(smoothL1, opt.smoothL1)
     end
@@ -46,8 +46,8 @@ local function getLoss(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
     end
     if opt.fd > 0 then
-        require('FourierDistCriterion')
-        local fdLoss = nn.FourierDistCriterion(opt, true)
+        require('loss/FourierDistCriterion')
+        local fdLoss = nn.FilteredDistCriterion(opt, true)
         criterion:add(fdLoss, opt.fd)
     end
     return criterion:cuda()

@@ -12,8 +12,8 @@ local function createModel(opt)
     net:add(relu(true))
     for i = 1, opt.nLayer - 1 do
         net:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
-        net:add(relu(true))
         net:add(bnorm(opt.nFeat))
+        net:add(relu(true))
     end
     net:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
 
