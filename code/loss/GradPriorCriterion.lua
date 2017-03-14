@@ -1,4 +1,4 @@
-require('tvnorm-nn')
+require('loss/KernelCriterion')
 
 --------------------------------------------------------------------------------
 local GradPriorCriterion, parent = torch.class('nn.GradPriorCriterion', 'nn.Criterion')
@@ -6,13 +6,14 @@ local GradPriorCriterion, parent = torch.class('nn.GradPriorCriterion', 'nn.Crit
 function GradPriorCriterion:__init(opt)
     parent.__init(self)
     
+    self.kernel = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})
     self.criterion = nn.Sequential()
     self.criterion:add(nn.View(opt.batchSize * opt.nChannel, 1, opt.patchSize, opt.patchSize))
-    self.criterion:add(nn.SpatialSimpleGradFilter())
-    self.criterion:add(nn.Square())
+    self.criterion:add(nn.SpatialConstConvolution(self.kernel))
+    self.criterion:add(nn.Power(opt.gradPower))
     self.criterion:add(nn.Sum(2))
-    self.criterion:add(nn.Power(opt.gradPower / 2))
-    self.criterion:add(nn.SpatialAveragePooling(opt.patchSize - 1, opt.patchSize - 1))
+    self.criterion:add(nn.Power(1 / opt.gradPower))
+    self.criterion:add(nn.SpatialAveragePooling(opt.patchSize - self.kernel:size(1) + 1, opt.patchSize - self.kernel:size(1) + 1))
     self.criterion:add(nn.View(opt.batchSize * opt.nChannel))
     self.criterion:add(nn.Mean())
     self.criterion = self.criterion:cuda()
