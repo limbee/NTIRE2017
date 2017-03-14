@@ -82,3 +82,26 @@ local tes = nn.SpatialConstConvolution(kernel)
 print(ssgf:forward(test))
 print(tes:forward(test))
 ]]
+--[[
+require 'image'
+local img = image.load('butterfly.png'):cuda()
+local c, h, w = table.unpack(img:size():totable())
+img = img:view(c, 1, h, w)
+local seq = nn.Sequential()
+seq:add(nn.Square())
+seq:add(nn.Sum(2))
+seq:add(nn.Sqrt())
+seq = seq:cuda()
+
+local kernel1 = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})
+local grad1 = nn.SpatialConstConvolution(kernel1)
+local out1 = seq:forward(grad1:forward(img))
+out1 = out1:view(c, h - 1, w - 1)
+image.save('grad1.png', out1)
+
+local kernel2 = torch.CudaTensor{{{0, 0, 0}, {1, -2, 1}, {0, 0, 0}}, {{0, 1, 0}, {0, -2, 0}, {0, 1, 0}}}
+local grad2 = nn.SpatialConstConvolution(kernel2)
+local out2 = seq:forward(grad2:forward(img))
+out2 = out2:view(c, h - 2, w - 2)
+image.save('grad2.png', out2)
+]]
