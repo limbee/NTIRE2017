@@ -77,8 +77,11 @@ function DataLoader:run()
                             local si = i
                             --print(indices[si])
                             repeat
+
+                            print(indices[si])
+                            print(si)
                                 sample = _G.dataset:get(indices[si])
---[[                                if sample ==nil then
+--[[                            if sample ==nil then
                                 print(indices[si])
                                 print(si)
                                 sample = _G.dataset:get(indices[si])

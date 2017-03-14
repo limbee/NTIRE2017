@@ -81,17 +81,26 @@ function div2k:get(i)
         idx = idx + (self.size - self.opt.numVal)
     end
 
+
     local scale = self.opt.scale
     local input = nil
     local target = nil
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
-    if self.t7Inp[idx]:size() ~= self.t7Tar[idx]:size() then
-    return 
-    end
+
     
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
+
         target = self.t7Tar[idx]
+        print(input:size())
+        print(target:size())
+
+            if self.t7Inp[idx]:size() ~= self.t7Tar[idx]:size() then
+        image.save(paths.concat(self.opt.save, 'result', 'in' .. idx .. 'x' .. self.opt.scale ..'.png'), input:float():squeeze())
+        image.save(paths.concat(self.opt.save, 'result', 'target' .. idx .. 'x' .. self.opt.scale ..'.png'), target:float():squeeze())
+     
+    end
+
     else
         --filename format: ????x?.png
         local fileName = idx
