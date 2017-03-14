@@ -43,8 +43,9 @@ local function getLoss(opt)
         criterion:add(bandLoss, opt.band)
     end
     if opt.grad > 0 then
-        require('loss/GradCriterion')
-        local gradLoss = nn.GradCriterion(opt)
+        require('loss/KernelCriterion')
+        local kernel = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})
+        local gradLoss = nn.KernelCriterion(opt, kernel)
         criterion:add(gradLoss, opt.grad)
     end
     if opt.gradPrior > 0 then
