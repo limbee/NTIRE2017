@@ -70,7 +70,6 @@ for iModel = 1:length(totalDir)
                 end
             end
             if (numImages > 0)
-                disp(numImages);
                 if (col == 1)
                     tableCol = [tableCol {[setName ' ' scaleName]}];
                 end
@@ -90,4 +89,5 @@ for iModel = 1:length(totalDir)
     end
 end
 T = array2table(tableData, 'RowNames', tableCol, 'VariableNames', tableRow);
+disp('');
 disp(T);

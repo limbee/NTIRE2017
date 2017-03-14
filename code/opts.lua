@@ -104,7 +104,6 @@ function M.parse(arg)
     torch.setdefaulttensortype('torch.FloatTensor')
 
     if opt.nGPU == 1 then
-        os.execute('export CUDA_VISIBLE_DEVICES=' .. (opt.gpuid - 1))
         cutorch.setDevice(opt.gpuid)
     end
     cutorch.manualSeedAll(opt.manualSeed)
