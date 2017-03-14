@@ -5,12 +5,12 @@ require 'image'
 require 'optim'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',	    'test', 	    'demo type: bench | test')
+cmd:option('-type',     'bench', 	    'demo type: bench | test')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
-cmd:option('-dataSize', 'small',        'test data size')
-cmd:option('-mulImg',   1,              'multiply constant to input image')
-cmd:option('-progress', 'true',        'show current progress')
-cmd:option('-model',    'resnet',	    'model type: resnet | vdsr | bandnet')
+cmd:option('-dataSize', 'auto',         'test data size')
+cmd:option('-mulImg',   255,            'multiply constant to input image')
+cmd:option('-progress', 'true',         'show current progress')
+cmd:option('-model',    'resnet',       'model type: resnet | vdsr | bandnet')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
@@ -27,6 +27,10 @@ for modelFile in paths.iterfiles('model') do
     if string.find(modelFile, '.t7') and string.find(modelFile, opt.model) then
         local model = torch.load(paths.concat('model', modelFile)):cuda()
         local modelName = modelFile:split('%.')[1]
+        local dataSize = opt.dataSize
+        if dataSize == 'auto' then
+            dataSize = string.find(opt.model, 'VDSR') and 'big' or 'small'
+        end
         print('>> Testing model: ' .. modelName)
         model:evaluate()
 
@@ -40,8 +44,8 @@ for modelFile in paths.iterfiles('model') do
         if opt.type == 'bench' then
             --dataDir = '../../dataset/benchmark'
             dataDir = '/var/tmp/dataset/benchmark'
-            for testFolder in paths.iterdirs(paths.concat(dataDir, opt.dataSize)) do
-                local inputFolder = paths.concat(dataDir, opt.dataSize, testFolder, Xs)
+            for testFolder in paths.iterdirs(paths.concat(dataDir, dataSize)) do
+                local inputFolder = paths.concat(dataDir, dataSize, testFolder, Xs)
                 paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
                 paths.mkdir(paths.concat('img_target', modelName, testFolder))
                 for testFile in paths.iterfiles(inputFolder) do
@@ -54,7 +58,7 @@ for modelFile in paths.iterfiles('model') do
             --This code is for DIV2K dataset
             if opt.dataset == 'DIV2K' then
                 dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
-                if opt.dataSize == 'big' then
+                if dataSize == 'big' then
                     dataDir = dataDir .. 'b'
                 end
                 paths.mkdir(paths.concat('img_output', modelName, 'test', Xs))
