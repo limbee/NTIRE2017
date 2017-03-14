@@ -6,7 +6,7 @@ local M = {}
 local div2k = torch.class('sr.div2k', M)
 
 function div2k:__init(opt, split)
-    self.size = 64
+    self.size = 100
     self.opt = opt
     self.split = split
 
@@ -25,6 +25,7 @@ function div2k:__init(opt, split)
     if opt.datatype == 't7pack' then
         self.t7Inp = {}
         self.t7Tar = {}
+        --print(check)
         if split == 'train' then
             for i =1, self.size do
                 local fileName = i
@@ -49,6 +50,8 @@ function div2k:__init(opt, split)
                     self.t7Inp[i] = torch.load(paths.concat(self.dirInp, inputName)):float()
                     self.t7Tar[i] = torch.load(paths.concat(self.dirTar, targetName)):float()
                 end
+            collectgarbage()
+            collectgarbage()
             end
 
             local valTar = {}
@@ -82,6 +85,9 @@ function div2k:get(i)
     local input = nil
     local target = nil
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
+    if self.t7Inp[idx]:size() ~= self.t7Tar[idx]:size() then
+    return 
+    end
     
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
