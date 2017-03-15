@@ -37,11 +37,6 @@ local function getLoss(opt)
         local ssimLoss = nn.SSIMCriterion()
         criterion:add(ssimLoss, opt.ssim)
     end
-    if opt.band > 0 then
-        require('loss/BandCriterion')
-        local bandLoss = nn.BandCriterion(opt.netwc, opt.lrLow, opt.lrHigh, true)
-        criterion:add(bandLoss, opt.band)
-    end
     if opt.grad > 0 then
         require('loss/KernelCriterion')
         local kernel = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})

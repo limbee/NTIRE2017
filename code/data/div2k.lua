@@ -37,6 +37,26 @@ function div2k:__init(opt, split)
             self.t7Tar = torch.load(self.dirTar .. 'v.t7')
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
         end
+        --Multiscale learning is available only in t7pack
+        if opt.multiScale then
+            self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
+            if opt.dataSize == 'big' then
+                self.dirInpL = self.dirInpL .. 'b'
+            end
+            if split == 'train' then
+                self.t7InpL = torch.load(self.dirInpL .. '.t7')
+                local valInpL = {}
+                for i = (self.size - opt.numVal + 1), self.size do
+                    table.insert(valInpL, self.t7InpL[i])
+                end
+                torch.save(self.dirInpL .. 'v.t7', valInpL)
+                valInpL = nil
+                collectgarbage()
+                collectgarbage()
+            elseif split == 'val' then
+                self.t7InpL = torch.load(self.dirInpL .. 'v.t7')
+            end
+        end
     else
         self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
         self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
@@ -65,6 +85,14 @@ function div2k:get(i)
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
+        if self.opt.multiScale and (torch.random(0, 1) == 1) then
+            input = nil
+            target = nil
+            collectgarbage()
+            collectgarbage()
+            input = self.t7InpL[idx]
+            target = self.t7Inp[idx]
+        end
     else
         --filename format: ????x?.png
         local fileName = idx
