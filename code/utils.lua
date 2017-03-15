@@ -236,16 +236,7 @@ function util:recursiveForward(input, model)
                     local splitSizeInput = math.min(nInputPlane - idx, splitSize)
                     local splitSizeOutput = splitSizeInput / (sc * sc)
                     local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
-                    local splitOutput
-                    if not pcall(function() 
-                        splitOutput = subModel:forward(splitInput):float():clone() end) then
-                        print('>> shuffle')
-                        print('free : ' .. free / 1e9)
-                        ii = input
-                        si = splitInput
-                        sm = subModel
-                        require 'trepl'()
-                    end
+                    local splitOutput = subModel:forward(splitInput):float():clone()
                     local idxOutput = idx / (sc * sc)
                     floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
 
@@ -263,32 +254,7 @@ function util:recursiveForward(input, model)
         elseif subModel.__typename:find('ReLU') then
             assert(input:dim() == 4, 'Input dimension should be 4')
             if 4 * input:numel() < free then
-                local free_before, _ = cutorch.getMemoryUsage(1)
-                if not pcall(function() output = subModel:forward(input):clone() end) then
-                    local free_now, _ = cutorch.getMemoryUsage(1)
-                    print('>> relu case 1')
-                    print('free before: ' .. free_before / 1e9)
-                    print('free now: ' .. free_now / 1e9)
-                    print(subModel)
-                    print(input:size())
-                    ii = input
-                    ss = subModel
-                    require 'trepl'()
-                end
-            -- elseif 4 * input:numel() < free then
-            --    local free_before, _ = cutorch.getMemoryUsage(1)
-            --     if not pcall(function() output = subModel:forward(input) end) then
-            --         local free_now, _ = cutorch.getMemoryUsage(1)
-            --         print('>> relu case 2')
-            --         print('free before: ' .. free_before / 1e9)
-            --         print('free now: ' .. free_now / 1e9)
-            --         print(subModel)
-            --         print(input:size())
-            --         ii = input
-            --         ss = subModel
-            --         require 'trepl'()
-            --     end
-            --     output = output:float():clone()
+                output = subModel:forward(input):clone()
             else
                 local splitSize, idx = 64, 0
                 local floatOutput = torch.FloatTensor(input:size())
