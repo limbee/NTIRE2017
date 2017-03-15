@@ -92,12 +92,15 @@ function div2k:get(i)
         input = self.t7Inp[idx]
 
         target = self.t7Tar[idx]
-        print(input:size())
-        print(target:size())
 
-            if self.t7Inp[idx]:size() ~= self.t7Tar[idx]:size() then
-        image.save(paths.concat(self.opt.save, 'result', 'in' .. idx .. 'x' .. self.opt.scale ..'.png'), input:float():squeeze())
-        image.save(paths.concat(self.opt.save, 'result', 'target' .. idx .. 'x' .. self.opt.scale ..'.png'), target:float():squeeze())
+
+            if self.t7Inp[idx]:size(2) ~= self.t7Tar[idx]:size(2)  or self.t7Inp[idx]:size(3) ~= self.t7Tar[idx]:size(3)  then
+        print(input:size())
+        print( self.t7Inp[idx]:size())
+        print(target:size())
+        print(self.t7Tar[idx]:size())
+        image.save(paths.concat(self.opt.save, 'result', 'in' .. idx .. 'x' .. self.opt.scale ..'.png'), input:div(255):float():squeeze())
+        image.save(paths.concat(self.opt.save, 'result', 'target' .. idx .. 'x' .. self.opt.scale ..'.png'), target:div(255):float():squeeze())
      
     end
 
