@@ -190,7 +190,8 @@ function util:recursiveForward(input, model)
                 output = output:float():clone()
             else -- If input and output cannot reside in the memory at the same time
                 local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
-                local splitSize, idx = 64, 0
+                local idx = 0
+                local splitSize = math.min(math.floor(0.9 * free / (4 * oH * oW)), nOutputPlane)
                 while idx < nOutputPlane do
                     local split = math.min(nOutputPlane - idx, splitSize)
                     local conv
@@ -262,13 +263,17 @@ function util:recursiveForward(input, model)
             if 4 * input:numel() < free then
                 output = subModel:forward(input):clone()
             else
-                local splitSize, idx = 64, 0
+                local _, ch, h, w = unpack(input:size():totable())
                 local floatOutput = torch.FloatTensor(input:size())
+                local idx = 0
+                local splitSize = math.min(
+                    math.floor(0.9 * free / (4 * h * w)),
+                    input:size(2))
 
                 while idx < input:size(2) do
                     local splitSizeInput = math.min(input:size(2) - idx, splitSize)
-                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
-                    local splitOutput = subModel:forward(splitInput):clone():float()
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+                    local splitOutput = subModel:forward(splitInput):float():clone()
                     floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
 
                     subModel:clearState()
