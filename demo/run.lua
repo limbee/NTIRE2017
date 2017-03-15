@@ -29,7 +29,7 @@ for modelFile in paths.iterfiles('model') do
         local modelName = modelFile:split('%.')[1]
         local dataSize = opt.dataSize
         if dataSize == 'auto' then
-            dataSize = (string.find(opt.model, 'VDSR') or string.find(opt.model, 'vdsr')) and 'big' or 'small'
+            dataSize = (string.find(modelFile, 'VDSR') or string.find(modelFile, 'vdsr')) and 'big' or 'small'
         end
         print('>> Testing model: ' .. modelName)
         model:evaluate()
