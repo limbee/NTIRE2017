@@ -107,27 +107,14 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        
-        local outputFull = self.util:recursiveForward(input, self.model)
-        if self.opt.netType == 'bandnet' then
-            output = outputFull[2]:squeeze(1)
-        else
-            output = outputFull:squeeze(1)
-        end
-        output:div(self.opt.mulImg)
-        self.target:div(self.opt.mulImg)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze()) 
-        local qout = image.load(paths.concat(self.opt.save, 'result', n .. '.png')):cuda()
-        local psnr = self.util:calcPSNR(qout, self.target, self.opt.scale)
-        avgPSNR = avgPSNR + psnr
+        local outputFull = self.util:recursiveForward(input, self.model):squeeze(1)
 
-        if self.opt.netType == 'bandnet' then
-            local outputLow = outputFull[1][1]:squeeze(1):div(255)
-            local outputHigh = outputFull[1][2]:squeeze(1):div(255)
-            image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
-            image.save(paths.concat(self.opt.save, 'result', n .. '_high.png'), outputHigh)
-        end
+        util:quantize(output, self.opt.mulImg)
+        self.target:div(self.opt.mulImg)
+        avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
         
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
+
         iter = iter + 1
         self.model:clearState()
         output = nil

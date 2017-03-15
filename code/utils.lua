@@ -1,6 +1,7 @@
 require 'nn'
 require 'cunn'
 require 'cudnn'
+require 'image'
 
 local M = {}
 local util = torch.class('sr.util',M)
@@ -125,6 +126,11 @@ function util:calcPSNR(output,target,scale)
     local psnr = -10*math.log10(mse)
 
     return psnr
+end
+
+--in-place quantizing and divide by 255
+function util:quantize(img, mulImg)
+    return img:mul(255 / mulImg):add(0.5):floor():div(255)
 end
 
 function util:recursiveForward(input, model)
