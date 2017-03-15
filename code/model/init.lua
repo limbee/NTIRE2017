@@ -18,9 +18,15 @@ local function getModel(opt)
         if torch.type(model) == 'nn.DataParallelTable' then
             model = model:get(1)
         end
-    else 
-        print('Creating model from file: models/' .. opt.netType .. '.lua')
-        model = require('model/' .. opt.netType)(opt)
+    else
+        if opt.preTrained ~= 'nil' then
+            print('Loading pre-trained model from: ' .. opt.preTrained)
+            model = torch.load(opt.preTrained)
+        else
+            print('Creating model from file: models/' .. opt.netType .. '.lua')
+            model = require('model/' .. opt.netType)(opt)
+        end
+
     end
 
     -- Assumes R,G,B order

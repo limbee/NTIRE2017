@@ -33,12 +33,7 @@ function Trainer:train(epoch, dataloader)
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
-        --self:copyInputs(sample, 'train')
-        self.input = sample.input:cuda()
-        self.target = sample.target:cuda()
-        sample = nil
-        collectgarbage()
-        collectgarbage()
+        self:copyInputs(sample, 'train')
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
@@ -96,12 +91,7 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
     
     for n, sample in dataloader:run() do
-        --self:copyInputs(sample,'test')
-        self.input = sample.input:cuda()
-        self.target = sample.target:cuda()
-        sample = nil
-        collectgarbage()
-        collectgarbage()
+        self:copyInputs(sample,'test')
 
         local input = nn.Unsqueeze(1):cuda():forward(self.input)
         if self.opt.nChannel == 1 then
@@ -112,13 +102,14 @@ function Trainer:test(epoch, dataloader)
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
-        
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
 
         iter = iter + 1
+        
         self.model:clearState()
+        self.input = nil
+        self.target = nil
         output = nil
-        outputFull = nil
         collectgarbage()
         collectgarbage()
     end
@@ -135,12 +126,13 @@ function Trainer:copyInputs(sample, mode)
     elseif mode == 'test' then
         self.input = self.input or torch.CudaTensor()
     end
+    self.target = self.target or torch.CudaTensor()
 
     self.input:resize(sample.input:size()):copy(sample.input)
-    self.target = self.target or torch.CudaTensor()
     self.target:resize(sample.target:size()):copy(sample.target)
 
-    sample = nil
+    sample.input = nil
+    sample.target = nil
     collectgarbage()
     collectgarbage()
 end

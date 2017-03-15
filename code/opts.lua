@@ -17,6 +17,7 @@ function M.parse(arg)
     cmd:option('-gpuid',            1,          'GPU id to use')
     cmd:option('-nThreads',         3,          'number of data loading threads')
     cmd:option('-save',             now,        'subdirectory to save/log experiments in')
+    cmd:option('-preTrained',       'nil',        'directory of pre-trained model')
     -- Data
     cmd:option('-datadir',          '/var/tmp',  'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
