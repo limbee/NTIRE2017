@@ -109,7 +109,7 @@ function Trainer:test(epoch, dataloader)
         end
         local outputFull = self.util:recursiveForward(input, self.model):squeeze(1)
 
-        util:quantize(output, self.opt.mulImg)
+        self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
         
