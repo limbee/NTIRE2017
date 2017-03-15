@@ -257,16 +257,17 @@ function util:recursiveForward(input, model)
             if 4 * input:numel() < free then
                 output = subModel:forward(input):clone()
             else
+                local _, ch, h, w = unpack(input:size():totable())
+                local floatOutput = torch.FloatTensor(input:size())
                 local idx = 0
                 local splitSize = math.min(
                     math.floor(0.9 * free / (4 * h * w)),
                     input:size(2))
-                local floatOutput = torch.FloatTensor(input:size())
 
                 while idx < input:size(2) do
                     local splitSizeInput = math.min(input:size(2) - idx, splitSize)
-                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
-                    local splitOutput = subModel:forward(splitInput):clone():float()
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+                    local splitOutput = subModel:forward(splitInput):float():clone()
                     floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
 
                     subModel:clearState()
