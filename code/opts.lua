@@ -84,7 +84,7 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
-    opt.testOnly == opt.testOnly == 'true'
+    opt.testOnly = opt.testOnly == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
