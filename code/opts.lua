@@ -59,6 +59,7 @@ function M.parse(arg)
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',         'shuffle',  'Upsampling method: full | bilinear | shuffle')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
+    cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
     -- Loss
     cmd:option('-abs',              0,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
@@ -81,6 +82,7 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+    opt.testOnly == opt.testOnly == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load

@@ -14,6 +14,7 @@ cmd:option('-model',    'resnet',       'model type: resnet | vdsr | bandnet')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
+cmd:option('-datadir',	'/var/tmp',		'data directory')
 local opt = cmd:parse(arg or {})
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
@@ -42,8 +43,7 @@ for modelFile in paths.iterfiles('model') do
         --testList[i][3]: benchmark set name
         collectgarbage()
         if opt.type == 'bench' then
-            --dataDir = '../../dataset/benchmark'
-            dataDir = '/var/tmp/dataset/benchmark'
+            dataDir = paths.concat(opt.datadir, '/dataset/benchmark')
             for testFolder in paths.iterdirs(paths.concat(dataDir, dataSize)) do
                 local inputFolder = paths.concat(dataDir, dataSize, testFolder, Xs)
                 paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
@@ -57,7 +57,7 @@ for modelFile in paths.iterfiles('model') do
         elseif opt.type == 'test' then
             --This code is for DIV2K dataset
             if opt.dataset == 'DIV2K' then
-                dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+                dataDir = paths.concat(opt.datadir, '/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
                 if dataSize == 'big' then
                     dataDir = dataDir .. 'b'
                 end

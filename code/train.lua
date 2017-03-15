@@ -108,7 +108,7 @@ function Trainer:test(epoch, dataloader)
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
         
-        local outputFull = self.util:recursiveForward(input, self.model)
+        local outputFull = self.util:recursiveForward(input, self.model:clearState())
         if self.opt.netType == 'bandnet' then
             output = outputFull[2]:squeeze(1)
         else

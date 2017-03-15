@@ -1,6 +1,5 @@
 require 'nn'
 require 'cunn'
-require 'tvnorm-nn'
 
 local function getLoss(opt)
     local criterion = nn.MultiCriterion()
