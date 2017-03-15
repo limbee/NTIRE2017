@@ -18,32 +18,35 @@ function div2k:__init(opt, split)
         if opt.dataSize == 'big' then
             self.dirInp = self.dirInp .. 'b'
         end
-        local t7Tar = torch.load(self.dirTar .. '.t7')
-        local t7Inp = torch.load(self.dirInp .. '.t7')
-        self.t7TarPack = {}
-        self.t7InpPack = {}
         if split == 'train' then
-            for i = 1, (self.size - opt.numVal) do
-                table.insert(self.t7TarPack, i, t7Tar[i])
-                table.insert(self.t7InpPack, i, t7Inp[i])
+            self.t7Tar = torch.load(self.dirTar .. '.t7')
+            self.t7Inp = torch.load(self.dirInp .. '.t7')
+            local valTar = {}
+            local valInp = {}
+            for i = (self.size - opt.numVal + 1), self.size do
+                table.insert(valTar, self.t7Tar[i])
+                table.insert(valInp, self.t7Inp[i])
             end
+            torch.save(self.dirTar .. 'v.t7', valTar)
+            torch.save(self.dirInp .. 'v.t7', valInp)
+            valTar = nil
+            valInp = nil
+            collectgarbage()
+            collectgarbage()
         elseif split == 'val' then
-            for i = 1, opt.numVal do
-                table.insert(self.t7TarPack, i, t7Tar[self.size - opt.numVal + i])
-                table.insert(self.t7InpPack, i, t7Inp[self.size - opt.numVal + i])
-            end
+            self.t7Tar = torch.load(self.dirTar .. 'v.t7')
+            self.t7Inp = torch.load(self.dirInp .. 'v.t7')
         end
-        t7Tar = nil
-        t7Inp = nil
-        collectgarbage()
-        collectgarbage()
     else
         self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
         self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
         if opt.dataSize == 'big' then
             self.dirInp = self.dirInp .. 'b'
         end
-    end
+        if opt.netType == 'recurVDSR' then  --SRresOutput
+            self.dirInp = self.dirInp .. '_SRresOutput'
+        end
+    end 
  end
 
 function div2k:get(i)
@@ -60,8 +63,8 @@ function div2k:get(i)
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
     
     if self.opt.datatype == 't7pack' then
-        input = self.t7InpPack[idx]
-        target = self.t7TarPack[idx]
+        input = self.t7Inp[idx]
+        target = self.t7Tar[idx]
     else
         --filename format: ????x?.png
         local fileName = idx
@@ -70,7 +73,11 @@ function div2k:get(i)
             fileName = '0' .. fileName
             digit = digit * 10
         end
-        inputName = fileName .. 'x' .. scale .. ext
+        if self.opt.netType == 'recurVDSR' then
+            inputName = 'SRres'..fileName .. 'x' .. scale .. ext
+        else
+            inputName = fileName .. 'x' .. scale .. ext
+        end
         targetName = fileName .. ext
         if ext == '.png' then
             input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
@@ -114,7 +121,7 @@ function div2k:get(i)
         input:mul(self.opt.mulImg)
         target:mul(self.opt.mulImg)
     end
-
+    
     return {
         input = input,
         target = target

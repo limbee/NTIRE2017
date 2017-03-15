@@ -118,7 +118,6 @@ end
 function util:calcPSNR(output,target,scale)
     output = output:squeeze()
     target = target:squeeze()
-
     local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
@@ -276,6 +275,10 @@ function util:recursiveForward(input, model)
                     floatOutput = nil
                 end
             end
+        elseif subModel.__typename:find('CAddTable') then
+            output =(input[#input-1]+input[#input])
+        elseif subModel.__typename:find('FlattenTable') then
+            output = input[#input] --choose output which you want
         else -- What else? Please add other modules manually
             output = subModel:forward(input):clone()
         end

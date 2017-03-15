@@ -8,16 +8,14 @@ local function createModel(opt)
 
     local avg = 0
     local net = nn.Sequential()
-    net:add(nn.AddConstant(-opt.dataAvg, true))
     net:add(conv(opt.nChannel, opt.nFeat, 3, 3, 1, 1, 1, 1))
     net:add(relu(true))
     for i = 1, opt.nLayer - 1 do
         net:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
-        net:add(relu(true))
         net:add(bnorm(opt.nFeat))
+        net:add(relu(true))
     end
     net:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
-    net:add(nn.AddConstant(opt.dataAvg, true))
 
     local cat = nn.ConcatTable()
     cat:add(net)

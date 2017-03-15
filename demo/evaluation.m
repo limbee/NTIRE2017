@@ -53,8 +53,12 @@ for iModel = 1:length(totalDir)
                     if (targetDim == 2)
                         targetImg = cat(3, targetImg, targetImg, targetImg);
                     end
+                    scale = 2;
+                    shave = scale + 6;
                     imgSize = size(inputImg);
-                    targetImg = targetImg(1:imgSize(1), 1:imgSize(2), 1:imgSize(3));
+                    targetImg = targetImg(1:imgSize(1), 1:imgSize(2), :);
+                    inputImg = inputImg((1 + shave):(imgSize(1) - shave), (1 + shave):(imgSize(2) - shave), :);
+                    targetImg = targetImg((1 + shave):(imgSize(1) - shave), (1 + shave):(imgSize(2) - shave), :);
                     meanPSNR = meanPSNR + psnr(inputImg, targetImg);
                     if (psnrOnly == false)
                         meanSSIM = meanSSIM + ssim(inputImg, targetImg);
@@ -71,9 +75,6 @@ for iModel = 1:length(totalDir)
                 end
                 meanPSNR = meanPSNR / numImages;
                 meanSSIM = meanSSIM / numImages;
-%                 disp(['Mean PSNR & SSIM of ' modelName ' on ' setName ' ' scaleName]);
-%                 disp(['PSNR: ' num2str(meanPSNR)])
-%                 disp(['SSIM: ' num2str(meanSSIM)])
                 tableData(row, col) = meanPSNR;
                 if (psnrOnly == false)
                     tableData(row, col + 1) = meanSSIM;
@@ -88,4 +89,5 @@ for iModel = 1:length(totalDir)
     end
 end
 T = array2table(tableData, 'RowNames', tableCol, 'VariableNames', tableRow);
+disp('');
 disp(T);

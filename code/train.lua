@@ -42,14 +42,20 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        err = err + self.criterion(self.model.output, self.target)
-        self.model:backward(self.input, self.criterion.gradInput)
-        if self.opt.clip > 0 then
-            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+        self.criterion(self.model.output, self.target)
+        if self.criterion.output >= self.opt.mulImg^2 then
+            print('skipping samples with exploding error')
+        else
+            err = err + self.criterion.output
+            self.model:backward(self.input, self.criterion.gradInput)
+            if self.opt.clip > 0 then
+                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+            end
+            self.optimState.method(self.feval, self.params, self.optimState)
+            iter = iter + 1
         end
-        self.optimState.method(self.feval, self.params, self.optimState)
+        
         trainTime = trainTime + trainTimer:time().real
-        iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
             print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
@@ -108,9 +114,12 @@ function Trainer:test(epoch, dataloader)
         else
             output = outputFull:squeeze(1)
         end
-
-        avgPSNR = avgPSNR + self.util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
+        output:div(self.opt.mulImg)
+        self.target:div(self.opt.mulImg)
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze()) 
+        local qout = image.load(paths.concat(self.opt.save, 'result', n .. '.png')):cuda()
+        local psnr = self.util:calcPSNR(qout, self.target, self.opt.scale)
+        avgPSNR = avgPSNR + psnr
 
         if self.opt.netType == 'bandnet' then
             local outputLow = outputFull[1][1]:squeeze(1):div(255)
