@@ -107,7 +107,7 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local outputFull = self.util:recursiveForward(input, self.model):squeeze(1)
+        local output = self.util:recursiveForward(input, self.model):squeeze(1)
 
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
