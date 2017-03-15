@@ -84,35 +84,7 @@ local function createModel(opt)
             :add(id()))
         :add(cadd(true))
 
-    if opt.upsample == 'full' then
-        if opt.scale == 2 then
-            model:add(deconv(nFeat,nFeat, 4,4, 2,2, 1,1))
-            model:add(relu(true))
-        elseif opt.scale == 3 then
-            model:add(deconv(nFeat,nFeat, 6,6, 3,3, 2,2, 1,1))
-            model:add(relu(true))
-        elseif opt.scale == 4 then
-            model:add(deconv(nFeat,nFeat, 8,8, 4,4, 2,2))
-            model:add(relu(true))
-        end
-    elseif opt.upsample == 'shuffle' then -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
-        if opt.scale == 2 then
-            model:add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
-            model:add(shuffle(2))
-            model:add(relu(true))
-        elseif opt.scale == 3 then
-            model:add(conv(nFeat,9*nFeat, 3,3, 1,1, 1,1))
-            model:add(shuffle(3))
-            model:add(relu(true))
-        elseif opt.scale == 4 then
-            model:add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
-            model:add(shuffle(2))
-            model:add(relu(true))
-            model:add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
-            model:add(shuffle(2))
-            model:add(relu(true))
-        end
-    end
+    model:add(require 'model/upsample'(opt))
 
     model:add(conv(nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 

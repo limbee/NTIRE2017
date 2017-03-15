@@ -13,8 +13,8 @@ local function createModel(opt)
     local cadd = nn.CAddTable
     local deconv = nn.SpatialFullConvolution
 
-    local function convBlock(nFeat)
-        local s = nn.Sequential()
+    local function resBlock(nFeat)
+        local s = seq()
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat))
             :add(relu(true))
@@ -29,7 +29,7 @@ local function createModel(opt)
 
     local body = seq()
     for i=1,opt.nResBlock do
-        body:add(convBlock(opt.nFeat))
+        body:add(resBlock(opt.nFeat))
     end
     body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
     body:add(bnorm(opt.nFeat))
@@ -43,8 +43,6 @@ local function createModel(opt)
         :add(cadd(true))
 
     model:add(require 'model/upsample'(opt))
-
-
 
     model:add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
