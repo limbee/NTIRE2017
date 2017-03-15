@@ -23,11 +23,10 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-if opt.testOnly == 'true' then
+if opt.testOnly then
     print('Test Only')
     trainer:test(startEpoch, valLoader)
-
-elseif opt.testOnly == 'false' then
+else
     print('Train start')
     for epoch = startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
@@ -37,6 +36,4 @@ elseif opt.testOnly == 'false' then
         util:plot(psnr,'PSNR')
         util:checkpoint(model, criterion, loss, psnr)
     end
-else
-    print("opt.testOnly is not valid type")
 end

@@ -53,11 +53,14 @@ function M.parse(arg)
     cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,         'Number of convolution layer (for VDSR)')
+    cmd:option('-nConv',            34,         'Number of convolution layers excluding the beginning and end')
     cmd:option('-nResBlock',        16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',         3,          'Number of input image channels: 1 or 3')
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',         'shuffle',  'Upsampling method: full | bilinear | shuffle')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
+    cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
+    cmd:option('-modelVer',         1,          'Experimental model version')
     -- Loss
     cmd:option('-abs',              0,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
@@ -81,6 +84,7 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+    opt.testOnly == opt.testOnly == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
