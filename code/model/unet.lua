@@ -56,7 +56,7 @@ local function createModel(opt)
 
     local function resConvBN(nFeat)
         return seq()
-            :add(resBlock)
+            :add(resBlock(nFeat))
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat))
     end
@@ -132,7 +132,7 @@ local function createModel(opt)
         end 
     elseif opt.modelVer == 7 then
         body = addSkip(resConvBN(nFeat))
-        for i = 1, (opt.nConv - 4) / 4 do
+        for i = 1, (opt.nConv - 5) / 4 do
             body = addSkip(seq()
                 :add(resBlock(nFeat))
                 :add(resBlock(nFeat))
@@ -140,7 +140,7 @@ local function createModel(opt)
         end
     elseif opt.modelVer == 8 then
         body = addSkip(resConvBN(nFeat))
-        for i = 1, (opt.nConv - 4) / 8 do
+        for i = 1, (opt.nConv - 5) / 8 do
             body = addSkip(seq()
                 :add(resBlock(nFeat))
                 :add(resBlock(nFeat))
