@@ -3,6 +3,7 @@ require 'cunn'
 require 'cudnn'
 require 'tvnorm-nn'
 require 'image'
+require 'gnuplot'
 
 local opt =
 {
@@ -12,12 +13,12 @@ local opt =
     gradPower = 2,
     numData = 800,
     numVal = 10,
-    samples = 1000
+    samples = 10000
 }
 
 local gradnet = nn.SpatialTVNormCriterion():cuda()
 local usnet = nn.Unsqueeze(1):cuda()
-local dataDir = '/var/tmp/dataset/DIV2K/DIV2K_train_HR'
+local dataDir = '/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X2'
 
 local list = {}
 
@@ -35,7 +36,7 @@ for i = 1, opt.samples do
     else
         idxStr = '0' .. idx
     end
-    local img = image.load(paths.concat(dataDir, idxStr .. '.png')):cuda()
+    local img = image.load(paths.concat(dataDir, idxStr .. 'x2.png')):cuda()
     local c, h, w = table.unpack(img:size():totable())
 
     local rH = torch.random(1, h - opt.patchSize + 1)
@@ -44,12 +45,14 @@ for i = 1, opt.samples do
     local batch = img[{{}, {rH, rH + opt.patchSize - 1}, {rW, rW + opt.patchSize - 1}}]
     batch = usnet:forward(batch):clone()
     local grad = gradnet:forward(batch)
-    
-
+    batch = batch:squeeze(1)    
+    image.save('gradientSamples/' .. idx .. '_' .. rW .. '_' .. rH .. '_' .. grad .. '.png', batch)
     table.insert(list, {G = grad, Index = idx, x = rW, y = rH})
 end
 
 table.sort(list, function(a, b) return a.G > b.G end)
+
+torch.save('gradientSamples/gradientStatistics.t7', list)
 
 print('Top 100:')
 for i = 1, 100 do
@@ -60,3 +63,12 @@ print('Show percentage:')
 for i = 1, 10 do
     print(list[opt.samples * i / 10])
 end
+
+local hist = torch.Tensor(opt.samples)
+for i = 1, opt.samples do
+    hist[i] = list[i].G
+end
+
+gnuplot.pdffigure('Histogram.pdf')
+gnuplot.hist(hist, 20)
+gnuplot.plotflush()

@@ -71,10 +71,9 @@ function DataLoader:run()
 
                         for i = 1, batchSize do
                             local sample = nil
-                            local si = i
                             repeat
-                                sample = _G.dataset:get(indices[si])
-                                si = torch.random(size)
+                                sample = _G.dataset:get(indices[i])
+                                indices[i] = torch.random(size)
                             until sample
 
                             sample = _G.augment(sample)

@@ -1,4 +1,4 @@
-local image = require 'image'
+
 local paths = require 'paths'
 local transform = require 'data/transforms'
 
@@ -118,14 +118,14 @@ function div2k:get(i)
     end
     target = target[{{}, {1, hTarget}, {1, wTarget}}]
 
-    if self.split == 'train' then 
-        local patchSize = self.opt.patchSize
-        local targetPatch = patchSize
-        local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
-        if (wTarget < targetPatch) or (hTarget < targetPatch) then
-            return
-        end
+    local patchSize = self.opt.patchSize
+    local targetPatch = patchSize
+    local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
+    if (wTarget < targetPatch) or (hTarget < targetPatch) then
+        return
+    end
 
+    if self.split == 'train' then 
         local ok = true
         local ix, iy, tx, ty
         repeat
@@ -162,6 +162,23 @@ function div2k:get(i)
         target:mul(self.opt.mulImg)
     end
     
+    if self.opt.rejection ~= -1 then
+        local ni = input / self.opt.mulImg
+        local dx = (ni - image.translate(ni, -1, 0))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
+        local dy = (ni - image.translate(ni, 0, -1))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
+        local dsum = dx:pow(2) + dy:pow(2)
+        local dsqrt = dsum:sqrt()
+        local gradValue = dsqrt:view(-1):mean()
+        if gradValue <= self.opt.rejection then
+            --print('Rejected: ' .. gradValue)
+            --image.save('data/dummy/Rejected_' .. idx .. '.png', input / self.opt.mulImg)
+            return nil
+        --else
+            --print('Accepted: ' .. gradValue)
+            --image.save('data/dummy/Accepted_' .. idx .. '.png', input / self.opt.mulImg)
+        end
+    end
+
     return {
         input = input,
         target = target

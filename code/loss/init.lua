@@ -2,6 +2,11 @@ require 'nn'
 require 'cunn'
 require 'tvnorm-nn'
 
+require('loss/CharbonnierCriterion')
+require('loss/KernelCriterion')
+require('loss/GradPriorCriterion')
+require('loss/FourierDistCriterion')
+
 local function getLoss(opt)
     local criterion = nn.MultiCriterion()
 
@@ -11,7 +16,6 @@ local function getLoss(opt)
         criterion:add(absLoss, opt.abs)
     end
     if opt.chbn > 0 then
-        require('loss/CharbonnierCriterion')
         local chbnLoss = nn.CharbonnierCriterion(true, 0.001)
         criterion:add(chbnLoss, opt.chbn)
     end
@@ -32,30 +36,21 @@ local function getLoss(opt)
         end
         criterion:add(mseLoss, opt.mse)
     end
-    if opt.ssim > 0 then
-        require('loss/SSIMCriterion')
-        local ssimLoss = nn.SSIMCriterion()
-        criterion:add(ssimLoss, opt.ssim)
-    end
     if opt.grad > 0 then
-        require('loss/KernelCriterion')
         local kernel = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})
         local gradLoss = nn.KernelCriterion(opt, kernel)
         criterion:add(gradLoss, opt.grad)
     end
     if opt.grad2 > 0 then
-        require('loss/KernelCriterion')
         local kernel2 = torch.CudaTensor{{{0, 0, 0}, {1, -2, 1}, {0, 0, 0}}, {{0, 1, 0}, {0, -2, 0}, {0, 1, 0}}}
         local grad2Loss = nn.KernelCriterion(opt, kernel2)
         criterion:add(grad2Loss, opt.grad2)
     end
     if opt.gradPrior > 0 then
-        require('loss/GradPriorCriterion')
         local gradPriorLoss = nn.GradPriorCriterion(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
     end
     if opt.fd > 0 then
-        require('loss/FourierDistCriterion')
         local fdLoss = nn.FilteredDistCriterion(opt, true)
         criterion:add(fdLoss, opt.fd)
     end
