@@ -1,6 +1,5 @@
 require 'nn'
 require 'cunn'
-require 'tvnorm-nn'
 
 require('loss/CharbonnierCriterion')
 require('loss/KernelCriterion')

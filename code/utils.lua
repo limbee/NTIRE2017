@@ -148,6 +148,10 @@ function util:recursiveForward(input, model)
         end
         local free, total = cutorch.getMemoryUsage(gpuid)
 
+        subModel:clearState() -- This is important, though I don't know the reason
+        collectgarbage()
+        collectgarbage()
+
         if subModel.__typename:find('ConcatTable') then
             output = {}
             for i = 1, subModel:size() do 
@@ -179,14 +183,15 @@ function util:recursiveForward(input, model)
             end
 
             local nOutputPixel = nOutputPlane * oH * oW
-            if 2 * (4 * 2 * nOutputPixel) < free then -- This is not a typo
+            if 4 * 2 * nOutputPixel < free then
                 output = subModel:forward(input):clone()
-            elseif 2 * (4 * nOutputPixel) < free then
+            elseif 4 * nOutputPixel < free then
                 output = subModel:forward(input)
                 output = output:float():clone()
             else -- If input and output cannot reside in the memory at the same time
                 local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
-                local splitSize, idx = 64, 0
+                local idx = 0
+                local splitSize = math.min(math.floor(0.9 * free / (4 * oH * oW)), nOutputPlane)
                 while idx < nOutputPlane do
                     local split = math.min(nOutputPlane - idx, splitSize)
                     local conv
@@ -217,6 +222,7 @@ function util:recursiveForward(input, model)
                 floatOutput = nil
             end
         elseif subModel.__typename:find('Shuffle') then
+            assert(input:dim() == 4, 'Input dimension should be 4')
             local sc = subModel.upscaleFactor
             local nOutputPixel = input:numel() * sc * sc
             if 4 * 2 * nOutputPixel < free then
@@ -225,15 +231,19 @@ function util:recursiveForward(input, model)
                 output = subModel:forward(input)
                 output = output:float():clone()
             else
-                local nInputPlane, nOutputPlane = input:size(2), input:size(2) / (sc * sc)
-                local floatOutput = torch.Tensor(1, nOutputPlane, input:size(3) * sc, input:size(4) * sc)
-                local splitSize, idx = 288, 0 -- 288 % (3^2 * 4^2) = 0
+                local _, ch, h, w = unpack(input:size():totable())
+                local nInputPlane, nOutputPlane = ch, ch / (sc * sc)
+                local floatOutput = torch.Tensor(1, nOutputPlane, h * sc, w * sc)
+                local idx = 0
+                local splitSize = math.min(
+                    math.floor((0.9 * free / (4 * h * w)) / (sc * sc)) * (sc * sc),
+                    nInputPlane)
                 
                 while idx < nInputPlane do
                     local splitSizeInput = math.min(nInputPlane - idx, splitSize)
                     local splitSizeOutput = splitSizeInput / (sc * sc)
-                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
-                    local splitOutput = subModel:forward(splitInput):clone():float()
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+                    local splitOutput = subModel:forward(splitInput):float():clone()
                     local idxOutput = idx / (sc * sc)
                     floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
 
@@ -248,45 +258,52 @@ function util:recursiveForward(input, model)
                 output = floatOutput:clone()
                 floatOutput = nil
             end
-        elseif subModel.__typename:find('Identity') or subModel.__typename:find('ReLU') then
-            if subModel.__typename:find('Identity') and (type(input) == 'table') then
-                output = input
+        elseif subModel.__typename:find('ReLU') then
+            assert(input:dim() == 4, 'Input dimension should be 4')
+            if 4 * input:numel() < free then
+                output = subModel:forward(input):clone()
             else
-                if 4 * input:numel() < free then
-                    output = subModel:forward(input):clone()
-                -- elseif 4 * input:numel() < free then
-                --     print(('\t case 2: %.1f / %.1f'):format(4*input:numel()/ 1e9, free / 1e9))
-                --     print(input:type())
-                --     output = subModel:forward(input)
-                --     output = output:float():clone()
-                else
-                    local splitSize, idx = 64, 0
-                    local floatOutput = torch.FloatTensor(input:size())
+                local _, ch, h, w = unpack(input:size():totable())
+                local floatOutput = torch.FloatTensor(input:size())
+                local idx = 0
+                local splitSize = math.min(
+                    math.floor(0.9 * free / (4 * h * w)),
+                    input:size(2))
 
-                    while idx < input:size(2) do
-                        local splitSizeInput = math.min(input:size(2) - idx, splitSize)
-                        local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]:clone()
-                        local splitOutput = subModel:forward(splitInput):clone():float()
-                        floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
+                while idx < input:size(2) do
+                    local splitSizeInput = math.min(input:size(2) - idx, splitSize)
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+                    local splitOutput = subModel:forward(splitInput):float():clone()
+                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
 
-                        subModel:clearState()
-                        splitOutput = nil
-                        splitInput = nil
-                        collectgarbage()
-                        collectgarbage()
+                    subModel:clearState()
+                    splitOutput = nil
+                    splitInput = nil
+                    collectgarbage()
+                    collectgarbage()
 
-                        idx = idx + splitSizeInput
-                    end
-                    output = floatOutput:clone()
-                    floatOutput = nil
+                    idx = idx + splitSizeInput
+                end
+                output = floatOutput:clone()
+                floatOutput = nil
+            end
+        elseif subModel.__typename:find('FlattenTable') then
+            output = input[self.opt.selOut] --choose output which you want
+        elseif subModel.__typename:find('Identity') then
+            output = input
+        else -- What else? Please add other modules manually
+            if not pcall(function() output = subModel:forward(input):clone() end) then
+                output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+                if not pcall(function() output = subModel:forward(input):float():clone() end) then
+                    print('Please handle this layer in recursiveForward function: ' .. subModel)
+                    input_ = input
+                    subModel_ = subModel
+                    require 'trepl'()
                 end
             end
-        elseif subModel.__typename:find('CAddTable') then
-            output =(input[#input-1]+input[#input])
-        elseif subModel.__typename:find('FlattenTable') then
-            output = input[#input] --choose output which you want
-        else -- What else? Please add other modules manually
-            output = subModel:forward(input):clone()
         end
 
         input = nil
