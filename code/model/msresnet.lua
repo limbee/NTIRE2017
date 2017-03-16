@@ -66,30 +66,58 @@ local function createModel(opt)
     local model = seq()
         :add(bias(-opt.mulImg/2, true))
         :add(conv(nChannel,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
-
-    local trunk = concat()
-    do  -- fine
-        assert(nBlocks/2 == math.floor(nBlocks/2), 'nBlocks should be an even number')
-        local path1 = ResNet(nBlocks/2, nFeat, fltsz)
-        local upsampler = Upsampler(scale, nFeat, nFeat)
-        for i = 1, upsampler:size() do
-            path1:insert(upsampler:get(i):clone(), i)
-        end
-        trunk:add(path1)
-    end
-    do  -- mid
-        local path2 = ResNet(nBlocks, nFeat, fltsz)
-        local upsampler = Upsampler(scale, nFeat, nFeat)
-        for i = 1, upsampler:size() do
-            path2:add(upsampler:get(i):clone())
-        end
-        trunk:add(path2)
-    end
     
-    model:add(trunk)
-    model:add(join(2))
+    assert(nBlocks/2 == math.floor(nBlocks/2), 'nBlocks should be an even number')
+    if opt.modelVer == 1 then
+        local trunk = concat()
+        do  -- fine
+            local path1 = ResNet(nBlocks/2, nFeat, fltsz)
+            local upsampler = Upsampler(scale, nFeat, nFeat)
+            for i = 1, upsampler:size() do
+                path1:insert(upsampler:get(i):clone(), i)
+            end
+            trunk:add(path1)
+        end
+        do  -- mid
+            local path2 = ResNet(nBlocks, nFeat, fltsz)
+            local upsampler = Upsampler(scale, nFeat, nFeat)
+            for i = 1, upsampler:size() do
+                path2:add(upsampler:get(i):clone())
+            end
+            trunk:add(path2)
+        end
+        
+        model:add(trunk)
+        model:add(join(2))
 
-    model:add(conv(nFeat*2,nChannel, fltsz,fltsz, 1,1, padsz,padsz))
+        model:add(conv(nFeat*2,nChannel, fltsz,fltsz, 1,1, padsz,padsz))
+    elseif opt.modelVer == 2 then
+        do	-- front
+            local path1 = Upsampler(scale, nFeat, nFeat)
+            local path2 = ResNet(nBlocks, nFeat, fltsz)
+            local upsampler = Upsampler(scale, nFeat, nFeat)
+            for i = 1, upsampler:size() do
+                path2:add(upsampler:get(i):clone())
+            end
+
+            local trunk = concat()
+                :add(path1)
+                :add(path2)
+            
+            model:add(trunk)
+            model:add(join(2))
+        end
+        do	-- back
+            model:add(conv(nFeat*2,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
+            local path3 = ResNet(nBlocks/2, nFeat, fltsz)
+            for i = 1, path3:size() do
+                model:add(path3:get(i):clone())
+            end
+        end
+        model:add(conv(nFeat,nChannel, fltsz,fltsz, 1,1, padsz,padsz))
+    else
+        error('Unknown version of MSResNet!')
+    end
     model:add(bias(opt.mulImg/2, true))
     model:reset()
 
