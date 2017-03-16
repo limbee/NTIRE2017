@@ -75,7 +75,7 @@ function DataLoader:run()
                             repeat
                                 sample = _G.dataset:get(indices[si])
                                 si = torch.random(size)
-                            until (sample)
+                            until sample
 
                             sample = _G.augment(sample)
                             inputBatch[i]:copy(sample.input)
