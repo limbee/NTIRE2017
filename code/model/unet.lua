@@ -44,7 +44,7 @@ local function createModel(opt)
 
     if opt.modelVer == 1 then
         body = resBlock(nFeat)
-        for i = 1, (opt.nConv - 2) / 4 do
+        for i = 1, (opt.nConv - 4) / 4 do
             body = addSkip(seq()
                 :add(cbrcb(nFeat))
                 :add(body)
@@ -52,9 +52,9 @@ local function createModel(opt)
         end
     elseif opt.modelVer == 2 then
         body = addSkip(seq()
-            :add(cbrcb(nFeat))
+            :add(cbrcb(nFeat)) -- It was totally wrong...
             :add(cbrcb(nFeat)))
-        for i = 1, (opt.nConv - 2) / 8 do
+        for i = 1, (opt.nConv - 6) / 8 do
             body = addSkip(seq()
                 :add(cbrcb(nFeat))
                 :add(cbrcb(nFeat))
@@ -64,11 +64,48 @@ local function createModel(opt)
         end
     elseif opt.modelVer == 3 then
         body = resBlock(nFeat)
-        for i = 1, (opt.nConv - 2) / 4 do
+        for i = 1, (opt.nConv - 4) / 4 do
             body = addSkip(seq()
                 :add(resBlock(nFeat))
                 :add(body)
                 :add(resBlock(nFeat)))
+        end
+    
+    -------------------------------------------------
+    -- Version 1 slightly wins among the 2 and 3.
+    -- However, none of them succeeded in beating the resnet.
+    -------------------------------------------------
+
+    elseif opt.modelVer == 4 then
+        body = resBlock(nFeat)
+        for i = 1, (opt.nConv - 4) / 2 do
+            body = addSkip(seq()
+                :add(cbrcb(nFeat))
+                :add(body))
+        end
+    elseif opt.modelVer == 5 then
+        bocy = resBlock(nFeat)
+        for i = 1, (opt.nConv - 4 ) 2 do
+            body = addSkip(seq()
+                :add(resBlock(nFeat))
+                :add(body))
+        end 
+    elseif opt.modelVer == 6 then
+        body = resBlock(nFeat)
+        for i = 1, (opt.nConv - 4) / 4 do
+            body = addSkip(seq()
+                :add(cbrcb(nFeat))
+                :add(relu)
+                :add(cbrcb(nFeat))
+                :add(body))
+        end
+    elseif opt.modelVer == 7 then
+        body = resBlock(nFeat)
+        for i = 1, (opt.nConv - 4) / 4 do
+            body = addSkip(seq()
+                :add(resBlock(nFeat))
+                :add(resBlock(nFeat))
+                :add(body))
         end
     else
 
@@ -79,9 +116,10 @@ local function createModel(opt)
     model = seq()
         :add(conv(opt.nChannel,nFeat, 3,3, 1,1, 1,1))
         :add(relu(true))
-        :add(concat()
-            :add(body)
-            :add(id()))
+        :add(body) -- 'body' itself has a residual skip connection
+        -- :add(concat()
+        --     :add(body)
+        --     :add(id()))
         :add(cadd(true))
 
     model:add(require 'model/upsample'(opt))
