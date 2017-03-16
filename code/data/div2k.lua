@@ -135,12 +135,29 @@ function div2k:get(i)
             return
         end
 
-        local ix = torch.random(1, wInput - inputPatch + 1)
-        local iy = torch.random(1, hInput - inputPatch + 1)
-        local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
-        if dataSize == 'big' then
-            tx, ty = ix, iy
-        end
+        local ok = true
+        repeat
+            local ix = torch.random(1, wInput - inputPatch + 1)
+            local iy = torch.random(1, hInput - inputPatch + 1)
+            local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
+            if dataSize == 'big' then
+                tx, ty = ix, iy
+            end
+            if (opt.rot45 == 'true') and (r == 1) then
+                ok = false
+                local sqrt2Inv = 1 / math.sqrt(2)
+                local function isInBound(x, y)
+                    return ((x - y + (h - w) / 2) <= (h / sqrt2Inv))
+                    and ((x + y + (h + w) / 2) <= (w / sqrt2Inv))
+                end
+                if isInBound(tx, ty)
+                and isInBound(tx + targetPatch, ty)
+                and isInBound(tx, ty + targetPatch)
+                and isInBound(tx + targetPatch, ty + targetPatch) then
+                    ok = true
+                end
+            end
+        until ok
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
