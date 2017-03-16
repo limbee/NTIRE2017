@@ -26,7 +26,8 @@ function M.parse(arg)
     cmd:option('-degrade',          'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',           10,         'number of images for validation')
     cmd:option('-multiScale',       'false',    'Training with multi-scale input')
-    cmd:option('-rot45',            'false',    'enables 45 degree rotation augmentation')
+    cmd:option('-rot45',            'false',    'Enables 45 degree rotation augmentation')
+    cmd:option('-reTrain',          -1,    'Re-train the patchs which have high error')
     cmd:option('-rejection',        -1,         'enables patch rejection which has low gradient (uninformative)')
     cmd:option('-colorAug',         'false',    'apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',          'false',    'data pre-processing: subtract mean')
@@ -89,6 +90,10 @@ function M.parse(arg)
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
     opt.testOnly = opt.testOnly == 'true'
+    
+    opt.multiScale = opt.multiScale == 'true'
+    opt.rot45 = opt.rot45 == 'true'
+
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -116,7 +121,7 @@ function M.parse(arg)
     end
     cutorch.manualSeedAll(opt.manualSeed)
 
-    if (opt.nEpochs == 0) then
+    if opt.nEpochs == 0 then
         opt.nEpochs = math.huge
     end
 

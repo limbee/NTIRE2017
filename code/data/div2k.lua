@@ -34,7 +34,7 @@ function div2k:__init(opt, split)
             collectgarbage()
             collectgarbage()
             --Multiscale learning is available only in t7pack
-            if opt.multiScale == 'true' then
+            if opt.multiScale then
                 self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
                 self.t7InpL = torch.load(self.dirInpL .. '.t7')
             end
@@ -71,8 +71,9 @@ function div2k:get(i)
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
-        if (self.split == 'train') and (r == 1) then
-            if self.opt.multiScale == 'true' then
+        if self.split == 'train' then
+            local ms = torch.random(0, 1)
+            if self.opt.multiScale and (ms == 1) then
                 input = nil
                 target = nil
                 collectgarbage()
@@ -80,7 +81,8 @@ function div2k:get(i)
                 input = self.t7InpL[idx]
                 target = self.t7Inp[idx]
             end
-            if self.opt.rot45 == 'true' then
+            local r = torch.random(0, 1)
+            if self.opt.rot45 and (r == 1) then
                 input = image.rotate(input, -math.pi / 4, 'bilinear')
                 target = image.rotate(target, -math.pi / 4, 'bilinear')
                 collectgarbage()
@@ -135,7 +137,7 @@ function div2k:get(i)
             if dataSize == 'big' then
                 tx, ty = ix, iy
             end
-            if (self.opt.rot45 == 'true') and (r == 1) then
+            if self.opt.rot45 and (r == 1) then
                 ok = false
                 local sqrt2Inv = 1 / math.sqrt(2)
                 local function isInBound(x, y)
@@ -162,6 +164,7 @@ function div2k:get(i)
         target:mul(self.opt.mulImg)
     end
     
+    --reject the patch that has small size of spatial gradient
     if self.opt.rejection ~= -1 then
         local ni = input / self.opt.mulImg
         local dx = (ni - image.translate(ni, -1, 0))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]

@@ -30,6 +30,7 @@ else
     print('Train start')
     for epoch = startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
+        trainer:reTrain()
         psnr[epoch] = trainer:test(epoch, valLoader)
 
         util:plot(loss,'loss')

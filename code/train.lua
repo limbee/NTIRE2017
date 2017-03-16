@@ -10,8 +10,12 @@ function Trainer:__init(model, criterion, opt)
     self.opt = opt
     self.optimState = opt.optimState
     
+    self.iter = 0
+    self.err = 0
+
     self.input = nil
     self.target = nil
+    self.reTrain = {}
 
     self.params, self.gradParams = model:getParameters()
     self.feval = function() return self.err, self.gradParams end
@@ -24,7 +28,9 @@ function Trainer:train(epoch, dataloader)
     local trainTimer = torch.Timer()
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
-    local iter, err = 0, 0
+    
+    self.iter = 0
+    self.err = 0
 
     cudnn.fastest = true
     cudnn.benchmark = true
@@ -41,22 +47,31 @@ function Trainer:train(epoch, dataloader)
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
         else
-            err = err + self.criterion.output
+            self.err = self.err + self.criterion.output
             self.model:backward(self.input, self.criterion.gradInput)
             if self.opt.clip > 0 then
                 self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
             end
             self.optimState.method(self.feval, self.params, self.optimState)
-            iter = iter + 1
+            self.iter = self.iter + 1
         end
         
+        if opt.reTrain > 0 then
+            local bs = self.opt.batchSize
+            local errors = (self.model.output - self.target):pow(2):view(bs, -1):mean(2):squeeze(2)
+            for i = 1, bs do
+                table.insert(self.reTrain, {err = errors, input = self.input[i], target = self.target[i]})
+            end
+        end
+
         trainTime = trainTime + trainTimer:time().real
+        
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
             print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, trainTime, dataTime, err / iter))
+                :format(it / 1000, trainTime, dataTime, self.err / self.iter))
             if n % self.opt.testEvery ~= 0 then
-                err, iter = 0, 0
+                self.err, self.iter = 0, 0
             end
             trainTime, dataTime = 0, 0
         end
@@ -71,11 +86,11 @@ function Trainer:train(epoch, dataloader)
     if epoch % self.opt.manualDecay == 0 then
         local prevlr = self.optimState.learningRate
         self.optimState.learningRate = prevlr / 2
-        print(string.format('Learning rate decreased: %.6f -> %.6f',
-        prevlr, self.optimState.learningRate))
+        print(('Learning rate decreased: %.6f -> %.6f')
+            :format(prevlr, self.optimState.learningRate))
     end
     
-    return err / iter
+    return self.err / self.iter
 end
 
 function Trainer:test(epoch, dataloader)
@@ -118,6 +133,57 @@ function Trainer:test(epoch, dataloader)
         :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
 
     return avgPSNR / iter
+end
+
+function Trainer:reTrain()
+    local rt = self.opt.reTrain
+    if rt > 0 then
+        local trainTimer = torch.Timer()
+        trainTimer:reset()
+
+        self.iter = 0
+        self.err = 0
+
+        table.sort(self.reTrain, function(a, b) return a.err > b.err end)
+        local idx = 1
+        local bs = self.opt.batchSize
+        local isz = self.reTrain[1].input:size()
+        local tsz = self.reTrain[1].target:size()
+
+        local inputBatch = torch.Tensor(bs, isz[1], isz[2], isz[3])
+        local targetBatch = torch.Tensor(bs, tsz[1], tsz[2], tsz[3])
+        for i = 1, self.opt.reTrain do
+            for j = 1, bs do
+                inputBatch[j]:copy(self.reTrain[idx].input)
+                targetBatch[j]:copy(self.reTrain[idx].target)
+                idx = idx + 1
+            end
+            self:copyInputs({input = inputBatch, target = targetBatch}, 'train')
+            self.model:zeroGradParameters()
+            self.model:forward(self.input)
+            self.criterion(self.model.output, self.target)
+            self.err = self.err + self.criterion.output
+            self.model:backward(self.input, self.criterion.gradInput)
+            if self.opt.clip > 0 then
+                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+            end
+            self.optimState.method(self.feval, self.params, self.optimState)
+            self.iter = self.iter + 1
+        end
+        print(('Retrained %d batches\tTime: %.2f\terr: %.6f')
+            :format(self.opt.reTrain, trainTimer:time().real, self.err / self.iter))
+            
+        for i = 1, #self.reTrain do
+            self.reTrain[i].input = nil
+            self.reTrain[i].target = nil
+            self.reTrain[i] = nil
+        end
+        self.reTrain = nil
+        collectgarbage()
+        collectgarbage()
+
+        self.reTrain = {}
+    end
 end
 
 function Trainer:copyInputs(sample, mode)
