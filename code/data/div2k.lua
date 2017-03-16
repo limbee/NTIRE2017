@@ -38,14 +38,14 @@ function div2k:__init(opt, split)
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
         end
         --Multiscale learning is available only in t7pack
-        if opt.multiScale then
+        if opt.multiScale == 'true' then
             self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
             if split == 'train' then
                 self.t7InpL = torch.load(self.dirInpL .. '.t7')
             end
         end
         --Rot45 is available only in t7pack
-        if opt.rot45 then
+        if opt.rot45 == 'true' then
             self.dirTar45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_HRr')
             self.dirInp45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'r')
             if split == 'train' then
@@ -87,11 +87,11 @@ function div2k:get(i)
             target = nil
             collectgarbage()
             collectgarbage()
-            if self.opt.multiScale then
+            if self.opt.multiScale == 'true' then
                 input = self.t7InpL[idx]
                 target = self.t7Inp[idx]
             end
-            if self.opt.rot45 then
+            if self.opt.rot45 == 'true' then
                 input = self.t7Inp45[idx]
                 target = self.t7Tar45[idx]
             end
