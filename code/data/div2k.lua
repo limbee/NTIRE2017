@@ -33,25 +33,14 @@ function div2k:__init(opt, split)
             valInp = nil
             collectgarbage()
             collectgarbage()
+            --Multiscale learning is available only in t7pack
+            if opt.multiScale == 'true' then
+                self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
+                self.t7InpL = torch.load(self.dirInpL .. '.t7')
+            end
         elseif split == 'val' then
             self.t7Tar = torch.load(self.dirTar .. 'v.t7')
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
-        end
-        --Multiscale learning is available only in t7pack
-        if opt.multiScale then
-            self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
-            if split == 'train' then
-                self.t7InpL = torch.load(self.dirInpL .. '.t7')
-            end
-        end
-        --Rot45 is available only in t7pack
-        if opt.rot45 then
-            self.dirTar45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_HRr')
-            self.dirInp45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'r')
-            if split == 'train' then
-                self.t7Tar45 = torch.load(self.dirTar45 .. '.t7')
-                self.t7Inp45 = torch.load(self.dirInp45 .. '.t7')
-            end
         end
     else
         self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
@@ -83,17 +72,17 @@ function div2k:get(i)
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
         if (self.split == 'train') and (r == 1) then
-            input = nil
-            target = nil
-            collectgarbage()
-            collectgarbage()
-            if self.opt.multiScale then
+            if self.opt.multiScale == 'true' then
+                input = nil
+                target = nil
+                collectgarbage()
+                collectgarbage()
                 input = self.t7InpL[idx]
                 target = self.t7Inp[idx]
             end
-            if self.opt.rot45 then
-                input = self.t7Inp45[idx]
-                target = self.t7Tar45[idx]
+            if self.opt.rot45 == 'true' then
+                input = image.rotate(input, -math.pi / 4, 'bilinear')
+                target = image.rotate(target, -math.pi / 4, 'bilinear')
             end
         end
     else
@@ -136,24 +125,25 @@ function div2k:get(i)
         end
 
         local ok = true
+        local ix, iy, tx, ty
         repeat
-            local ix = torch.random(1, wInput - inputPatch + 1)
-            local iy = torch.random(1, hInput - inputPatch + 1)
-            local tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
+            ix = torch.random(1, wInput - inputPatch + 1)
+            iy = torch.random(1, hInput - inputPatch + 1)
+            tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
             if dataSize == 'big' then
                 tx, ty = ix, iy
             end
-            if (opt.rot45 == 'true') and (r == 1) then
+            if (self.opt.rot45 == 'true') and (r == 1) then
                 ok = false
                 local sqrt2Inv = 1 / math.sqrt(2)
                 local function isInBound(x, y)
-                    return ((x - y + (h - w) / 2) <= (h / sqrt2Inv))
-                    and ((x + y + (h + w) / 2) <= (w / sqrt2Inv))
+                    return (math.abs(x - y + (h - w) / 2) <= (h * sqrt2Inv))
+                    and (math.abs(x + y - (h + w) / 2) <= (w * sqrt2Inv))
                 end
                 if isInBound(tx, ty)
-                and isInBound(tx + targetPatch, ty)
-                and isInBound(tx, ty + targetPatch)
-                and isInBound(tx + targetPatch, ty + targetPatch) then
+                and isInBound(tx + targetPatch - 1, ty)
+                and isInBound(tx, ty + targetPatch - 1)
+                and isInBound(tx + targetPatch - 1, ty + targetPatch - 1) then
                     ok = true
                 end
             end
