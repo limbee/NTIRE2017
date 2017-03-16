@@ -100,6 +100,7 @@ function util:load()
     else
         ok = false
         loss, psnr = {}, {}
+        self.opt.startEpoch = 1
     end
 
     if ok then
