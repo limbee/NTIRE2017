@@ -10,38 +10,35 @@ local function createModel(opt)
     local nChannel = opt.nChannel
     local scale = opt.scale
 
-    local function ResBlock(fltsz, nFeat)
-        local fltsz = fltsz or opt.filtsize
+    local conv = nn.SpatialConvolution
+    local relu = nn.ReLU
+    local shuffle = nn.PixelShuffle
+    local seq = nn.Sequential
+    local concat = nn.ConcatTable
+    local id = nn.Identity
+    local cadd = nn.CAddTable
+    local bias = nn.AddConstant
+    local join = nn.JoinTable
+
+    local function convBlock(nFeat, fltsz)
         local padsz = (fltsz-1)/2
-        local nFeat = nFeat or opt.nFeat
-
-        local conv1 = nn.SpatialConvolution(nFeat,nFeat, fltsz,fltsz, 1,1, padsz,padsz)
-        -- local bn = nn.SpatialBatchNormalization(nFeat)
-        local relu = nn.ReLU(true)
-        local conv2 = nn.SpatialConvolution(nFeat,nFeat, fltsz,fltsz, 1,1, padsz,padsz)
-
-        local path = nn.Sequential()
-            :add(conv1):add(relu)
-            :add(conv2)
-
-        local concat = nn.ConcatTable()
-            :add(path)
-            :add(nn.Identity())
-
-        local block = nn.Sequential()
-            :add(concat)
-            :add(nn.CAddTable(true))
-
-        return block
+        local s = nn.Sequential()
+            :add(conv(nFeat,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
+            :add(relu(true))
+            :add(conv(nFeat,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
+        return seq()
+            :add(concat()
+                :add(s)
+                :add(id()))
+            :add(cadd(true))
     end
 
-    local function ResNet(nBlocks, fltsz, nFeat)
-        local model = nn.Sequential()
-        local block = ResBlock(fltsz, nFeat)
+    local function ResNet(nBlocks, nFeat, fltsz)
+        local model = seq()
+        local block = convBlock(nFeat, fltsz)
         for i = 1, nBlocks do
             for j = 1, block:size() do
-                model:add(block:get(1):clone())
-                model:add(block:get(2):clone())
+                model:add(block:get(j):clone())
             end
         end
         block = nil
@@ -50,15 +47,15 @@ local function createModel(opt)
     end
 
     local function Upsampler(scale, inFeat, nFeat)
-        local model = nn.Sequential()
+        local model = seq()
         if scale == 2 or scale == 3 then
-            model:add(nn.SpatialConvolution(inFeat,nFeat*scale^2, fltsz,fltsz, 1,1, padsz,padsz), 1)
-            model:add(nn.PixelShuffle(scale))
+            model:add(conv(inFeat,nFeat*scale^2, fltsz,fltsz, 1,1, padsz,padsz))
+            model:add(shuffle(scale))
         elseif scale == 4 then
-            model:add(nn.SpatialConvolution(inFeat,nFeat*scale, fltsz,fltsz, 1,1, padsz,padsz), 1)
-            model:add(nn.PixelShuffle(scale^0.5))
-            model:add(nn.SpatialConvolution(nFeat,nFeat*scale, fltsz,fltsz, 1,1, padsz,padsz), 1)
-            model:add(nn.PixelShuffle(scale^0.5))
+            model:add(conv(inFeat,nFeat*scale, fltsz,fltsz, 1,1, padsz,padsz))
+            model:add(shuffle(scale^0.5))
+            model:add(conv(nFeat,nFeat*scale, fltsz,fltsz, 1,1, padsz,padsz))
+            model:add(shuffle(scale^0.5))
         else
             error('Unknown scale')
         end
@@ -66,35 +63,39 @@ local function createModel(opt)
         return model
     end
 
-    local model = nn.Sequential()
-        :add(nn.SpatialConvolution(nChannel,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
-        
-    local concat = nn.ConcatTable()
+    local model = seq()
+        :add(bias(-opt.mulImg/2, true))
+        :add(conv(nChannel,nFeat, fltsz,fltsz, 1,1, padsz,padsz))
+
+    local trunk = concat()
     do  -- fine
-        local path1 = ResNet(nBlocks/2, fltsz, nFeat)
-        local upsampler = Upsampler(scale, nFeat, nFeat):clone()
+        assert(nBlocks/2 == math.floor(nBlocks/2), 'nBlocks should be an even number')
+        local path1 = ResNet(nBlocks/2, nFeat, fltsz)
+        local upsampler = Upsampler(scale, nFeat, nFeat)
         for i = 1, upsampler:size() do
             path1:insert(upsampler:get(i):clone(), i)
         end
-        concat:add(path1)
+        trunk:add(path1)
     end
     do  -- mid
-        local path2 = ResNet(nBlocks, fltsz, nFeat)
+        local path2 = ResNet(nBlocks, nFeat, fltsz)
         local upsampler = Upsampler(scale, nFeat, nFeat)
         for i = 1, upsampler:size() do
             path2:add(upsampler:get(i):clone())
         end
-        concat:add(path2)
+        trunk:add(path2)
     end
     
-    model:add(concat)
-    model:add(nn.JoinTable(2))
+    model:add(trunk)
+    model:add(join(2))
 
-    model:add(nn.SpatialConvolution(nFeat*2, nChannel, fltsz,fltsz,1,1,padsz,padsz))
-    model:insert(nn.AddConstant(-opt.mulImg/2, true), 1)
-    model:add(nn.AddConstant(opt.mulImg/2, true))
+    model:add(conv(nFeat*2,nChannel, fltsz,fltsz, 1,1, padsz,padsz))
+    model:add(bias(opt.mulImg/2, true))
     model:reset()
 
+    collectgarbage()
+    collectgarbage()
+    
     return model
 end
 
