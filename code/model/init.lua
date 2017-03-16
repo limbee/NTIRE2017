@@ -25,27 +25,28 @@ local function getModel(opt)
 
     -- Assumes R,G,B order
     if opt.subMean then
-        assert(opt.mulImg == 1, 'Can not multiply a conatant bigger than 1 if you choose the -subMean')
         if torch.type(model) ~= 'nn.Sequential' then
             model = nn.Sequential():add(model) -- in case the outermost shell is not a nn.Sequential
         end
 
+        local meanVec = torch.Tensor({0.4488, 0.4371, 0.4040}):mul(opt.mulImg)
+
         local subMean = nn.SpatialConvolution(3, 3, 1, 1)
         subMean.weight:copy(torch.eye(3, 3):reshape(3, 3, 1, 1))
-        subMean.bias:copy(torch.Tensor({0.4488, 0.4371, 0.4040}):mul(-1))
+        subMean.bias:copy(torch.mul(meanVec, -1))
         local addMean = nn.SpatialConvolution(3, 3, 1, 1)
         addMean.weight:copy(torch.eye(3,3):reshape(3, 3, 1, 1))
-        addMean.bias:copy(torch.Tensor({0.4488, 0.4371, 0.4040}))
+        addMean.bias:copy(meanVec)
         
         if opt.divStd then
+            local stdMat = torch.Tensor({{0.2845, 0, 0},
+                                        {0, 0.2701, 0},
+                                        {0, 0, 0.2920}}):mul(opt.mulImg)
+
             local divStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
-            divStd.weight:copy(torch.Tensor({{1/0.2845, 0, 0},
-                                            {0, 1/0.2701, 0},
-                                            {0, 0, 1/0.2920}}):reshape(3, 3, 1, 1))
+            divStd.weight:copy(torch.inverse(stdMat):reshape(3, 3, 1, 1))
             local mulStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
-            mulStd.weight:copy(torch.Tensor({{0.2845, 0, 0},
-                                            {0, 0.2701, 0},
-                                            {0, 0, 0.2920}}):reshape(3, 3, 1, 1))
+            mulStd.weight:copy(stdMat:reshape(3, 3, 1, 1))
 
             model:insert(divStd,1)
             model:insert(mulStd)
