@@ -1,6 +1,12 @@
 require 'nn'
 require 'cunn'
 
+----------------------------------------------------------------------------
+-- This file doesn't make the original u-net (Ronneberger 2015)
+-- But the overall structure using the skip connection imitated u-net.
+-- We don't use any pooling operation here.
+----------------------------------------------------------------------------
+
 local function createModel(opt)
     local nFeat = opt.nFeat
     local conv = nn.SpatialConvolution
@@ -96,7 +102,7 @@ local function createModel(opt)
         end
     
     -------------------------------------------------
-    -- Version 1 slightly wins among the 2 and 3.
+    -- Version 1 slightly wins the 2 and 3.
     -- However, none of 1 ~ 3 succeeded in beating the resnet.
     -------------------------------------------------
 
