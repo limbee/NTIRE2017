@@ -40,6 +40,7 @@ function M.parse(arg)
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
     cmd:option('-load',             '.',        'Load saved training model, history, etc.')
     cmd:option('-clip',             -1,         'Gradient clipping constant(theta)')
+    cmd:option('-reset',            'false',    'Reset training')
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',     'Optimization method')
     cmd:option('-lr',               1e-4,       'initial learning rate')
@@ -85,6 +86,7 @@ function M.parse(arg)
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
     opt.testOnly = opt.testOnly == 'true'
+    opt.reset = opt.reset == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -94,6 +96,11 @@ function M.parse(arg)
         end
     else
         opt.load = false
+    end
+
+    if opt.reset then
+        assert(not opt.load, 'Cannot reset the training while loading a history')
+        os.execute('rm -rf ../experiment/' .. opt.save .. '*')
     end
 
     opt.save = paths.concat('../experiment',opt.save)
