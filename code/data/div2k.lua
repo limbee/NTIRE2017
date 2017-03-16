@@ -42,13 +42,6 @@ function div2k:__init(opt, split)
             self.t7Tar = torch.load(self.dirTar .. 'v.t7')
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
         end
-        --Multiscale learning is available only in t7pack
-        if opt.multiScale == 'true' then
-            self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
-            if split == 'train' then
-                self.t7InpL = torch.load(self.dirInpL .. '.t7')
-            end
-        end
     else
         self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
         self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
