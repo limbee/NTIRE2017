@@ -5,6 +5,11 @@ require 'tvnorm-nn'
 require 'image'
 require 'gnuplot'
 
+--100%: 0.306
+--75%: 0.079
+--50%: 0.051
+--25%: 0.025
+
 local opt =
 {
     batchSize = 1,

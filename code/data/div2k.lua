@@ -165,7 +165,7 @@ function div2k:get(i)
     end
     
     --reject the patch that has small size of spatial gradient
-    if self.opt.rejection ~= -1 then
+    if (self.split == 'train') and (self.opt.rejection ~= -1) then
         local ni = input / self.opt.mulImg
         local dx = (ni - image.translate(ni, -1, 0))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
         local dy = (ni - image.translate(ni, 0, -1))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
