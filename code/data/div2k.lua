@@ -40,21 +40,17 @@ function div2k:__init(opt, split)
         --Multiscale learning is available only in t7pack
         if opt.multiScale then
             self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
-            if opt.dataSize == 'big' then
-                self.dirInpL = self.dirInpL .. 'b'
-            end
             if split == 'train' then
                 self.t7InpL = torch.load(self.dirInpL .. '.t7')
-                local valInpL = {}
-                for i = (self.size - opt.numVal + 1), self.size do
-                    table.insert(valInpL, self.t7InpL[i])
-                end
-                torch.save(self.dirInpL .. 'v.t7', valInpL)
-                valInpL = nil
-                collectgarbage()
-                collectgarbage()
-            elseif split == 'val' then
-                self.t7InpL = torch.load(self.dirInpL .. 'v.t7')
+            end
+        end
+        --Rot45 is available only in t7pack
+        if opt.rot45 then
+            self.dirTar45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_HRr')
+            self.dirInp45 = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale .. 'r')
+            if split == 'train' then
+                self.t7Tar45 = torch.load(self.dirTar45 .. '.t7')
+                self.t7Inp45 = torch.load(self.dirInp45 .. '.t7')
             end
         end
     else
@@ -67,7 +63,7 @@ function div2k:__init(opt, split)
             self.dirInp = self.dirInp .. '_SRresOutput'
         end
     end 
- end
+end
 
 function div2k:get(i)
     local netType = self.opt.netType
@@ -82,16 +78,23 @@ function div2k:get(i)
     local target = nil
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
     
+    local r = torch.random(0, 1)
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
-        if self.opt.multiScale and (torch.random(0, 1) == 1) then
+        if (self.split == 'train') and (r == 1) then
             input = nil
             target = nil
             collectgarbage()
             collectgarbage()
-            input = self.t7InpL[idx]
-            target = self.t7Inp[idx]
+            if self.opt.multiScale then
+                input = self.t7InpL[idx]
+                target = self.t7Inp[idx]
+            end
+            if self.opt.rot45 then
+                input = self.t7Inp45[idx]
+                target = self.t7Tar45[idx]
+            end
         end
     else
         --filename format: ????x?.png

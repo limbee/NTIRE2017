@@ -1,27 +1,31 @@
 require 'image'
 torch.setdefaulttensortype('torch.FloatTensor')
 
-local apath = '../../mnt/d/DIV2K'
+local apath = '/var/tmp/dataset/DIV2K'
 local setName = 'DIV2K'
 local ref = 'train_HR'
-local LR = {'train_LR_bicubic', 'train_LR_unknown', 'valid_LR_bicubic', 'valid_LR_unknown'}
---local LR = {'train_LR_bicubic', 'valid_LR_bicubic'}
+--local LR = {'train_LR_bicubic', 'train_LR_unknown', 'valid_LR_bicubic', 'valid_LR_unknown'}
+local LR = {'train_LR_bicubic', 'valid_LR_bicubic'}
 local scale = {2, 3, 4}
 
 local convertTable = {}
 local dirTable = {}
 table.insert(convertTable, setName .. '_' .. ref)
-table.insert(dirTable, setName .. '_' .. ref)
+--table.insert(dirTable, setName .. '_' .. ref)
+table.insert(dirTable, setName .. '_' .. ref .. 'r')
+
 for i = 1, #LR do
     for j = 1, #scale do
-        table.insert(convertTable, setName .. '_' .. LR[i] .. '/X' .. scale[j])
-        table.insert(dirTable, setName .. '_' .. LR[i] .. '_X' .. scale[j])
+        table.insert(convertTable, setName .. '_' .. LR[i] .. '/' .. 'X' .. scale[j])
+        table.insert(dirTable, 'DIV2K_decoded' .. '/' .. setName .. '_' .. LR[i] .. '_X' .. scale[j] .. 'r')
+        --table.insert(dirTable, setName .. '_' .. LR[i] .. '_X' .. scale[j])
         --table.insert(convertTable, setName .. '_' .. LR[i] .. '/X' .. scale[j] .. 'b')
         --table.insert(dirTable, setName .. '_' .. LR[i] .. '_X' .. scale[j] .. 'b')
     end
 end
 
-local ext = 'png'
+--local ext = 'png'
+local ext = 'r.png'
 for i = 1, #convertTable do
     print('Converting ' .. convertTable[i])
     local imageTable = {}
@@ -38,7 +42,7 @@ for i = 1, #convertTable do
             end
         end
     end
-    torch.save(dirTable[i] .. '.t7', imageTable)
+    torch.save(apath .. '/' .. dirTable[i] .. '.t7', imageTable)
     imageTable = nil
     collectgarbage()
 end
