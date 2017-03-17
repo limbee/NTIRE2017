@@ -43,6 +43,11 @@ function Trainer:train(epoch, dataloader)
         self.model:zeroGradParameters()
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
+
+
+    image.save(paths.concat(self.opt.save, 'result', 'train_patch', n .. 'o.png'), self.model.output[1]/255) 
+    image.save(paths.concat(self.opt.save, 'result', 'train_patch', n .. 't.png'), self.target[1]/255) 
+
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
         else

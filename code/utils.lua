@@ -122,7 +122,7 @@ function util:calcPSNR(output,target,scale)
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
-    local psnr = -10*math.log10(mse)
+    local psnr = -10*math.log(mse,10)
 
     return psnr
 end
