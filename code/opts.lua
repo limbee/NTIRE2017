@@ -58,7 +58,7 @@ function M.parse(arg)
     cmd:option('-nResBlock',        16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',         3,          'Number of input image channels: 1 or 3')
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
-    cmd:option('-upsample',         'shuffle',  'Upsampling method: full | bilinear | shuffle')
+    cmd:option('-upsample',         'espcnn',  'Upsampling method: deconv | espcnn')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
     cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
     cmd:option('-modelVer',         1,          'Experimental model version')
@@ -100,7 +100,7 @@ function M.parse(arg)
 
     if opt.reset then
         assert(not opt.load, 'Cannot reset the training while loading a history')
-        os.execute('rm -rf ../experiment/' .. opt.save .. '*')
+        os.execute('rm -rf ../experiment/' .. opt.save)
     end
 
     opt.save = paths.concat('../experiment',opt.save)

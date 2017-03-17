@@ -60,6 +60,7 @@ local function getModel(opt)
         end
     end
 
+    model:reset()
     model = cudnn.convert(model,cudnn)
 
     if not opt.load then

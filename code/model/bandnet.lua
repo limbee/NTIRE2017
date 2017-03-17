@@ -1,5 +1,6 @@
 require 'nn'
 require 'cunn'
+require 'model/common'
 
 local function createModel(opt)
     local conv = nn.SpatialConvolution
@@ -36,36 +37,7 @@ local function createModel(opt)
     end
     highNet:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
     highNet:add(bnorm(opt.nFeat))
-
-    if opt.upsample == 'full' then
-        if opt.scale == 2 then
-            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 4, 4, 2, 2, 1, 1))
-            highNet:add(relu(true))
-        elseif opt.scale == 3 then
-            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 6, 6, 3, 3, 2, 2, 1, 1))
-            highNet:add(relu(true))
-        elseif opt.scale == 4 then
-            highNet:add(nn.SpatialFullConvolution(opt.nFeat, opt.nFeat, 8, 8, 4, 4, 2, 2))
-            highNet:add(relu(true))
-        end
-    elseif opt.upsample == 'shuffle' then
-        if opt.scale == 2 then
-            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
-            highNet:add(shuffle(2))
-            highNet:add(relu(true))
-        elseif opt.scale == 3 then
-            highNet:add(conv(opt.nFeat, 9 * opt.nFeat, 3, 3, 1, 1, 1, 1))
-            highNet:add(shuffle(3))
-            highNet:add(relu(true))
-        elseif opt.scale == 4 then
-            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
-            highNet:add(shuffle(2))
-            highNet:add(relu(true))
-            highNet:add(conv(opt.nFeat, 4 * opt.nFeat, 3, 3, 1, 1, 1, 1))
-            highNet:add(shuffle(2))
-            highNet:add(relu(true))
-        end
-    end
+    highNet:add(upsample(opt.scale, opt.upsample, opt.nFeat))
     highNet:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
 
     cat:add(resNet)

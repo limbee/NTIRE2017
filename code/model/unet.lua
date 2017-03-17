@@ -1,5 +1,5 @@
 require 'nn'
-require 'cunn'
+require 'model/common'
 
 ----------------------------------------------------------------------------
 -- This file doesn't make the original u-net (Ronneberger 2015)
@@ -8,51 +8,6 @@ require 'cunn'
 ----------------------------------------------------------------------------
 
 local function createModel(opt)
-    local nFeat = opt.nFeat
-    local conv = nn.SpatialConvolution
-    local relu = nn.ReLU
-    local bnorm = nn.SpatialBatchNormalization
-    local shuffle = nn.PixelShuffle
-    local pad = nn.Padding
-    local seq = nn.Sequential
-    local concat = nn.ConcatTable
-    local id = nn.Identity
-    local cadd = nn.CAddTable
-    local deconv = nn.SpatialFullConvolution
-
-    local function cbrcb(nFeat)
-        return seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(bnorm(nFeat))
-            :add(relu(true))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(bnorm(nFeat))
-    end
-
-    local function brcbrc(nFeat)
-        return seq()
-            :add(bnorm(nFeat))
-            :add(relu(true))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(bnorm(nFeat))
-            :add(relu(true))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-    end
-
-    local function crc(nFeat)
-        return seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(relu(true))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-    end
-
-    local function resBlock(nFeat)
-        return seq()
-            :add(concat()
-                :add(cbrcb(nFeat))
-                :add(id()))
-            :add(cadd(true))
-    end
 
     local function resConvBN(nFeat)
         return seq()
@@ -60,15 +15,6 @@ local function createModel(opt)
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat))
     end
-
-    local function addSkip(layers)
-        return seq()
-            :add(concat()
-                :add(layers)
-                :add(id()))
-            :add(cadd(true))
-    end
-
 
     local body
 
