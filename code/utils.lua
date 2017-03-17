@@ -66,7 +66,7 @@ function util:checkpoint(model, criterion, loss, psnr)
 end
 
 function util:load()
-    local ok, loss, psnr, startEpoch
+    local ok, loss, psnr
     if self.opt.load then
         ok, loss, psnr, opt = pcall(
             function()
@@ -90,10 +90,9 @@ function util:load()
                 end
                 loss = _loss
                 psnr = _psnr
-                startEpoch = self.opt.startEpoch
             else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
                 print(('Continue training (%d epochs~)'):format(#loss + 1))
-                startEpoch = #loss + 1
+                self.opt.startEpoch = #loss + 1
             end
         else
             error('history (loss, psnr, options) does not exist')
@@ -101,7 +100,7 @@ function util:load()
     else
         ok = false
         loss, psnr = {}, {}
-        startEpoch = 1
+        self.opt.startEpoch = 1
     end
 
     if ok then
@@ -113,7 +112,7 @@ function util:load()
         end
     end
 
-    return ok, loss, psnr, startEpoch
+    return ok, loss, psnr
 end
 
 function util:calcPSNR(output,target,scale)

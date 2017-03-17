@@ -30,14 +30,14 @@ function M.parse(arg)
     cmd:option('-reTrain',          -1,    'Re-train the patchs which have high error')
     cmd:option('-rejection',        -1,         'enables patch rejection which has low gradient (uninformative)')
     cmd:option('-colorAug',         'false',    'apply color augmentation (brightness, contrast, saturation')
-    cmd:option('-subMean',          'false',    'data pre-processing: subtract mean')
+    cmd:option('-subMean',          'true',    'data pre-processing: subtract mean')
     cmd:option('-divStd',           'false',    'data pre-processing: subtract mean and divide std')
     cmd:option('-mulImg',           255,        'data pre-processing: multiply constant value to both input and output')
     -- Training
-    cmd:option('-nEpochs',          0,          'Number of total epochs to run. 0: Infinite')
+    cmd:option('-nEpochs',          300,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,          'Manual epoch number for resuming the training. Default is the end')
-    cmd:option('-manualDecay',      1e8,        'Reduce the learning rate by half per n epoch')
-    cmd:option('-batchSize',        32,         'mini-batch size (1 = pure stochastic)')
+    cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
+    cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
     cmd:option('-scale',            2,          'Super-resolution upscale factor')
     cmd:option('-testOnly',         'false',    'Run on validation set only')
@@ -45,6 +45,7 @@ function M.parse(arg)
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
     cmd:option('-load',             '.',        'Load saved training model, history, etc.')
     cmd:option('-clip',             -1,         'Gradient clipping constant(theta)')
+    cmd:option('-reset',            'false',    'Reset training')
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',     'Optimization method')
     cmd:option('-lr',               1e-4,       'initial learning rate')
@@ -67,10 +68,10 @@ function M.parse(arg)
     cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
     cmd:option('-modelVer',         1,          'Experimental model version')
     -- Loss
-    cmd:option('-abs',              0,          'L1 loss weight')
+    cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
     cmd:option('-smoothL1',         0,          'Smooth L1 loss weight')
-    cmd:option('-mse',              1,          'MSE loss weight')
+    cmd:option('-mse',              0,          'MSE loss weight')
     cmd:option('-ssim',             0,          'SSIM loss weight')
     cmd:option('-band',             0,          'Band loss weight')
     cmd:option('-grad',             0,          'Gradient loss weight')
@@ -94,6 +95,7 @@ function M.parse(arg)
     opt.multiScale = opt.multiScale == 'true'
     opt.rot45 = opt.rot45 == 'true'
 
+    opt.reset = opt.reset == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -103,6 +105,11 @@ function M.parse(arg)
         end
     else
         opt.load = false
+    end
+
+    if opt.reset then
+        assert(not opt.load, 'Cannot reset the training while loading a history')
+        os.execute('rm -rf ../experiment/' .. opt.save .. '*')
     end
 
     opt.save = paths.concat('../experiment',opt.save)
