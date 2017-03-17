@@ -29,14 +29,16 @@ local function getModel(opt)
 
     end
 
+    local meanVec = torch.Tensor({0.4488, 0.4371, 0.4040}):mul(opt.mulImg)
+    local stdMat = torch.Tensor({{0.2845, 0, 0},
+                                {0, 0.2701, 0},
+                                {0, 0, 0.2920}}):mul(opt.mulImg)
     if not opt.load then
         -- Assumes R,G,B order
         if opt.subMean then
             if torch.type(model) ~= 'nn.Sequential' then
                 model = nn.Sequential():add(model) -- in case the outermost shell is not a nn.Sequential
             end
-
-            local meanVec = torch.Tensor({0.4488, 0.4371, 0.4040}):mul(opt.mulImg)
 
             local subMean = nn.SpatialConvolution(3, 3, 1, 1)
             subMean.weight:copy(torch.eye(3, 3):reshape(3, 3, 1, 1))
@@ -46,10 +48,6 @@ local function getModel(opt)
             addMean.bias:copy(meanVec)
             
             if opt.divStd then
-                local stdMat = torch.Tensor({{0.2845, 0, 0},
-                                            {0, 0.2701, 0},
-                                            {0, 0, 0.2920}}):mul(opt.mulImg)
-
                 local divStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
                 divStd.weight:copy(torch.inverse(stdMat):reshape(3, 3, 1, 1))
                 local mulStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
@@ -68,14 +66,38 @@ local function getModel(opt)
 
     model = cudnn.convert(model,cudnn)
 
-    if not opt.load then
-        if opt.subMean and not opt.trainNormLayer then
-            model:get(1).accGradParameters = function(input,gradOutput,scale) return end
-            model:get(#model).accGradParameters = function(input,gradOutput,scale) return end
-            if opt.divStd then
-                model:get(2).accGradParameters = function(input,gradOutput,scale) return end
-                model:get(#model-1).accGradParameters = function(input,gradOutput,scale) return end
-            end
+    local fixBias, fixStd = false, false
+    if not opt.load and opt.subMean and not opt.trainNormLayer then
+        fixBias = true
+    elseif opt.load and model:size() >= 3 and not opt.trainNormLayer then
+        local subMean_candidate = model:get(1):clone():float()
+        local addMean_candidate = model:get(model:size()):clone():float()
+        if torch.type(subMean_candidate):find('SpatialConvolution') and 
+            torch.type(addMean_candidate):find('SpatialConvolution') then
+            fixBias = torch.equal(subMean_candidate.weight, torch.eye(3, 3):reshape(3, 3, 1, 1)) and
+                torch.equal(subMean_candidate.bias, torch.mul(meanVec, -1)) and
+                torch.equal(addMean_candidate.weight, torch.eye(3, 3):reshape(3, 3, 1, 1)) and
+                torch.equal(addMean_candidate.bias, meanVec)
+        end
+    end
+    if fixBias and model:size() >= 5 then
+        local divStd_candidate = model:get(2):clone():float()
+        local mulStd_candidate = model:get(model:size()-1):clone():float()
+        if torch.type(divStd_candidate):find('SpatialConvolution') and 
+            torch.type(mulStd_candidate):find('SpatialConvolution') then
+            fixStd = divStd_candidate.bias == nil and
+                mulStd_candidate.bias == nil and
+                torch.equal(divStd_candidate.weight, torch.inverse(stdMat):reshape(3, 3, 1, 1)) and
+                torch.equal(mulStd_candidate.weight, stdMat:reshape(3, 3, 1, 1))
+        end
+    end
+    
+    if fixBias then
+        model:get(1).accGradParameters = function(input,gradOutput,scale) return end
+        model:get(#model).accGradParameters = function(input,gradOutput,scale) return end
+        if fixStd then
+            model:get(2).accGradParameters = function(input,gradOutput,scale) return end
+            model:get(#model-1).accGradParameters = function(input,gradOutput,scale) return end
         end
     end
 
