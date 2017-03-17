@@ -20,9 +20,16 @@ local function createModel(opt)
     local addbn = opt.modelVer == 1
     local addrelu = (opt.modelVer == 1) or (opt.modelVer == 2)
 
+    local actParams = {}
+    actParams.actType = opt.act
+    actParams.l = opt.l
+    actParams.u = opt.u
+    actParams.alpha = opt.alpha
+    actParams.negval = opt.negval
+
     local body = seq()
     for i=1,opt.nResBlock do
-        body:add(resBlock(opt.nFeat, addbn))
+        body:add(resBlock(opt.nFeat, addbn, actParams))
     end
     body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
     body:add(bnorm(opt.nFeat))
@@ -34,24 +41,25 @@ local function createModel(opt)
         body:add(bnorm(opt.nFeat))
         model = seq()
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
-            :add(relu(true))
+            :add(act(actParams, opt.nFeat))
             :add(addSkip(body))
-            :add(upsample(opt.scale, opt.upsample, opt.nFeat))
+            :add(upsample(opt.scale, opt.upsample, opt.nFeat, actParams))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     elseif opt.modelVer == 2 then
         model = seq()
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
-            :add(relu(true))
+            :add(act(actParams, opt.nFeat))
             :add(addSkip(body))
-            :add(upsample(opt.scale, opt.upsample, opt.nFeat))
+            :add(upsample(opt.scale, opt.upsample, opt.nFeat, actParams))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     elseif opt.modelVer == 3 then
-        local upsampler = upsample(opt.scale, opt.upsample, opt.nFeat)
+        local upsampler = upsample(opt.scale, opt.upsample, opt.nFeat, actParams)
         local buffer = nn.Sequential()
         for i = 1, upsampler:size() do
-            if not torch.type(upsampler:get(i)):lower():find('relu') then
+            local name = torch.type(upsampler:get(i)):lower()
+            if not (name:find('relu') or name:find('nn.elu')) then
                 buffer:add(upsampler:get(i):clone())
             end
         end
