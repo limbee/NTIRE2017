@@ -51,7 +51,7 @@ for i = 1, opt.samples do
     batch = usnet:forward(batch):clone()
     local grad = gradnet:forward(batch)
     batch = batch:squeeze(1)    
-    image.save('gradientSamples/' .. idx .. '_' .. rW .. '_' .. rH .. '_' .. grad .. '.png', batch)
+    --image.save('gradientSamples/' .. idx .. '_' .. rW .. '_' .. rH .. '_' .. grad .. '.png', batch)
     table.insert(list, {G = grad, Index = idx, x = rW, y = rH})
 end
 

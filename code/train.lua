@@ -157,6 +157,8 @@ function Trainer:reTrain()
             for j = 1, bs do
                 inputBatch[j]:copy(self.reTable[idx].input)
                 targetBatch[j]:copy(self.reTable[idx].target)
+                image.save('tools/retrained/' .. idx .. '_in.png', inputBatch[j] / self.opt.mulImg)
+                image.save('tools/retrained/' .. idx .. '_GT.png', targetBatch[j] / self.opt.mulImg)
                 idx = idx + 1
             end
             self:copyInputs({input = inputBatch, target = targetBatch}, 'train')
