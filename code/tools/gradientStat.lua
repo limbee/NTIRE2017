@@ -14,7 +14,7 @@ local opt =
 {
     batchSize = 1,
     nChannel = 3,
-    patchSize = 96,
+    patchSize = 48,
     gradPower = 2,
     numData = 800,
     numVal = 10,

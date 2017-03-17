@@ -60,7 +60,7 @@ function Trainer:train(epoch, dataloader)
             local bs = self.opt.batchSize
             local errors = (self.model.output - self.target):pow(2):view(bs, -1):mean(2):squeeze(2)
             for i = 1, bs do
-                table.insert(self.reTable, {err = errors[i], input = self.input[i], target = self.target[i]})
+                table.insert(self.reTable, {err = errors[i], input = self.input[i]:clone(), target = self.target[i]:clone()})
             end
         end
 
@@ -74,6 +74,20 @@ function Trainer:train(epoch, dataloader)
                 self.err, self.iter = 0, 0
             end
             trainTime, dataTime = 0, 0
+
+            --This code periodically cleans up GPU memory when we use reTrain table
+            if self.opt.reTrain > 0 then
+                local capacity = self.opt.batchSize * self.opt.reTrain
+                local sz = #self.reTable
+                if sz > capacity then
+                    table.sort(self.reTable, function(a, b) return a.err > b.err end)
+                    for i = (capacity + 1), sz do
+                        table.remove(self.reTable)
+                    end
+                    collectgarbage()
+                    collectgarbage()
+                end
+            end
         end
 
         if n % self.opt.testEvery == 0 then
@@ -89,7 +103,7 @@ function Trainer:train(epoch, dataloader)
         print(('Learning rate decreased: %.6f -> %.6f')
             :format(prevlr, self.optimState.learningRate))
     end
-    
+
     return self.err / self.iter
 end
 
@@ -153,10 +167,13 @@ function Trainer:reTrain()
 
         local inputBatch = torch.Tensor(bs, isz[1], isz[2], isz[3])
         local targetBatch = torch.Tensor(bs, tsz[1], tsz[2], tsz[3])
+        
         for i = 1, self.opt.reTrain do
             for j = 1, bs do
                 inputBatch[j]:copy(self.reTable[idx].input)
                 targetBatch[j]:copy(self.reTable[idx].target)
+                --image.save('tools/retrained/' .. idx .. '_in.png', inputBatch[j] / self.opt.mulImg)
+                --image.save('tools/retrained/' .. idx .. '_GT.png', targetBatch[j] / self.opt.mulImg)
                 idx = idx + 1
             end
             self:copyInputs({input = inputBatch, target = targetBatch}, 'train')
@@ -175,8 +192,6 @@ function Trainer:reTrain()
             :format(self.opt.reTrain, trainTimer:time().real, self.err / self.iter))
             
         for i = 1, #self.reTable do
-            self.reTable[i].input = nil
-            self.reTable[i].target = nil
             self.reTable[i] = nil
         end
         self.reTable = nil
