@@ -9,9 +9,16 @@ require 'model/common'
 
 local function createModel(opt)
 
+    local actParams = {}
+    actParams.actType = opt.act
+    actParams.l = opt.l
+    actParams.u = opt.u
+    actParams.alpha = opt.alpha
+    actParams.negval = opt.negval
+
     local function resConvBN(nFeat)
         return seq()
-            :add(resBlock(nFeat))
+            :add(resBlock(nFeat, true, actParams))
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat))
     end
@@ -19,32 +26,32 @@ local function createModel(opt)
     local body
 
     if opt.modelVer == 1 then
-        body = resBlock(nFeat)
+        body = resBlock(nFeat, true, actParams)
         for i = 1, (opt.nConv - 4) / 4 do
             body = addSkip(seq()
-                :add(cbrcb(nFeat))
+                :add(cbrcb(nFeat, actParams))
                 :add(body)
-                :add(cbrcb(nFeat)))
+                :add(cbrcb(nFeat, actParams)))
         end
     elseif opt.modelVer == 2 then
         body = addSkip(seq()
-            :add(cbrcb(nFeat))
-            :add(cbrcb(nFeat)))
+            :add(cbrcb(nFeat, actParams))
+            :add(cbrcb(nFeat, actParams)))
         for i = 1, (opt.nConv - 6) / 8 do
             body = addSkip(seq()
-                :add(cbrcb(nFeat))
-                :add(cbrcb(nFeat))
+                :add(cbrcb(nFeat, actParams))
+                :add(cbrcb(nFeat, actParams))
                 :add(body)
-                :add(cbrcb(nFeat))
-                :add(cbrcb(nFeat)))
+                :add(cbrcb(nFeat, actParams))
+                :add(cbrcb(nFeat, actParams)))
         end
     elseif opt.modelVer == 3 then
-        body = resBlock(nFeat)
+        body = resBlock(nFeat, true, actParams)
         for i = 1, (opt.nConv - 4) / 4 do
             body = addSkip(seq()
-                :add(resBlock(nFeat))
+                :add(resBlock(nFeat, true, actParams))
                 :add(body)
-                :add(resBlock(nFeat)))
+                :add(resBlock(nFeat, true, actParams)))
         end
     
     -------------------------------------------------
@@ -56,42 +63,42 @@ local function createModel(opt)
         body = addSkip(resConvBN(nFeat))
         for i = 1, (opt.nConv - 5) / 2 do
             body = addSkip(seq()
-                :add(cbrcb(nFeat))
+                :add(cbrcb(nFeat, actParams))
                 :add(body))
         end
     elseif opt.modelVer == 5 then
         bocy = addSkip(resConvBN(nFeat))
         for i = 1, (opt.nConv - 5) / 2 do
             body = addSkip(seq()
-                :add(resBlock(nFeat))
+                :add(resBlock(nFeat, true, actParams))
                 :add(body))
         end 
     elseif opt.modelVer == 6 then
         body = addSkip(resConvBN(nFeat))
         for i = 1, (opt.nConv - 5) / 4 do
             body = addSkip(seq()
-                :add(cbrcb(nFeat))
-                :add(relu(true))
-                :add(cbrcb(nFeat))
-                :add(relu(true))
+                :add(cbrcb(nFeat, actParams))
+                :add(act(actParams, nFeat))
+                :add(cbrcb(nFeat, actParams))
+                :add(act(actParams, nFeat))
                 :add(body))
         end 
     elseif opt.modelVer == 7 then
         body = addSkip(resConvBN(nFeat))
         for i = 1, (opt.nConv - 5) / 4 do
             body = addSkip(seq()
-                :add(resBlock(nFeat))
-                :add(resBlock(nFeat))
+                :add(resBlock(nFeat, true, actParams))
+                :add(resBlock(nFeat, true, actParams))
                 :add(body))
         end
     elseif opt.modelVer == 8 then
         body = addSkip(resConvBN(nFeat))
         for i = 1, (opt.nConv - 5) / 8 do
             body = addSkip(seq()
-                :add(resBlock(nFeat))
-                :add(resBlock(nFeat))
-                :add(resBlock(nFeat))
-                :add(resBlock(nFeat))
+                :add(resBlock(nFeat, true, actParams))
+                :add(resBlock(nFeat, true, actParams))
+                :add(resBlock(nFeat, true, actParams))
+                :add(resBlock(nFeat, true, actParams))
                 :add(body))
         end
     else
@@ -102,7 +109,7 @@ local function createModel(opt)
 
     model = seq()
         :add(conv(opt.nChannel,nFeat, 3,3, 1,1, 1,1))
-        :add(relu(true))
+        :add(act(actParams, nFeat))
         :add(body)
         :add(require 'model/upsample'(opt))
         :add(conv(nFeat,opt.nChannel, 3,3, 1,1, 1,1))
