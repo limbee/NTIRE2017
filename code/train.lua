@@ -58,8 +58,9 @@ function Trainer:train(epoch, dataloader)
         trainTime = trainTime + trainTimer:time().real
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
-            print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, trainTime, dataTime, err / iter))
+            local lr_f, lr_d = self:get_lr()
+            print(('[Iter: %.1fk][lr: %.2fe%d]\tTime: %.2f (data: %.2f)\terr: %.6f')
+                :format(it / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
             if n % self.opt.testEvery ~= 0 then
                 err, iter = 0, 0
             end
@@ -144,5 +145,15 @@ function Trainer:copyInputs(sample, mode)
     collectgarbage()
     collectgarbage()
 end
+
+function Trainer:get_lr()
+    local logLR = math.log10(self.optimState.learningRate)
+    local characteristic = math.floor(logLR)
+    local mantissa = logLR - characteristic
+    local frac = math.pow(10,mantissa)
+
+    return frac, characteristic
+end
+
 
 return M.Trainer
