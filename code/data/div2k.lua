@@ -66,8 +66,7 @@ function div2k:get(i)
     local input = nil
     local target = nil
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
-    
-    local r = torch.random(0, 1)
+
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
@@ -81,13 +80,12 @@ function div2k:get(i)
                 input = self.t7InpL[idx]
                 target = self.t7Inp[idx]
             end
-            local r = torch.random(0, 1)
-            if self.opt.rot45 and (r == 1) then
+            --[[if self.opt.rot45 and (r == 1) then
                 input = image.rotate(input, -math.pi / 4, 'bilinear')
                 target = image.rotate(target, -math.pi / 4, 'bilinear')
                 collectgarbage()
                 collectgarbage()
-            end
+            end]]
         end
     else
         --filename format: ????x?.png
@@ -127,9 +125,14 @@ function div2k:get(i)
         return
     end
 
+    local rot45 = torch.random(0, 1)
     if self.split == 'train' then 
         local ok = true
         local ix, iy, tx, ty
+        if self.opt.rot45 and (rot45 == 1) then
+            inputPatch = inputPatch * 3 / 2
+            targetPatch = targetPatch * 3 / 2
+        end
         repeat
             ix = torch.random(1, wInput - inputPatch + 1)
             iy = torch.random(1, hInput - inputPatch + 1)
@@ -137,7 +140,7 @@ function div2k:get(i)
             if dataSize == 'big' then
                 tx, ty = ix, iy
             end
-            if self.opt.rot45 and (r == 1) then
+            --[[if self.opt.rot45 and (r == 1) then
                 ok = false
                 local sqrt2Inv = 1 / math.sqrt(2)
                 local function isInBound(x, y)
@@ -150,10 +153,18 @@ function div2k:get(i)
                 and isInBound(tx + targetPatch - 1, ty + targetPatch - 1) then
                     ok = true
                 end
-            end
+            end]]
         until ok
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
+
+        --Faster rotation
+        if self.opt.rot45 and (rot45 == 1) then
+            inputPatch = inputPatch * 2 / 3
+            targetPatch = targetPatch * 2 / 3
+            input = image.crop(image.rotate(input, -math.pi / 4, 'bilinear'), 'c', inputPatch, inputPatch)
+            target = image.crop(image.rotate(target, -math.pi / 4, 'bilinear'), 'c', targetPatch, targetPatch)
+        end
     end
 
     if ext == '.t7' then
