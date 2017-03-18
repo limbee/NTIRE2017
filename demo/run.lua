@@ -59,7 +59,7 @@ for modelFile in paths.iterfiles('model') do
         elseif opt.type == 'test' then
             --This code is for DIV2K dataset
             if opt.dataset == 'DIV2K' then
-                dataDir = paths.concat(opt.datadir, '/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+                dataDir = paths.concat(opt.datadir, 'dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
                 if dataSize == 'big' then
                     dataDir = dataDir .. 'b'
                 end
