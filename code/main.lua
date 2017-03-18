@@ -28,10 +28,18 @@ if opt.testOnly then
     trainer:test(opt.startEpoch - 1, valLoader)
 else
     print('Train start')
+    local maxPerf = -1
+    local maxIdx = -1
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
         trainer:reTrain()
         psnr[epoch] = trainer:test(epoch, valLoader)
+        
+        if psnr[epoch] > maxPerf then
+            maxPerf = psnr[epoch]
+            maxIdx = epoch
+        end
+        print(string.format('Highest PSNR: %.4f on epoch %d', maxPerf, maxIdx))
 
         util:plot(loss,'loss')
         util:plot(psnr,'PSNR')
