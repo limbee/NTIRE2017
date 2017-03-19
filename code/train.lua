@@ -45,6 +45,8 @@ function Trainer:train(epoch, dataloader)
         self.criterion(self.model.output, self.target)
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
+        elseif self.criterion.output ~= self.criterion.output then
+            print('skipping samples with nan error')
         else
             err = err + self.criterion.output
             self.model:backward(self.input, self.criterion.gradInput)
