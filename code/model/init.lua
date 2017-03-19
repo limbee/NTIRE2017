@@ -58,6 +58,7 @@ local function getModel(opt)
         end
     end
 
+    model:reset()
     model = cudnn.convert(model,cudnn)
 
     local fixBias, fixStd = false, false
