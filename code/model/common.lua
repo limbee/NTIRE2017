@@ -22,6 +22,7 @@ cadd = nn.CAddTable
 
 function act(actParams, nOutputPlane)
     local nOutputPlane = actParams.nFeat or nOutputPlane
+    local type = actParams.actType
 
     if type == 'relu' then
         return relu(true)
