@@ -149,7 +149,7 @@ function Trainer:copyInputs(sample, mode)
 end
 
 function Trainer:get_lr()
-    local logLR = math.log10(self.optimState.learningRate)
+    local logLR = math.log(self.optimState.learningRate, 10)
     local characteristic = math.floor(logLR)
     local mantissa = logLR - characteristic
     local frac = math.pow(10,mantissa)
