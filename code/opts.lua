@@ -50,6 +50,7 @@ function M.parse(arg)
     cmd:option('-beta1',            0.9,        'ADAM beta1')
     cmd:option('-beta2',            0.999,      'ADAM beta2')
     cmd:option('-epsilon',          1e-8,       'ADAM epsilon')
+    cmd:option('-rho',              0.95,       'ADADELTA rho')
     -- Model
     cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
@@ -130,7 +131,8 @@ function M.parse(arg)
         nesterov = true,
         beta1 = opt.beta1,
         beta2 = opt.beta2,
-        epsilon = opt.epsilon
+        epsilon = opt.epsilon,
+        rho = opt.rho
     }
     if opt.optimMethod == 'SGD' then 
         opt.optimState.method = optim.sgd
