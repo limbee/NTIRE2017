@@ -32,11 +32,8 @@ local function createModel(opt)
         body:add(resBlock(opt.nFeat, addbn, actParams))
     end
     body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
-    body:add(bnorm(opt.nFeat))
 
-
-
-    local model = seq()
+    local model
     if opt.modelVer == 1 then
         body:add(bnorm(opt.nFeat))
         model = seq()
@@ -55,23 +52,10 @@ local function createModel(opt)
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     elseif opt.modelVer == 3 then
-        local upsampler = upsample(opt.scale, opt.upsample, opt.nFeat, actParams)
-        local buffer = nn.Sequential()
-        for i = 1, upsampler:size() do
-            local name = torch.type(upsampler:get(i)):lower()
-            if not (name:find('relu') or name:find('nn.elu')) then
-                buffer:add(upsampler:get(i):clone())
-            end
-        end
-        upsampler = buffer:clone()
-        buffer = nil
-        collectgarbage()
-        collectgarbage()
-
         model = seq()
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
             :add(addSkip(body))
-            :add(upsampler)
+            :add(upsample_wo_act(opt.scale, opt.upsample, opt.nFeat))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
     end
 

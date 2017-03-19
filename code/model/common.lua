@@ -22,7 +22,6 @@ cadd = nn.CAddTable
 
 function act(actParams, nOutputPlane)
     local nOutputPlane = actParams.nFeat or nOutputPlane
-    local type = actParams.actType
 
     if type == 'relu' then
         return relu(true)
@@ -91,6 +90,38 @@ function upsample(scale, method, nFeat, actParams)
     end
 
     return model
+end
+
+function upsample_wo_act(scale, method, nFeat)
+    local scale = scale or 2
+    local method = method or 'espcnn'
+    local nFeat = nFeat or 64
+
+    if method == 'deconv' then
+        if scale == 2 then
+            return deconv(nFeat,nFeat, 6,6, 2,2, 2,2)
+        elseif scale == 3 then
+            return deconv(nFeat,nFeat, 9,9, 3,3, 3,3)
+        elseif scale == 4 then
+            return deconv(nFeat,nFeat, 6,6, 2,2, 2,2)
+        end
+    elseif method == 'espcnn' then  -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
+        if scale == 2 then
+            return seq()
+                :add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
+                :add(shuffle(2))
+        elseif scale == 3 then
+            return seq()
+                :add(conv(nFeat,9*nFeat, 3,3, 1,1, 1,1))
+                :add(shuffle(3))
+        elseif scale == 4 then
+            return seq()
+                :add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
+                :add(shuffle(2))
+                :add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
+                :add(shuffle(2))
+        end
+    end
 end
 
 function resBlock(nFeat, addBN, actParams)
