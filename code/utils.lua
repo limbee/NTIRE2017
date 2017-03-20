@@ -58,7 +58,6 @@ function util:checkpoint(model, criterion, loss, psnr)
     model:clearState()
 
     torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model)
-    torch.save(paths.concat(self.save, 'model', 'model_latest.t7'), model)
 
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
