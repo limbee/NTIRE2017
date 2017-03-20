@@ -18,28 +18,29 @@ function M.parse(arg)
     cmd:option('-nThreads',         3,          'number of data loading threads')
     cmd:option('-save',             now,        'subdirectory to save/log experiments in')
     -- Data
-    cmd:option('-datadir',          '/var/tmp',  'dataset location')
+    cmd:option('-datadir',          '/var/tmp', 'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
     cmd:option('-datatype',         't7',       'dataset type: png | t7')
     cmd:option('-dataSize',         'small',    'input image size: small | big')
     cmd:option('-degrade',          'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',           10,         'number of images for validation')
     cmd:option('-colorAug',         'false',    'apply color augmentation (brightness, contrast, saturation')
-    cmd:option('-subMean',          'false',     'data pre-processing: subtract mean')
-    cmd:option('-divStd',           'false',     'data pre-processing: subtract mean and divide std')
-    cmd:option('-mulImg',           255,          'data pre-processing: multiply constant value to both input and output')
+    cmd:option('-subMean',          'true',    'data pre-processing: subtract mean')
+    cmd:option('-divStd',           'false',    'data pre-processing: subtract mean and divide std')
+    cmd:option('-mulImg',           255,        'data pre-processing: multiply constant value to both input and output')
     -- Training
-    cmd:option('-nEpochs',          0,          'Number of total epochs to run. 0: Infinite')
+    cmd:option('-nEpochs',          300,          'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,          'Manual epoch number for resuming the training. Default is the end')
-    cmd:option('-manualDecay',      1e8,        'Reduce the learning rate by half per n epoch')
-    cmd:option('-batchSize',        32,         'mini-batch size (1 = pure stochastic)')
+    cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
+    cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
     cmd:option('-scale',            2,          'Super-resolution upscale factor')
-    cmd:option('-testOnly',         'false',     'Run on validation set only')
+    cmd:option('-testOnly',         'false',    'Run on validation set only')
     cmd:option('-printEvery',       1e2,        'Print log every # iterations')
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
     cmd:option('-load',             '.',        'Load saved training model, history, etc.')
     cmd:option('-clip',             -1,         'Gradient clipping constant(theta)')
+    cmd:option('-reset',            'false',    'Reset training')
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',     'Optimization method')
     cmd:option('-lr',               1e-4,       'initial learning rate')
@@ -49,27 +50,34 @@ function M.parse(arg)
     cmd:option('-beta1',            0.9,        'ADAM beta1')
     cmd:option('-beta2',            0.999,      'ADAM beta2')
     cmd:option('-epsilon',          1e-8,       'ADAM epsilon')
+    cmd:option('-rho',              0.95,       'ADADELTA rho')
     -- Model
-    cmd:option('-netType',          'resnet',  'SR network architecture. Options: resnet | vdsr | bandnet | msresnet')
-    cmd:option('-netwc',            0.5,        'Cut-off frequency of bandnet')
+    cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,         'Number of convolution layer (for VDSR)')
+    cmd:option('-nConv',            34,         'Number of convolution layers excluding the beginning and end')
     cmd:option('-nResBlock',        16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',         3,          'Number of input image channels: 1 or 3')
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',         'shuffle',  'Upsampling method: full | bilinear | shuffle')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
+    cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
+    cmd:option('-modelVer',         1,          'Experimental model version')
     -- Loss
-    cmd:option('-abs',              0,          'L1 loss weight')
+    cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
     cmd:option('-smoothL1',         0,          'Smooth L1 loss weight')
-    cmd:option('-mse',              1,          'MSE loss weight')
+    cmd:option('-mse',              0,          'MSE loss weight')
     cmd:option('-ssim',             0,          'SSIM loss weight')
     cmd:option('-band',             0,          'Band loss weight')
     cmd:option('-grad',             0,          'Gradient loss weight')
+    cmd:option('-grad2',            0,          '2nd order Gradient loss weight')
     cmd:option('-gradDist',         'mse',      'Distance of gradient loss')
     cmd:option('-gradPrior',        0,          'Gradient prior weight')
     cmd:option('-gradPower',        0.8,        'Gradient prior power')
+    cmd:option('-fd',               0,          'Fourier loss weight')
+    cmd:option('-fdwc',             0.75,       'Fourier loss wc')
+    cmd:option('-fdFilter',         'lowpass',  'Fourier loss filter type')
     cmd:text()
 
     local opt = cmd:parse(arg or {})
@@ -78,6 +86,8 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+    opt.testOnly = opt.testOnly == 'true'
+    opt.reset = opt.reset == 'true'
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -87,6 +97,11 @@ function M.parse(arg)
         end
     else
         opt.load = false
+    end
+
+    if opt.reset then
+        assert(not opt.load, 'Cannot reset the training while loading a history')
+        os.execute('rm -rf ../experiment/' .. opt.save .. '*')
     end
 
     opt.save = paths.concat('../experiment',opt.save)
@@ -101,7 +116,6 @@ function M.parse(arg)
     torch.setdefaulttensortype('torch.FloatTensor')
 
     if opt.nGPU == 1 then
-        os.execute('export CUDA_VISIBLE_DEVICES=' .. (opt.gpuid - 1))
         cutorch.setDevice(opt.gpuid)
     end
     cutorch.manualSeedAll(opt.manualSeed)
@@ -117,7 +131,8 @@ function M.parse(arg)
         nesterov = true,
         beta1 = opt.beta1,
         beta2 = opt.beta2,
-        epsilon = opt.epsilon
+        epsilon = opt.epsilon,
+        rho = opt.rho
     }
     if opt.optimMethod == 'SGD' then 
         opt.optimState.method = optim.sgd

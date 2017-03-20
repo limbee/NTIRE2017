@@ -42,18 +42,27 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        err = err + self.criterion(self.model.output, self.target)
-        self.model:backward(self.input, self.criterion.gradInput)
-        if self.opt.clip > 0 then
-            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+        self.criterion(self.model.output, self.target)
+        if self.criterion.output >= self.opt.mulImg^2 then
+            print('skipping samples with exploding error')
+        elseif self.criterion.output ~= self.criterion.output then
+            print('skipping samples with nan error')
+        else
+            err = err + self.criterion.output
+            self.model:backward(self.input, self.criterion.gradInput)
+            if self.opt.clip > 0 then
+                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+            end
+            self.optimState.method(self.feval, self.params, self.optimState)
+            iter = iter + 1
         end
-        self.optimState.method(self.feval, self.params, self.optimState)
+        
         trainTime = trainTime + trainTimer:time().real
-        iter = iter + 1
         if n % self.opt.printEvery == 0 then
             local it = (epoch - 1) * self.opt.testEvery + n
-            print(('[Iter: %.1fk]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, trainTime, dataTime, err / iter))
+            local lr_f, lr_d = self:get_lr()
+            print(('[Iter: %.1fk][lr: %.2fe%d]\tTime: %.2f (data: %.2f)\terr: %.6f')
+                :format(it / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
             if n % self.opt.testEvery ~= 0 then
                 err, iter = 0, 0
             end
@@ -101,33 +110,14 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        
-        local outputFull = self.util:recursiveForward(input, self.model)
-        if self.opt.netType == 'bandnet' then
-            output = outputFull[2]:squeeze(1)
-        else
-            output = outputFull:squeeze(1)
-        end
+        local output = self.util:recursiveForward(input, self.model):squeeze(1)
 
-        avgPSNR = avgPSNR + self.util:calcPSNR(output:div(self.opt.mulImg), self.target:div(self.opt.mulImg), self.opt.scale)
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output:float():squeeze())
---[[
-        local fileName = n
-        local digit = n
-            while (digit < 1000) do
-                fileName = '0' .. fileName
-                digit = digit * 10
-            end
-        image.save(paths.concat(self.opt.save, 'result', 'SRres' .. fileName .. 'x' .. self.opt.scale ..'.png'), output:float():squeeze())
-        torch.save(paths.concat(self.opt.save, 'result', 'SRres' .. fileName .. 'x' .. self.opt.scale ..'.t7'), output:mul(255):float():squeeze())
-]]
-        if self.opt.netType == 'bandnet' then
-            local outputLow = outputFull[1][1]:squeeze(1):div(255)
-            local outputHigh = outputFull[1][2]:squeeze(1):div(255)
-            image.save(paths.concat(self.opt.save, 'result', n .. '_low.png'), outputLow)
-            image.save(paths.concat(self.opt.save, 'result', n .. '_high.png'), outputHigh)
-        end
+        self.util:quantize(output, self.opt.mulImg)
+        self.target:div(self.opt.mulImg)
+        avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
         
+        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
+
         iter = iter + 1
         self.model:clearState()
         output = nil
@@ -157,5 +147,15 @@ function Trainer:copyInputs(sample, mode)
     collectgarbage()
     collectgarbage()
 end
+
+function Trainer:get_lr()
+    local logLR = math.log(self.optimState.learningRate, 10)
+    local characteristic = math.floor(logLR)
+    local mantissa = logLR - characteristic
+    local frac = math.pow(10,mantissa)
+
+    return frac, characteristic
+end
+
 
 return M.Trainer

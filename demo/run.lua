@@ -5,15 +5,16 @@ require 'image'
 require 'optim'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',	    'test', 	    'demo type: bench | test')
+cmd:option('-type',     'val', 	        'demo type: bench | test | val')
 cmd:option('-dataset',  'DIV2K',        'test dataset')
-cmd:option('-dataSize', 'small',        'test data size')
-cmd:option('-mulImg',   1,              'multiply constant to input image')
-cmd:option('-progress', 'true',        'show current progress')
-cmd:option('-model',    'resnet',	    'model type: resnet | vdsr | bandnet')
+cmd:option('-dataSize', 'auto',         'test data size')
+cmd:option('-mulImg',   255,            'multiply constant to input image')
+cmd:option('-progress', 'true',         'show current progress')
+cmd:option('-model',    'resnet',       'model type: resnet | vdsr | bandnet')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
+cmd:option('-datadir',	'/var/tmp',		'data directory')
 local opt = cmd:parse(arg or {})
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
@@ -27,6 +28,10 @@ for modelFile in paths.iterfiles('model') do
     if string.find(modelFile, '.t7') and string.find(modelFile, opt.model) then
         local model = torch.load(paths.concat('model', modelFile)):cuda()
         local modelName = modelFile:split('%.')[1]
+        local dataSize = opt.dataSize
+        if dataSize == 'auto' then
+            dataSize = (string.find(modelFile, 'VDSR') or string.find(modelFile, 'vdsr')) and 'big' or 'small'
+        end
         print('>> Testing model: ' .. modelName)
         model:evaluate()
 
@@ -37,24 +42,25 @@ for modelFile in paths.iterfiles('model') do
         --testList[i][2]: image file name
         --testList[i][3]: benchmark set name
         collectgarbage()
-        if opt.type == 'bench' then
-            --dataDir = '../../dataset/benchmark'
-            dataDir = '/var/tmp/dataset/benchmark'
-            for testFolder in paths.iterdirs(paths.concat(dataDir, opt.dataSize)) do
-                local inputFolder = paths.concat(dataDir, opt.dataSize, testFolder, Xs)
-                paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
-                paths.mkdir(paths.concat('img_target', modelName, testFolder))
-                for testFile in paths.iterfiles(inputFolder) do
-                    if string.find(testFile, '.png') then
-                        table.insert(testList, {inputFolder, testFile, testFolder})
+        if (opt.type == 'bench') or (opt.type == 'val') then
+            dataDir = paths.concat(opt.datadir, 'dataset/benchmark')
+            for testFolder in paths.iterdirs(paths.concat(dataDir, dataSize)) do
+                if (opt.type == 'bench') or ((opt.type == 'val') and (testFolder == 'val')) then
+                    local inputFolder = paths.concat(dataDir, dataSize, testFolder, Xs)
+                    paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
+                    paths.mkdir(paths.concat('img_target', modelName, testFolder))
+                    for testFile in paths.iterfiles(inputFolder) do
+                        if string.find(testFile, '.png') then
+                            table.insert(testList, {inputFolder, testFile, testFolder})
+                        end
                     end
                 end
             end
         elseif opt.type == 'test' then
             --This code is for DIV2K dataset
             if opt.dataset == 'DIV2K' then
-                dataDir = paths.concat('/var/tmp/dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
-                if opt.dataSize == 'big' then
+                dataDir = paths.concat(opt.datadir, 'dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+                if dataSize == 'big' then
                     dataDir = dataDir .. 'b'
                 end
                 paths.mkdir(paths.concat('img_output', modelName, 'test', Xs))
@@ -85,14 +91,10 @@ for modelFile in paths.iterfiles('model') do
             end
             local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
             input = nn.Unsqueeze(1):forward(input)
-            local output = util:recursiveForward(input:cuda(), model):div(opt.mulImg)
-            if opt.model == 'bandnet' then
-                output = output[2]:squeeze(1)
-            else
-                output = output:squeeze(1)
-            end
+            local output = util:recursiveForward(input:cuda(), model):squeeze(1)
+            util:quantize(output, opt.mulImg)
 
-            if opt.type == 'bench' then
+            if (opt.type == 'bench') or (opt.type == 'val') then
                 local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]), 3, 'float')
                 target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
                 image.save(paths.concat('img_target', modelName, testList[i][3], testList[i][2]), target)

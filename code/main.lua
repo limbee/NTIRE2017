@@ -10,26 +10,25 @@ local opts = require 'opts'
 local opt = opts.parse(arg)
 
 local util = require 'utils'(opt)
-local load, loss, psnr, startEpoch = util:load()
+local load, loss, psnr = util:load()
 
 local DataLoader = require 'dataloader'
 local Trainer = require 'train'
 
 print('loading model and criterion...')
-local model = require 'model/init'(opt, startEpoch)
+local model = require 'model/init'(opt)
 local criterion = require 'loss/init'(opt)
 
 print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-if opt.testOnly == 'true' then
+if opt.testOnly then
     print('Test Only')
-    trainer:test(startEpoch, valLoader)
-
-elseif opt.testOnly == 'false' then
+    trainer:test(opt.startEpoch - 1, valLoader)
+else
     print('Train start')
-    for epoch = startEpoch, opt.nEpochs do
+    for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
         psnr[epoch] = trainer:test(epoch, valLoader)
 
@@ -37,6 +36,4 @@ elseif opt.testOnly == 'false' then
         util:plot(psnr,'PSNR')
         util:checkpoint(model, criterion, loss, psnr)
     end
-else
-    print("opt.testOnly is not valid type")
 end
