@@ -64,6 +64,7 @@ function DataLoader:run()
                     perm = torch.randperm(size)
                 end
                 local indices = perm:narrow(1, idx, batchSize)
+
                 threads:addjob(
                     function(indices)
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)

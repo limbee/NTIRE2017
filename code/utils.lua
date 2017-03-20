@@ -230,7 +230,7 @@ function util:recursiveForward(input, model)
                 output = subModel:forward(input)
                 output = output:float():clone()
             else
-                local _, ch, h, w = unpack(input:size():totable())
+                local _, ch, h, w = table.unpack(input:size():totable())
                 local nInputPlane, nOutputPlane = ch, ch / (sc * sc)
                 local floatOutput = torch.Tensor(1, nOutputPlane, h * sc, w * sc)
                 local idx = 0
@@ -262,7 +262,7 @@ function util:recursiveForward(input, model)
             if 4 * input:numel() < free then
                 output = subModel:forward(input):clone()
             else
-                local _, ch, h, w = unpack(input:size():totable())
+                local _, ch, h, w = table.unpack(input:size():totable())
                 local floatOutput = torch.FloatTensor(input:size())
                 local idx = 0
                 local splitSize = math.min(
