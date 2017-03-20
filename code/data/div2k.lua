@@ -36,7 +36,7 @@ function div2k:__init(opt, split)
             
             if not paths.filep(self.dirTar .. 'v.t7') or not paths.filep(self.dirInp .. 'v.t7') then
                 local valTar = {}
-                local varInp = {}
+                local valInp = {}
 
                 for i = self.size - opt.numVal + 1, self.size do
                     table.insert(valTar, self.t7Tar[i])
