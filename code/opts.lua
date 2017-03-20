@@ -20,7 +20,7 @@ function M.parse(arg)
     -- Data
     cmd:option('-datadir',          '/var/tmp', 'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
-    cmd:option('-datatype',         't7',       'dataset type: png | t7')
+    cmd:option('-datatype',         't7',       'dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',    'input image size: small | big')
     cmd:option('-degrade',          'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',           10,         'number of images for validation')
