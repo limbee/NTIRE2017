@@ -6,7 +6,7 @@ local M = {}
 local div2k = torch.class('sr.div2k', M)
 
 function div2k:__init(opt, split)
-    self.size = 100
+    self.size = 800
     self.opt = opt
     self.split = split
 
@@ -21,7 +21,6 @@ function div2k:__init(opt, split)
     if opt.netType == 'recurVDSR' then  --SRresOutput
         self.dirInp = self.dirInp .. '_SRresOutput'
     end
-
     if opt.datatype == 't7pack' then
         self.t7Inp = {}
         self.t7Tar = {}
@@ -94,15 +93,10 @@ function div2k:get(i)
         target = self.t7Tar[idx]
 
 
-            if self.t7Inp[idx]:size(2) ~= self.t7Tar[idx]:size(2)  or self.t7Inp[idx]:size(3) ~= self.t7Tar[idx]:size(3)  then
-        print(input:size())
-        print( self.t7Inp[idx]:size())
-        print(target:size())
-        print(self.t7Tar[idx]:size())
-        image.save(paths.concat(self.opt.save, 'result', 'in' .. idx .. 'x' .. self.opt.scale ..'.png'), input:div(255):float():squeeze())
-        image.save(paths.concat(self.opt.save, 'result', 'target' .. idx .. 'x' .. self.opt.scale ..'.png'), target:div(255):float():squeeze())
-     
-    end
+        if self.t7Inp[idx]:size(2) ~= self.t7Tar[idx]:size(2)  or self.t7Inp[idx]:size(3) ~= self.t7Tar[idx]:size(3)  then
+            image.save(paths.concat(self.opt.save, 'result', 'in' .. idx .. 'x' .. self.opt.scale ..'.png'), input:div(255):float():squeeze())
+            image.save(paths.concat(self.opt.save, 'result', 'target' .. idx .. 'x' .. self.opt.scale ..'.png'), target:div(255):float():squeeze())
+        end
 
     else
         --filename format: ????x?.png
@@ -133,16 +127,18 @@ function div2k:get(i)
     if dataSize == 'big' then
         hInput, wInput = hTarget, wTarget
     end
-    target = target[{{}, {1, hTarget}, {1, wTarget}}]
 
+    target = target[{{}, {1, hTarget}, {1, wTarget}}]
     if self.split == 'train' then 
         local patchSize = self.opt.patchSize
         local targetPatch = patchSize
         local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
+
         if (wTarget < targetPatch) or (hTarget < targetPatch) then
             return
         end
         if (wInput < inputPatch) or (hInput < inputPatch) then
+
             return
                             
         end
@@ -153,9 +149,10 @@ function div2k:get(i)
             tx, ty = ix, iy
         end
         if input:size(2) < iy+inputPatch -1 or input:size(3) < ix+inputPatch -1 then
-        return
+            return
         end
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
+
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
 
 

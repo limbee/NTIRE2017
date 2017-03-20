@@ -40,6 +40,7 @@ function Trainer:train(epoch, dataloader)
         collectgarbage()
         collectgarbage()
 
+        
         self.model:zeroGradParameters()
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
@@ -116,7 +117,18 @@ function Trainer:test(epoch, dataloader)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
         
+        local fileName = n
+        local digit = n
+        while (digit < 1000) do
+            fileName = '0' .. fileName
+            digit = digit * 10
+        end
+
+
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
+        --make Output-Dataset
+        --image.save(paths.concat('/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic', 'X2b_SRresOutput', 'SRres' .. fileName .. 'x2.png'), output) 
+        --torch.save(paths.concat('/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X2b_SRresOutput', 'SRres' .. fileName .. 'x2.t7'), output:float()) 
 
         iter = iter + 1
         self.model:clearState()

@@ -26,7 +26,7 @@ function DataLoader:__init(dataset, opt, split)
             torch.manualSeed(manualSeed + idx)
         end
         _G.dataset = dataset
-        --_G.augment = dataset:augment()
+        _G.augment = dataset:augment()
         return dataset:__size()
     end
 
@@ -65,8 +65,6 @@ function DataLoader:run()
                 end
                 local indices = perm:narrow(1, idx, batchSize)
 
-                --print(indices)
-                --print(size)
                 threads:addjob(
                     function(indices)
                         local inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
@@ -75,23 +73,12 @@ function DataLoader:run()
                         for i = 1, batchSize do
                             local sample = nil
                             local si = i
-                            --print(indices[si])
                             repeat
-
-                            print(indices[si])
-                            print(si)
                                 sample = _G.dataset:get(indices[si])
---[[                            if sample ==nil then
-                                print(indices[si])
-                                print(si)
-                                sample = _G.dataset:get(indices[si])
-                                print(sample:size())
-
-                                end]]
                                 si = torch.random(size)
                             until (sample)
 
-                            --sample = _G.augment(sample)
+                            sample = _G.augment(sample)
                             inputBatch[i]:copy(sample.input)
                             targetBatch[i]:copy(sample.target)
                             sample = nil
