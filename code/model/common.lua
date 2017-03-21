@@ -127,7 +127,6 @@ end
 
 function resBlock(nFeat, addBN, actParams)
     local nFeat = nFeat or 64
-    local addBN = addBN or true
     actParams.nFeat = nFeat
 
     if addBN then
