@@ -80,12 +80,6 @@ function div2k:get(i)
                 input = self.t7InpL[idx]
                 target = self.t7Inp[idx]
             end
-            --[[if self.opt.rot45 and (r == 1) then
-                input = image.rotate(input, -math.pi / 4, 'bilinear')
-                target = image.rotate(target, -math.pi / 4, 'bilinear')
-                collectgarbage()
-                collectgarbage()
-            end]]
         end
     else
         --filename format: ????x?.png
@@ -140,20 +134,6 @@ function div2k:get(i)
             if dataSize == 'big' then
                 tx, ty = ix, iy
             end
-            --[[if self.opt.rot45 and (r == 1) then
-                ok = false
-                local sqrt2Inv = 1 / math.sqrt(2)
-                local function isInBound(x, y)
-                    return (math.abs(x - y + (h - w) / 2) <= (h * sqrt2Inv))
-                    and (math.abs(x + y - (h + w) / 2) <= (w * sqrt2Inv))
-                end
-                if isInBound(tx, ty)
-                and isInBound(tx + targetPatch - 1, ty)
-                and isInBound(tx, ty + targetPatch - 1)
-                and isInBound(tx + targetPatch - 1, ty + targetPatch - 1) then
-                    ok = true
-                end
-            end]]
         until ok
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
