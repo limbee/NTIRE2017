@@ -52,7 +52,7 @@ function M.parse(arg)
     cmd:option('-epsilon',          1e-8,       'ADAM epsilon')
     cmd:option('-rho',              0.95,       'ADADELTA rho')
     -- Model
-    cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | msresnet')
+    cmd:option('-netType',          'baseline',   'SR network architecture. Options: baseline | resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,         'Number of convolution layer (for VDSR)')
     cmd:option('-nConv',            36,         'Number of convolution layers excluding the beginning and end')
