@@ -110,9 +110,9 @@ function M.RandomOrder(ts)
 end
 
 function M.ColorJitter(opt)
-    local brightness = 0.1
-    local contrast = 0.1
-    local saturation = 0.1
+    local brightness = opt.brightness
+    local contrast = opt.contrast
+    local saturation = opt.saturation
 
     local ts = {}
     if brightness ~= 0 then

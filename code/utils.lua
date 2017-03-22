@@ -58,7 +58,6 @@ function util:checkpoint(model, criterion, loss, psnr)
     model:clearState()
 
     torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model)
-    torch.save(paths.concat(self.save, 'model', 'model_latest.t7'), model)
 
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
@@ -122,7 +121,7 @@ function util:calcPSNR(output,target,scale)
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
-    local psnr = -10*math.log10(mse)
+    local psnr = -10*math.log(mse,10)
 
     return psnr
 end
@@ -230,7 +229,7 @@ function util:recursiveForward(input, model)
                 output = subModel:forward(input)
                 output = output:float():clone()
             else
-                local _, ch, h, w = unpack(input:size():totable())
+                local _, ch, h, w = table.unpack(input:size():totable())
                 local nInputPlane, nOutputPlane = ch, ch / (sc * sc)
                 local floatOutput = torch.Tensor(1, nOutputPlane, h * sc, w * sc)
                 local idx = 0
@@ -262,7 +261,7 @@ function util:recursiveForward(input, model)
             if 4 * input:numel() < free then
                 output = subModel:forward(input):clone()
             else
-                local _, ch, h, w = unpack(input:size():totable())
+                local _, ch, h, w = table.unpack(input:size():totable())
                 local floatOutput = torch.FloatTensor(input:size())
                 local idx = 0
                 local splitSize = math.min(

@@ -11,29 +11,45 @@ function div2k:__init(opt, split)
     self.split = split
 
     --absolute path of the dataset
-    local apath = paths.concat(opt.datadir, 'dataset/DIV2K') -- '/var/tmp/dataset/DIV2K'
-    if opt.datatype == 't7pack' then
+    local apath = paths.concat(opt.datadir, 'dataset/DIV2K')
+ 
+    if opt.datatype ~= 't7pack' then
+        self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
+        self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
+
+        if opt.dataSize == 'big' then
+            self.dirInp = self.dirInp .. 'b'
+        end
+        if opt.netType == 'recurVDSR' then  --SRresOutput
+            self.dirInp = self.dirInp .. '_SRresOutput'
+        end
+    else
         self.dirTar = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_HR')
         self.dirInp = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale)
+
         if opt.dataSize == 'big' then
             self.dirInp = self.dirInp .. 'b'
         end
         if split == 'train' then
             self.t7Tar = torch.load(self.dirTar .. '.t7')
             self.t7Inp = torch.load(self.dirInp .. '.t7')
-            local valTar = {}
-            local valInp = {}
-            for i = (self.size - opt.numVal + 1), self.size do
-                table.insert(valTar, self.t7Tar[i])
-                table.insert(valInp, self.t7Inp[i])
+            if not paths.filep(self.dirTar .. 'v.t7') or not paths.filep(self.dirInp .. 'v.t7') then
+                local valTar = {}
+                local valInp = {}
+
+                for i = self.size - opt.numVal + 1, self.size do
+                    table.insert(valTar, self.t7Tar[i])
+                    table.insert(valInp, self.t7Inp[i])
+                end
+
+                torch.save(self.dirTar .. 'v.t7', valTar)
+                torch.save(self.dirInp .. 'v.t7', valInp)
+
+                valTar = nil
+                valInp = nil
+                collectgarbage()
+                collectgarbage()
             end
-            torch.save(self.dirTar .. 'v.t7', valTar)
-            torch.save(self.dirInp .. 'v.t7', valInp)
-            valTar = nil
-            valInp = nil
-            collectgarbage()
-            collectgarbage()
-            --Multiscale learning is available only in t7pack
             if opt.multiScale then
                 self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
                 self.t7InpL = torch.load(self.dirInpL .. '.t7')
@@ -41,15 +57,6 @@ function div2k:__init(opt, split)
         elseif split == 'val' then
             self.t7Tar = torch.load(self.dirTar .. 'v.t7')
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
-        end
-    else
-        self.dirTar = paths.concat(apath, 'DIV2K_train_HR')
-        self.dirInp = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. opt.scale)
-        if opt.dataSize == 'big' then
-            self.dirInp = self.dirInp .. 'b'
-        end
-        if opt.netType == 'recurVDSR' then  --SRresOutput
-            self.dirInp = self.dirInp .. '_SRresOutput'
         end
     end 
 end
@@ -62,9 +69,8 @@ function div2k:get(i)
         idx = idx + (self.size - self.opt.numVal)
     end
 
+    local input, target
     local scale = self.opt.scale
-    local input = nil
-    local target = nil
     local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
 
     if self.opt.datatype == 't7pack' then
@@ -82,19 +88,8 @@ function div2k:get(i)
             end
         end
     else
-        --filename format: ????x?.png
-        local fileName = idx
-        local digit = idx
-        while (digit < 1000) do
-            fileName = '0' .. fileName
-            digit = digit * 10
-        end
-        if self.opt.netType == 'recurVDSR' then
-            inputName = 'SRres'..fileName .. 'x' .. scale .. ext
-        else
-            inputName = fileName .. 'x' .. scale .. ext
-        end
-        targetName = fileName .. ext
+        local inputName, targetName = self:getFileName(idx, ext)
+
         if ext == '.png' then
             input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
             target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
@@ -119,14 +114,15 @@ function div2k:get(i)
         return
     end
 
-    local rot45 = torch.random(0, 1)
     if self.split == 'train' then 
         local ok = true
         local ix, iy, tx, ty
+        local rot45 = torch.random(0, 1)
         if self.opt.rot45 and (rot45 == 1) then
             inputPatch = inputPatch * 3 / 2
             targetPatch = targetPatch * 3 / 2
         end
+
         repeat
             ix = torch.random(1, wInput - inputPatch + 1)
             iy = torch.random(1, hInput - inputPatch + 1)
@@ -135,6 +131,7 @@ function div2k:get(i)
                 tx, ty = ix, iy
             end
         until ok
+
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
 
@@ -164,12 +161,7 @@ function div2k:get(i)
         local dsqrt = dsum:sqrt()
         local gradValue = dsqrt:view(-1):mean()
         if gradValue <= self.opt.rejection then
-            --print('Rejected: ' .. gradValue)
-            --image.save('data/dummy/Rejected_' .. idx .. '.png', input / self.opt.mulImg)
             return nil
-        --else
-            --print('Accepted: ' .. gradValue)
-            --image.save('data/dummy/Accepted_' .. idx .. '.png', input / self.opt.mulImg)
         end
     end
 
@@ -207,6 +199,26 @@ function div2k:augment()
     elseif self.split == 'val' then
         return function(sample) return sample end
     end
+end
+
+function div2k:getFileName(idx, ext)
+    --filename format: ????x?.png
+    local fileName = idx
+    local digit = idx
+    while (digit < 1000) do
+        fileName = '0' .. fileName
+        digit = digit * 10
+    end
+
+    local inputName
+    if self.opt.netType == 'recurVDSR' then
+        inputName = 'SRres' .. fileName .. 'x' .. self.opt.scale .. ext
+    else
+        inputName = fileName .. 'x' .. self.opt.scale .. ext
+    end
+    local targetName = fileName .. ext
+
+    return inputName, targetName
 end
 
 return M.div2k

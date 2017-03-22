@@ -183,7 +183,7 @@ local function createModel(opt)
 
     model:add(model0)
     model:add(nn.FlattenTable())
-print(model)
+--print(model)
     return model
 end
 

@@ -21,7 +21,7 @@ function M.parse(arg)
     -- Data
     cmd:option('-datadir',          '/var/tmp', 'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
-    cmd:option('-datatype',         't7',       'dataset type: png | t7')
+    cmd:option('-datatype',         't7',       'dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',    'input image size: small | big')
     cmd:option('-degrade',          'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',           10,         'number of images for validation')
@@ -30,11 +30,11 @@ function M.parse(arg)
     cmd:option('-reTrain',          -1,    'Re-train the patchs which have high error')
     cmd:option('-rejection',        -1,         'enables patch rejection which has low gradient (uninformative)')
     cmd:option('-colorAug',         'false',    'apply color augmentation (brightness, contrast, saturation')
-    cmd:option('-subMean',          'true',    'data pre-processing: subtract mean')
+    cmd:option('-subMean',          'true',     'data pre-processing: subtract mean')
     cmd:option('-divStd',           'false',    'data pre-processing: subtract mean and divide std')
     cmd:option('-mulImg',           255,        'data pre-processing: multiply constant value to both input and output')
     -- Training
-    cmd:option('-nEpochs',          300,          'Number of total epochs to run. 0: Infinite')
+    cmd:option('-nEpochs',          300,        'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,          'Manual epoch number for resuming the training. Default is the end')
     cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
@@ -55,6 +55,7 @@ function M.parse(arg)
     cmd:option('-beta1',            0.9,        'ADAM beta1')
     cmd:option('-beta2',            0.999,      'ADAM beta2')
     cmd:option('-epsilon',          1e-8,       'ADAM epsilon')
+    cmd:option('-rho',              0.95,       'ADADELTA rho')
     -- Model
     cmd:option('-netType',          'resnet',   'SR network architecture. Options: resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,          'Filter size of convolutional layer')
@@ -63,10 +64,15 @@ function M.parse(arg)
     cmd:option('-nResBlock',        16,         'Number of residual blocks in SR network (for SRResNet, SRGAN)')
     cmd:option('-nChannel',         3,          'Number of input image channels: 1 or 3')
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
-    cmd:option('-upsample',         'shuffle',  'Upsampling method: full | bilinear | shuffle')
+    cmd:option('-upsample',         'espcnn',   'Upsampling method: deconv | espcnn')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
     cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
     cmd:option('-modelVer',         1,          'Experimental model version')
+    cmd:option('-act',              'relu',     'Activation function: relu | prelu | rrelu | elu | leakyrelu')
+    cmd:option('-l',                1/8,        'Parameter l for RReLU')
+    cmd:option('-u',                1/3,        'Parameter u for RReLU')
+    cmd:option('-alpha',            1,          'Parameter alpha for ELU')
+    cmd:option('-negval',           1/100,      'Parameter negval for Leaky ReLU')
     -- Loss
     cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
@@ -109,7 +115,7 @@ function M.parse(arg)
 
     if opt.reset then
         assert(not opt.load, 'Cannot reset the training while loading a history')
-        os.execute('rm -rf ../experiment/' .. opt.save .. '*')
+        os.execute('rm -rf ../experiment/' .. opt.save)
     end
 
     opt.save = paths.concat('../experiment',opt.save)
@@ -139,7 +145,8 @@ function M.parse(arg)
         nesterov = true,
         beta1 = opt.beta1,
         beta2 = opt.beta2,
-        epsilon = opt.epsilon
+        epsilon = opt.epsilon,
+        rho = opt.rho
     }
     if opt.optimMethod == 'SGD' then 
         opt.optimState.method = optim.sgd
