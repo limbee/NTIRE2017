@@ -144,13 +144,26 @@ function resBlock(nFeat, addBN, actParams)
     end
 end
 
-function cbrcb(nFeat, actParams)
+function cbrcb(nFeat, addBN, actParams)
+    local nFeat = nFeat or 64
+    actParams.nFeat = nFeat
+
     return seq()
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
         :add(bnorm(nFeat))
         :add(act(actParams))
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
         :add(bnorm(nFeat))
+end
+
+function crc(nFeat, actParams)
+    local nFeat = nFeat or 64
+    actParams.nFeat = nFeat
+
+    return seq()
+        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+        :add(act(actParams))
+        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
 end
 
 function brcbrc(nFeat, actParams)
@@ -163,9 +176,3 @@ function brcbrc(nFeat, actParams)
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
 end
 
-function crc(nFeat, actParams)
-    return seq()
-        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-        :add(act(actParams))
-        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-end

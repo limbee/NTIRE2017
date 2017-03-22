@@ -9,6 +9,8 @@ require 'model/common'
 
 local function createModel(opt)
 
+    local nFeat = opt.nFeat
+
     local actParams = {}
     actParams.actType = opt.act
     actParams.l = opt.l
@@ -101,17 +103,56 @@ local function createModel(opt)
                 :add(resBlock(nFeat, true, actParams))
                 :add(body))
         end
-    else
 
+
+    -------------------------------------------------
+    -- modelVer 8 doesn't seem to work better then baseline
+    -------------------------------------------------
+
+
+
+    elseif opt.modelVer == 9 then
+        body = addSkip(seq()
+            :add(resBlock(nFeat, false, actParams))
+            :add(resBlock(nFeat, false, actParams)))
+        for i = 1, (opt.nConv - 12) / 4 do
+            body = addSkip(seq()
+                :add(crc(nFeat, actParams))
+                :add(body)
+                :add(crc(nFeat, actParams)))
+        end
+        body = addSkip(seq()
+            :add(crc(nFeat, actParams))
+            :add(body)
+            :add(crc(nFeat, actParams))
+            :add(act(actParams))
+            :add(conv(nFeat, nFeat, 3,3, 1,1, 1,1)))
+
+    elseif opt.modelVer == 10 then
+        body = addSkip(seq()
+            :add(crc(nFeat, actParams))
+            :add(act(actParams))
+            :add(crc(nFeat, actParams)))
+        for i = 1, (opt.nConv - 12) / 4 do
+            body = addSkip(seq()
+                :add(crc(nFeat, actParams))
+                :add(body)
+                :add(crc(nFeat, actParams)))
+        end
+        body = addSkip(seq()
+            :add(crc(nFeat, actParams))
+            :add(body)
+            :add(crc(nFeat, actParams))
+            :add(act(actParams))
+            :add(conv(nFeat, nFeat, 3,3, 1,1, 1,1)))
     end
 
 
 
     model = seq()
         :add(conv(opt.nChannel,nFeat, 3,3, 1,1, 1,1))
-        :add(act(actParams, nFeat))
         :add(body)
-        :add(require 'model/upsample'(opt))
+        :add(upsample_wo_act(opt.scale, opt.upsample, nFeat))
         :add(conv(nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     return model
