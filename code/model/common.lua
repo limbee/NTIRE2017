@@ -104,7 +104,9 @@ function upsample_wo_act(scale, method, nFeat)
         elseif scale == 3 then
             return deconv(nFeat,nFeat, 9,9, 3,3, 3,3)
         elseif scale == 4 then
-            return deconv(nFeat,nFeat, 6,6, 2,2, 2,2)
+            return seq()
+                :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
+                :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
         end
     elseif method == 'espcnn' then  -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
         if scale == 2 then
