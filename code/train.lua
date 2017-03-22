@@ -38,12 +38,12 @@ function Trainer:train(epoch, dataloader)
     self.model:training()
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-        --Copy input and target to the GPU
         self:copyInputs(sample, 'train')
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
+
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
         elseif self.criterion.output ~= self.criterion.output then
@@ -134,6 +134,7 @@ function Trainer:test(epoch, dataloader)
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
+
         image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
 
         iter = iter + 1
@@ -223,7 +224,7 @@ function Trainer:copyInputs(sample, mode)
 end
 
 function Trainer:get_lr()
-    local logLR = math.log10(self.optimState.learningRate)
+    local logLR = math.log(self.optimState.learningRate, 10)
     local characteristic = math.floor(logLR)
     local mantissa = logLR - characteristic
     local frac = math.pow(10,mantissa)
