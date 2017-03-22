@@ -23,8 +23,6 @@ local function getModel(opt)
             model = require('model/' .. opt.netType)(opt)
         end
 
-    end
-
         if opt.subMean then
             if torch.type(model) ~= 'nn.Sequential' then
                 model = nn.Sequential():add(model) -- in case the outermost shell is not a nn.Sequential
