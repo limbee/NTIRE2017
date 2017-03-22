@@ -130,6 +130,22 @@ local function createModel(opt)
 
     elseif opt.modelVer == 10 then
         body = addSkip(seq()
+            :add(resBlock(nFeat, false, actParams))
+            :add(resBlock(nFeat, false, actParams)))
+        for i = 1, (opt.nConv - 12) / 4 do
+            body = addSkip(seq()
+                :add(resBlock(nFeat, false, actParams))
+                :add(body)
+                :add(resBlock(nFeat, false, actParams)))
+        end
+        body = addSkip(seq()
+            :add(resBlock(nFeat, false, actParams)))
+            :add(body)
+            :add(resBlock(nFeat, false, actParams)))
+            :add(conv(nFeat, nFeat, 3,3, 1,1, 1,1)))
+
+    elseif opt.modelVer == 11 then
+        body = addSkip(seq()
             :add(crc(nFeat, actParams))
             :add(act(actParams))
             :add(crc(nFeat, actParams)))
