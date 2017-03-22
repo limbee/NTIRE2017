@@ -13,6 +13,7 @@ rrelu = nn.RReLU
 elu = nn.ELU
 leakyrelu = nn.LeakyReLU
 bnorm = nn.SpatialBatchNormalization
+avgpool = nn.SpatialAveragePooling
 shuffle = nn.PixelShuffle
 deconv = nn.SpatialFullConvolution
 pad = nn.Padding
