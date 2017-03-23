@@ -339,4 +339,56 @@ function util:recursiveForward(input, model)
     return ret
 end
 
+function util:x8Forward(img, model)
+    local c, h, w = table.unpack(img:size():totable())
+
+    local function _rot90k(_img, k)
+        local _c, _h, _w = table.unpack(_img:size():totable())
+        local ml = math.max(_h, _w)
+        local buffer = torch.Tensor(_c, ml, ml)
+        local hMargin = math.floor((ml - _h) / 2)
+        local wMargin = math.floor((ml - _w) / 2)
+        buffer[{{}, {1 + hMargin, ml - hMargin}, {1 + wMargin, ml - wMargin}}] = _img
+        buffer = image.rotate(buffer, k * math.pi / 2)
+
+        return buffer[{{}, {1 + wMargin, ml - wMargin}, {1 + hMargin, ml - hMargin}}]
+    end
+
+    local output = util:recursiveForward(img:cuda():view(1, c, h, w), model):squeeze(1)
+    for j = 0, 7 do
+        if j ~= 0 then
+            local jmod4 = j % 4
+            local augInput = img
+            if j > 3 then
+                augInput = image.hflip(augInput)
+            end
+            if jmod4 == 2 then
+                augInput = image.rotate(augInput, jmod4 * math.pi / 2)
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augInput = _rot90k(augInput, jmod4)
+            end
+            
+            local augOutput = nil
+            if (j % 2) == 0 then
+                augOutput = util:recursiveForward(augInput:cuda():view(1, c, h, w), model):squeeze(1)
+            else
+                augOutput = util:recursiveForward(augInput:cuda():view(1, c, w, h), model):squeeze(1)
+            end
+
+            if jmod4 == 2 then
+                augOutput = image.rotate(augOutput:float(), -jmod4 * math.pi / 2):cuda()
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augOutput = _rot90k(augOutput:float(), -jmod4):cuda()
+            end
+            if j > 3 then
+                augOutput = image.hflip(augOutput:float()):cuda()
+            end
+            output:add(augOutput)
+        end
+    end
+    output:div(8)
+
+    return output
+end
+
 return M.util
