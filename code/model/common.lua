@@ -7,6 +7,7 @@ require 'nn'
 
 seq = nn.Sequential
 conv = nn.SpatialConvolution
+deconv = nn.SpatialFullConvolution
 relu = nn.ReLU
 prelu = nn.PReLU
 rrelu = nn.RReLU
@@ -14,11 +15,12 @@ elu = nn.ELU
 leakyrelu = nn.LeakyReLU
 bnorm = nn.SpatialBatchNormalization
 shuffle = nn.PixelShuffle
-deconv = nn.SpatialFullConvolution
 pad = nn.Padding
 concat = nn.ConcatTable
 id = nn.Identity
 cadd = nn.CAddTable
+join = nn.JoinTable
+mulc = nn.MulConstant
 
 function act(actParams, nOutputPlane)
     local nOutputPlane = actParams.nFeat or nOutputPlane
@@ -129,6 +131,8 @@ end
 
 function resBlock(nFeat, addBN, actParams)
     local nFeat = nFeat or 64
+    local scaleRes = nFeat >= 256 and 0.1 or false
+
     actParams.nFeat = nFeat
 
     if addBN then
@@ -139,10 +143,18 @@ function resBlock(nFeat, addBN, actParams)
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat)))
     else
-        return addSkip(seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(act(actParams))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1)))
+        if scaleRes then 
+            return addSkip(seq()
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(act(actParams))
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(mulc(scaleRes)))
+        else
+            return addSkip(seq()
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(act(actParams))
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1)))
+        end
     end
 end
 
