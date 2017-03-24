@@ -285,7 +285,16 @@ function util:recursiveForward(input, model)
                 floatOutput = nil
             end
         elseif subModel.__typename:find('FlattenTable') then
-            output = input[self.opt.selOut] --choose output which you want
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('SelectTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('NarrowTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('ParallelTable') then
+            output = {}
+            for i = 1, #input do
+                table.insert(output, subModel:get(i):forward(input[i]):clone())
+            end
         elseif subModel.__typename:find('Identity') then
             output = input
         else -- What else? Please add other modules manually

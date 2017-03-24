@@ -42,7 +42,15 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        self.criterion(self.model.output, self.target)
+        if self.opt.nOut > 1 then
+            local targetTable = {}
+            for i = 1, self.opt.nOut do
+                table.insert(targetTable, self.target:clone())
+            end
+            self.criterion(self.model.output, targetTable)
+        else
+            self.criterion(self.model.output, self.target)
+        end
 
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
@@ -129,8 +137,13 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local output = self.util:recursiveForward(input, self.model):squeeze(1)
+        local output = self.util:recursiveForward(input, self.model)
 
+        if self.opt.nOut > 1 then
+            output = output[self.opt.selOut]
+        end
+
+        output = output:squeeze(1)
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)

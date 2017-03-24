@@ -53,7 +53,16 @@ local function getLoss(opt)
         local fdLoss = nn.FilteredDistCriterion(opt, true)
         criterion:add(fdLoss, opt.fd)
     end
-    return criterion:cuda()
+
+    if opt.nOut > 1 then
+        local pCri = nn.ParallelCriterion()
+        for i = 1, opt.nOut do
+            pCri:add(criterion:clone())
+        end
+        return pCri:cuda()
+    else
+        return criterion:cuda()
+    end
 end
 
 return getLoss

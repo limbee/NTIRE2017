@@ -66,6 +66,7 @@ function M.parse(arg)
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',         'espcnn',   'Upsampling method: deconv | espcnn')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
+    cmd:option('-nOut',             1,          'number of output')
     cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
     cmd:option('-modelVer',         1,          'Experimental model version')
     cmd:option('-act',              'relu',     'Activation function: relu | prelu | rrelu | elu | leakyrelu')
@@ -102,6 +103,10 @@ function M.parse(arg)
     opt.rot45 = opt.rot45 == 'true'
 
     opt.reset = opt.reset == 'true'
+    
+    if opt.netType == 'presnet' then
+        opt.nOut = 2
+    end
 
     if opt.load ~= '.' then 
         opt.save = opt.load
