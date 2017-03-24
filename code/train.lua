@@ -62,7 +62,7 @@ function Trainer:train(epoch, dataloader)
             local bs = self.opt.batchSize
             local errors = (self.model.output - self.target):pow(2):view(bs, -1):mean(2):squeeze(2)
             for i = 1, bs do
-                table.insert(self.reTable, {err = errors[i], input = self.input[i]:clone(), target = self.target[i]:clone()})
+                table.insert(self.reTable, {err = errors[i], input = self.input[i], target = self.target[i]})
             end
         end
 

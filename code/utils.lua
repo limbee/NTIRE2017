@@ -114,14 +114,13 @@ function util:load()
     return ok, loss, psnr
 end
 
-function util:calcPSNR(output,target,scale)
-    output = output:squeeze()
-    target = target:squeeze()
-    local _,h,w = table.unpack(output:size():totable())
+function util:calcPSNR(output, target, scale)
+    local diff = (output - target):squeeze()
+    local _, h, w = table.unpack(diff:size():totable())
     local shave = scale + 6
-    local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
-    local mse = diff:pow(2):mean()
-    local psnr = -10*math.log(mse,10)
+    --local diffShave = image.crop(diff, 'c', w - (2 * shave), h - (2 * shave))
+    local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
+    local psnr = -10 * math.log10(diffShave:pow(2):mean())
 
     return psnr
 end
@@ -340,8 +339,6 @@ function util:recursiveForward(input, model)
 end
 
 function util:x8Forward(img, model)
-    local c, h, w = table.unpack(img:size():totable())
-
     local function _rot90k(_img, k)
         local _c, _h, _w = table.unpack(_img:size():totable())
         local ml = math.max(_h, _w)
@@ -350,11 +347,13 @@ function util:x8Forward(img, model)
         local wMargin = math.floor((ml - _w) / 2)
         buffer[{{}, {1 + hMargin, ml - hMargin}, {1 + wMargin, ml - wMargin}}] = _img
         buffer = image.rotate(buffer, k * math.pi / 2)
-
+        
+        --return image.crop(buffer, 'c', ml - (2 * hMargin), ml - (2 * wMargin))
         return buffer[{{}, {1 + wMargin, ml - wMargin}, {1 + hMargin, ml - hMargin}}]
     end
-
-    local output = util:recursiveForward(img:cuda():view(1, c, h, w), model):squeeze(1)
+    
+    local us = nn.Unsqueeze(1):cuda()
+    local output = util:recursiveForward(us:forward(img:cuda()), model):squeeze(1)
     for j = 0, 7 do
         if j ~= 0 then
             local jmod4 = j % 4
@@ -368,22 +367,17 @@ function util:x8Forward(img, model)
                 augInput = _rot90k(augInput, jmod4)
             end
             
-            local augOutput = nil
-            if (j % 2) == 0 then
-                augOutput = util:recursiveForward(augInput:cuda():view(1, c, h, w), model):squeeze(1)
-            else
-                augOutput = util:recursiveForward(augInput:cuda():view(1, c, w, h), model):squeeze(1)
-            end
+            local augOutput = util:recursiveForward(us:forward(augInput:cuda()), model):squeeze(1):float()
 
             if jmod4 == 2 then
-                augOutput = image.rotate(augOutput:float(), -jmod4 * math.pi / 2):cuda()
+                augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
             elseif (jmod4 == 1) or (jmod4 == 3) then
-                augOutput = _rot90k(augOutput:float(), -jmod4):cuda()
+                augOutput = _rot90k(augOutput, -jmod4)
             end
             if j > 3 then
-                augOutput = image.hflip(augOutput:float()):cuda()
+                augOutput = image.hflip(augOutput)
             end
-            output:add(augOutput)
+            output:add(augOutput:cuda())
         end
     end
     output:div(8)
