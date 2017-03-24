@@ -18,7 +18,7 @@ local Trainer = require 'train'
 print('loading model and criterion...')
 local model = require 'model/init'(opt)
 local criterion = require 'loss/init'(opt)
-
+print(model)
 print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
@@ -39,7 +39,7 @@ else
             maxPerf = psnr[epoch]
             maxIdx = epoch
         end
-        print(string.format('Highest PSNR: %.4f on epoch %d', maxPerf, maxIdx))
+        print(string.format('Highest PSNR: %.4f on epoch %d\n', maxPerf, maxIdx))
 
         util:plot(loss,'loss')
         util:plot(psnr,'PSNR')

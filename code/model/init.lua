@@ -15,7 +15,7 @@ local function getModel(opt)
             model = model:get(1)
         end
     else
-        if opt.preTrained ~= 'nil' then
+        if (opt.preTrained ~= 'nil') and (opt.netType ~= 'resnet_cu') then
             print('Loading pre-trained model from: ' .. opt.preTrained)
             model = torch.load(opt.preTrained)
         else

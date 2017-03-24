@@ -160,7 +160,7 @@ function Trainer:test(epoch, dataloader)
         collectgarbage()
     end
 
-    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f\n')
+    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f')
         :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
 
     return avgPSNR / iter
