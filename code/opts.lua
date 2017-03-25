@@ -73,6 +73,10 @@ function M.parse(arg)
     cmd:option('-u',                1/3,        'Parameter u for RReLU')
     cmd:option('-alpha',            1,          'Parameter alpha for ELU')
     cmd:option('-negval',           1/100,      'Parameter negval for Leaky ReLU')
+    cmd:option('-HGVer',            2,          'Hourglass network version')
+    cmd:option('-HGDepth',          3,          'Hourglass module depth')
+    cmd:option('-nHGBlock',         10,         'Number of hourglass modules')
+
     -- Loss
     cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-chbn',             0,          'Charbonnier loss weight')
