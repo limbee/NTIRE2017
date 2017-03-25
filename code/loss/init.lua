@@ -1,10 +1,8 @@
 require 'nn'
 require 'cunn'
 
-require('loss/CharbonnierCriterion')
 require('loss/KernelCriterion')
 require('loss/GradPriorCriterion')
-require('loss/FourierDistCriterion')
 
 local function getLoss(opt)
     local criterion = nn.MultiCriterion()
@@ -13,10 +11,6 @@ local function getLoss(opt)
         local absLoss = nn.AbsCriterion()
         absLoss.sizeAverage = true
         criterion:add(absLoss, opt.abs)
-    end
-    if opt.chbn > 0 then
-        local chbnLoss = nn.CharbonnierCriterion(true, 0.001)
-        criterion:add(chbnLoss, opt.chbn)
     end
     if opt.smoothL1 > 0 then
         local smoothL1 = nn.SmoothL1Criterion()
@@ -48,10 +42,6 @@ local function getLoss(opt)
     if opt.gradPrior > 0 then
         local gradPriorLoss = nn.GradPriorCriterion(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
-    end
-    if opt.fd > 0 then
-        local fdLoss = nn.FilteredDistCriterion(opt, true)
-        criterion:add(fdLoss, opt.fd)
     end
 
     if opt.nOut > 1 then
