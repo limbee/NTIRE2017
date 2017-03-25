@@ -59,6 +59,7 @@ local function getLoss(opt)
         for i = 1, opt.nOut do
             pCri:add(criterion:clone())
         end
+        pCri.repeatTarget = true
         return pCri:cuda()
     else
         return criterion:cuda()

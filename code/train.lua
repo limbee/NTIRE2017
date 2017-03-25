@@ -42,15 +42,7 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        if self.opt.nOut > 1 then
-            local targetTable = {}
-            for i = 1, self.opt.nOut do
-                table.insert(targetTable, self.target:clone())
-            end
-            self.criterion(self.model.output, targetTable)
-        else
-            self.criterion(self.model.output, self.target)
-        end
+        self.criterion(self.model.output, self.target)
 
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')

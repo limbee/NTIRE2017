@@ -290,6 +290,8 @@ function util:recursiveForward(input, model)
             output = subModel:forward(input)
         elseif subModel.__typename:find('NarrowTable') then
             output = subModel:forward(input)
+        elseif subModel.__typename:find('MultiSkipAdd') then
+            output = subModel:forward(input)
         elseif subModel.__typename:find('ParallelTable') then
             output = {}
             for i = 1, #input do
