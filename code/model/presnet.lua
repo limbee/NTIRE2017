@@ -8,8 +8,10 @@ function MultiSkipAdd:__init(ip)
     self.inplace = ip
 end
 
---this function takes the input like {Skip, {Output1, Output2, ...}}
+--This function takes the input like {Skip, {Output1, Output2, ...}}
 --and returns {Output1 + Skip, Output2 + Skip, ...}
+--It also supports in-place calculation
+
 function MultiSkipAdd:updateOutput(input)
     self.output = {}
 

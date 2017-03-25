@@ -39,7 +39,7 @@ else
             maxPerf = psnr[epoch]
             maxIdx = epoch
         end
-        print(string.format('Highest PSNR: %.4f (epoch %d)\n', maxPerf, maxIdx))
+        print(('Highest PSNR: %.4f (epoch %d)\n'):format(maxPerf, maxIdx))
 
         util:plot(loss,'loss')
         util:plot(psnr,'PSNR')
