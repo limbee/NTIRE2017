@@ -15,7 +15,7 @@ local function getModel(opt)
             model = model:get(1)
         end
     else
-        if opt.preTrained ~= 'nil' then
+        if (opt.preTrained ~= 'nil') and (opt.netType ~= 'resnet_cu') then
             print('Loading pre-trained model from: ' .. opt.preTrained)
             model = torch.load(opt.preTrained)
         else
@@ -48,11 +48,27 @@ local function getModel(opt)
                 local mulStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
                 mulStd.weight:copy(stdMat:reshape(3, 3, 1, 1))
 
-                model:insert(divStd,1)
-                model:insert(mulStd)
+                model:insert(divStd, 1)
+                if opt.nOut > 1 then
+                    local pt = nn.ParallelTable()
+                    for i = 1, opt.nOut do
+                        pt:add(mulStd:clone())
+                    end
+                    model:insert(pt)
+                else
+                    model:insert(mulStd)
+                end
             end
-            model:insert(subMean,1)
-            model:insert(addMean)
+            model:insert(subMean, 1)
+            if opt.nOut > 1 then
+                local pt = nn.ParallelTable()
+                for i = 1, opt.nOut do
+                    pt:add(addMean:clone())
+                end
+                model:insert(pt)
+            else
+                model:insert(addMean)
+            end
         else
             assert(not opt.divStd, 'Please set the -subMean option to true')
             opt.trainNormLayer = false

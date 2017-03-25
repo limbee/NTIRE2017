@@ -76,6 +76,7 @@ function div2k:get(i)
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
+        --multiscale learning
         if self.split == 'train' then
             local ms = torch.random(0, 1)
             if self.opt.multiScale and (ms == 1) then
@@ -126,14 +127,17 @@ function div2k:get(i)
         repeat
             ix = torch.random(1, wInput - inputPatch + 1)
             iy = torch.random(1, hInput - inputPatch + 1)
-            tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
+            tx = (scale * (ix - 1)) + 1
+            ty = (scale * (iy - 1)) + 1
             if dataSize == 'big' then
                 tx, ty = ix, iy
             end
         until ok
-
+        
+        --input = image.crop(input, ix - 1, ix + inputPatch, iy - 1, iy + inputPatch)
+        --target = image.crop(target, tx - 1, tx + targetPatch, ty - 1, ty + targetPatch)
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
-        target = target[{{}, {ty , ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
+        target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
 
         --Faster rotation
         if self.opt.rot45 and (rot45 == 1) then
@@ -155,8 +159,8 @@ function div2k:get(i)
     --reject the patch that has small size of spatial gradient
     if (self.split == 'train') and (self.opt.rejection ~= -1) then
         local ni = input / self.opt.mulImg
-        local dx = (ni - image.translate(ni, -1, 0))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
-        local dy = (ni - image.translate(ni, 0, -1))[{{}, {1, inputPatch - 1}, {1, inputPatch - 1}}]
+        local dx = image.crop(ni - image.translate(ni, -1, 0), 'tl', inputPatch - 1, inputPatch - 1)
+        local dy = image.crop(ni - image.translate(ni, 0, -1), 'tl', inputPatch - 1, inputPatch - 1)
         local dsum = dx:pow(2) + dy:pow(2)
         local dsqrt = dsum:sqrt()
         local gradValue = dsqrt:view(-1):mean()

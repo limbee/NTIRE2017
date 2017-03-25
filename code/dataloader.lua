@@ -30,7 +30,7 @@ function DataLoader:__init(dataset, opt, split)
         return dataset:__size()
     end
 
-    local threads, sizes = Threads(opt.nThreads,init,main)
+    local threads, sizes = Threads(opt.nThreads, init, main)
     self.threads = threads
     self.__size = sizes[1][1]
     self.batchSize = opt.batchSize

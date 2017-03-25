@@ -42,7 +42,15 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        self.criterion(self.model.output, self.target)
+        if self.opt.nOut > 1 then
+            local targetTable = {}
+            for i = 1, self.opt.nOut do
+                table.insert(targetTable, self.target:clone())
+            end
+            self.criterion(self.model.output, targetTable)
+        else
+            self.criterion(self.model.output, self.target)
+        end
 
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
@@ -62,7 +70,7 @@ function Trainer:train(epoch, dataloader)
             local bs = self.opt.batchSize
             local errors = (self.model.output - self.target):pow(2):view(bs, -1):mean(2):squeeze(2)
             for i = 1, bs do
-                table.insert(self.reTable, {err = errors[i], input = self.input[i]:clone(), target = self.target[i]:clone()})
+                table.insert(self.reTable, {err = errors[i], input = self.input[i], target = self.target[i]})
             end
         end
 
@@ -129,8 +137,13 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local output = self.util:recursiveForward(input, self.model):squeeze(1)
+        local output = self.util:recursiveForward(input, self.model)
 
+        if self.opt.nOut > 1 then
+            output = output[self.opt.selOut]
+        end
+
+        output = output:squeeze(1)
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
         avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
@@ -147,7 +160,7 @@ function Trainer:test(epoch, dataloader)
         collectgarbage()
     end
 
-    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f\n')
+    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f')
         :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
 
     return avgPSNR / iter
