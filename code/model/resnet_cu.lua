@@ -16,12 +16,22 @@ local function createModel(opt)
     local refModel = torch.load(opt.preTrained)
     local nSeq = 0
     local model = nn.Sequential()
-    for i = 2, (refModel:size() - 1) do
-        local subModelName = refModel:get(i).__typename
+    for i = 1, refModel:size() do
+        local subModel = refModel:get(i)
+        local subModelName = subModel.__typename
+        local isShuffler = false
         if subModelName:find('Sequential') then
-            nSeq = nSeq + 1
+            for j = 1, subModel:size() do
+                if subModel:get(j).__typename:find('PixelShuffle') then
+                    isShuffler = true
+                    break
+                end
+            end
         end
-        if (nSeq > 1) and subModelName:find('Sequential') then
+        if subModelName:find('SpatialConvolution') and (subModel.kW == 1) and (subModel.kW == 1) then
+            print('\t Skipping subMean and divStd layers')
+        elseif isShuffler then
+            print('\t Changing upsample layers')
             model:add(upsample_wo_act(opt.scale, opt.upsample, opt.nFeat))
         else
             model:add(refModel:get(i):clone())
