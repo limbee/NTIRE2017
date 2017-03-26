@@ -9,7 +9,7 @@ function div2k:__init(opt, split)
     self.size = 800
     self.opt = opt
     self.split = split
-
+    
     --absolute path of the dataset
     local apath = paths.concat(opt.datadir, 'dataset/DIV2K')
  
