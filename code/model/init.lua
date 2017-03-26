@@ -9,6 +9,7 @@ local function getModel(opt)
         local modelPath = paths.concat(opt.save, 'model', 'model_' .. opt.startEpoch - 1 .. '.t7')
         assert(paths.filep(modelPath), 'Saved model not found in ' .. opt.save)
         print('Resuming model from ' .. modelPath)
+        require('model/' .. opt.netType)
         model = torch.load(modelPath)
 
         if torch.type(model) == 'nn.DataParallelTable' then
@@ -49,6 +50,7 @@ local function getModel(opt)
                 mulStd.weight:copy(stdMat:reshape(3, 3, 1, 1))
 
                 model:insert(divStd, 1)
+                --Code for multi output model
                 if opt.nOut > 1 then
                     local pt = nn.ParallelTable()
                     for i = 1, opt.nOut do
@@ -60,6 +62,7 @@ local function getModel(opt)
                 end
             end
             model:insert(subMean, 1)
+            --Code for multi output model
             if opt.nOut > 1 then
                 local pt = nn.ParallelTable()
                 for i = 1, opt.nOut do
@@ -79,10 +82,26 @@ local function getModel(opt)
         if not opt.trainNormLayer then
             if opt.subMean then
                 model:get(1).accGradParameters = function(input,gradOutput,scale) return end
-                model:get(#model).accGradParameters = function(input,gradOutput,scale) return end
+                --Code for multi output model
+                if opt.nOut > 1 then
+                    local pt = model:get(#model)
+                    for i = 1, pt:size() do
+                        pt:get(i).accGradParameters = function(input, gradOutput, scale) return end
+                    end
+                else
+                    model:get(#model).accGradParameters = function(input,gradOutput,scale) return end
+                end
                 if opt.divStd then
                     model:get(2).accGradParameters = function(input,gradOutput,scale) return end
-                    model:get(#model-1).accGradParameters = function(input,gradOutput,scale) return end
+                    --Code for multi output model
+                    if opt.nOut > 1 then
+                        local pt = model:get(#model - 1)
+                        for i = 1, pt:size() do
+                            pt:get(i).accGradParameters = function(input, gradOutput, scale) return end
+                        end
+                    else
+                        model:get(#model - 1).accGradParameters = function(input,gradOutput,scale) return end
+                    end
                 end
             end
         end

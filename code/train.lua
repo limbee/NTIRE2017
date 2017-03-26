@@ -29,8 +29,8 @@ function Trainer:train(epoch, dataloader)
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
     
-    self.iter = 0
-    self.err = 0
+    self.iter, self.err = 0, 0
+    local dsc = dataloader.scale
 
     cudnn.fastest = true
     cudnn.benchmark = true
@@ -42,7 +42,22 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-        self.criterion(self.model.output, self.target)
+
+        --Code for multiscale learning
+        local sci = 1
+        if #dsc > 1 then
+            local bs, _, th, tw = table.unpack(self.target:size():totable())
+            for i = 1, #dsc do
+                local bs, _, oh, ow = table.unpack(self.model.output[i]:size():totable())
+                if (oh == th) and (ow == tw) then
+                    sci = i
+                    break;
+                end
+            end
+            self.criterion(self.model.output[sci], self.target)
+        else
+            self.criterion(self.model.output, self.target)
+        end
 
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
@@ -50,7 +65,22 @@ function Trainer:train(epoch, dataloader)
             print('skipping samples with nan error')
         else
             self.err = self.err + self.criterion.output
-            self.model:backward(self.input, self.criterion.gradInput)
+            
+            --Code for multiscale learning
+            if #dsc > 1 then
+                local gi = {}
+                for i = 1, #dsc do
+                    if i == sci then
+                        table.insert(gi, self.criterion.gradInput)
+                    else
+                        table.insert(gi, torch.zeros(self.output[i]:size()):cuda())
+                    end
+                end
+                self.model:backward(self.input, gi)
+            else
+                self.model:backward(self.input, self.criterion.gradInput)
+            end
+
             if self.opt.clip > 0 then
                 self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
             end
@@ -111,8 +141,14 @@ function Trainer:train(epoch, dataloader)
 end
 
 function Trainer:test(epoch, dataloader)
+    --Code for multiscale learning
     local timer = torch.Timer()
-    local iter, avgPSNR = 0, 0
+    local iter, avgPSNR = 0, {}
+    local dsc = dataloader.scale
+
+    for i = 1, #dsc do
+        table.insert(avgPSNR, 0)
+    end
 
     self.model:clearState()
     self.model:evaluate()
@@ -121,41 +157,59 @@ function Trainer:test(epoch, dataloader)
 
     cudnn.fastest = false
     cudnn.benchmark = false
-    
-    for n, sample in dataloader:run() do
-        self:copyInputs(sample,'test')
-
-        local input = nn.Unsqueeze(1):cuda():forward(self.input)
-        if self.opt.nChannel == 1 then
-            input = nn.Unsqueeze(1):cuda():forward(input)
-        end
-        local output = self.util:recursiveForward(input, self.model)
-
-        if self.opt.nOut > 1 then
-            output = output[self.opt.selOut]
-        end
-
-        output = output:squeeze(1)
-        self.util:quantize(output, self.opt.mulImg)
-        self.target:div(self.opt.mulImg)
-        avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
-
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
-
-        iter = iter + 1
         
-        self.model:clearState()
-        self.input = nil
-        self.target = nil
-        output = nil
+    for n, sample in dataloader:run() do
+        for i = 1, #dsc do
+            local sc = dsc[i]
+
+            self.input = self.input or torch.CudaTensor()
+            self.target = self.target or torch.CudaTensor()
+            self.input:resize(sample.input[i]:size()):copy(sample.input[i])
+            self.target:resize(sample.target[i]:size()):copy(sample.target[i])
+            sample.input[i] = nil
+            sample.target[i] = nil
+                                                          
+            local input = nn.Unsqueeze(1):cuda():forward(self.input)
+            if self.opt.nChannel == 1 then
+                input = nn.Unsqueeze(1):cuda():forward(input)
+            end
+            local output = self.util:recursiveForward(input, self.model)
+            
+            if self.opt.nOut > 1 then
+                local selOut = (self.opt.selOut > 0) and self.opt.selOut or i
+                output = output[selOut]
+            end
+
+            output = output:squeeze(1)
+            self.util:quantize(output, self.opt.mulImg)
+            self.target:div(self.opt.mulImg)
+            avgPSNR[i] = avgPSNR[i] + self.util:calcPSNR(output, self.target, sc)
+
+            image.save(paths.concat(self.opt.save, 'result', n .. '_X' .. sc .. '.png'), output) 
+
+            iter = iter + 1
+            
+            self.model:clearState()
+            self.input = nil
+            self.target = nil
+            output = nil
+            collectgarbage()
+            collectgarbage()
+        end
+        sample = nil
         collectgarbage()
         collectgarbage()
     end
+    print(('epoch %d (iter/epoch: %d)] Test time: %.2f')
+        :format(epoch, self.opt.testEvery, timer:time().real))
 
-    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f')
-        :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
-
-    return avgPSNR / iter
+    for i = 1, #dsc do
+        avgPSNR[i] = avgPSNR[i] / iter
+        print(('Average PSNR: %.4f (X%d)')
+            :format(avgPSNR[i], dsc[i]))
+    end
+        
+    return avgPSNR
 end
 
 function Trainer:reTrain()

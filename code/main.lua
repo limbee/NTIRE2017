@@ -23,26 +23,48 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
+local scale = nil
+local label = nil
+if type(opt.scale) == 'number' then
+    scale = {opt.scale}
+    label = {'PSNR (X' .. opt.scale .. ')'}
+else
+    scale = opt.scale:split('|')
+    for i = 1, #scale do
+        scale[i] = tonumber(scale[i])
+        table.insert(label, 'PSNR (X' .. scale[i] .. ')')
+    end
+end
+
 if opt.testOnly then
     print('Test Only')
     trainer:test(opt.startEpoch - 1, valLoader)
 else
     print('Train start')
-    local maxPerf = -1
-    local maxIdx = -1
+    --Code for multiscale learning
+    maxPerf, maxIdx = {}, {}
+    for i = 1, #scale do
+        table.insert(maxPerf, -1)
+        table.insert(maxIdx, -1)
+    end
+
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
         trainer:reTrain()
         psnr[epoch] = trainer:test(epoch, valLoader)
         
-        if psnr[epoch] > maxPerf then
-            maxPerf = psnr[epoch]
-            maxIdx = epoch
+        --Code for multiscale learning
+        for i = 1, #scale do
+            if psnr[epoch][i] > maxPerf[i] then
+                maxPerf[i] = psnr[epoch][i]
+                maxIdx[i] = epoch
+            end
+            print(('Highest PSNR: %.4f (X%d) - epoch %d\n')
+                :format(maxPerf[i], scale[i], maxIdx[i]))
         end
-        print(('Highest PSNR: %.4f (epoch %d)\n'):format(maxPerf, maxIdx))
 
-        util:plot(loss,'loss')
-        util:plot(psnr,'PSNR')
+        util:plot(loss, 'loss')
+        util:plot(psnr, 'PSNR', label)
         util:checkpoint(model, criterion, loss, psnr)
     end
 end

@@ -51,8 +51,8 @@ function MultiSkipAdd:updateGradInput(input, gradOutput)
 end
 
 local function createModel(opt)
-    local addbn = opt.modelVer == 1
-    local addrelu = (opt.modelVer == 1) or (opt.modelVer == 2)
+    local addbn = false
+    local addrelu = false
 
     local actParams = {}
     actParams.actType = opt.act

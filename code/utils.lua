@@ -13,7 +13,7 @@ function util:__init(opt)
     end
 end
 
-function util:plot(tb,name)
+function util:plot(tb, name, label)
     local fig = gnuplot.pdffigure(paths.concat(self.save, name .. '.pdf'))
     local lines = {}
     if torch.type(tb[1]):find('Tensor') then
@@ -26,10 +26,16 @@ function util:plot(tb,name)
             end
             table.insert(lines, {name .. ' x' .. tostring(i + 1) , value[i], '-'})
         end
+        gnuplot.plot(lines)
+    elseif type(tb[1]):find('table') then
+        for i = 1, #tb do
+            table.insert(lines, {label[i], torch.Tensor(tb[i]), '-'})
+        end
+        gnuplot.plot(table.unpack(lines))
     else
         table.insert(lines, {name, torch.Tensor(tb), '-'})
+        gnuplot.plot(lines)
     end
-    gnuplot.plot(lines)
     gnuplot.grid(true)
     gnuplot.title(name)
     gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
@@ -39,6 +45,8 @@ function util:plot(tb,name)
         else
             gnuplot.movelegend('right', 'top')
         end
+    elseif type(tb[1]):find('table') then
+        gnuplot.movelegend('right', 'bottom')
     else
         if tb[1] < tb[#tb] then
             gnuplot.movelegend('right', 'bottom')
@@ -58,7 +66,6 @@ function util:checkpoint(model, criterion, loss, psnr)
     model:clearState()
 
     torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model)
-
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
     torch.save(paths.concat(self.save, 'opt.t7'), self.opt)

@@ -36,6 +36,8 @@ function DataLoader:__init(dataset, opt, split)
     self.batchSize = opt.batchSize
     self.split = split
     self.opt = opt
+
+    self.scale = dataset.scale
 end
 
 function DataLoader:size()
@@ -49,9 +51,6 @@ function DataLoader:run()
     local perm = torch.randperm(size)
     local netType = self.opt.netType
     local dataSize = self.opt.dataSize
-    local patchSize, scale = self.opt.patchSize, self.opt.scale
-    local tarSize = patchSize
-    local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
@@ -64,6 +63,13 @@ function DataLoader:run()
                     perm = torch.randperm(size)
                 end
                 local indices = perm:narrow(1, idx, batchSize)
+                local patchSize = self.opt.patchSize
+                --Code for multiscale learning
+                local scaleR = torch.random(1, #self.scale)
+                local scale = self.scale[scaleR]
+
+                local tarSize = patchSize
+                local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
 
                 threads:addjob(
                     function(indices)
@@ -73,7 +79,8 @@ function DataLoader:run()
                         for i = 1, batchSize do
                             local sample = nil
                             repeat
-                                sample = _G.dataset:get(indices[i])
+                                --Code for multiscale learning
+                                sample = _G.dataset:get(indices[i], scaleR)
                                 indices[i] = torch.random(size)
                             until sample
 
@@ -106,12 +113,18 @@ function DataLoader:run()
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)
-                        local sample = _G.dataset:get(idx)
+                        local inp = {}
+                        local tar = {}
+                        --Code for multiscale learning
+                        for i = 1, #self.scale do
+                            local sample = _G.dataset:get(idx, i)
+                            table.insert(inp, sample.input)
+                            table.insert(tar, sample.target)
+                        end
                         local ret = {
-                            input = sample.input:clone(),
-                            target = sample.target:clone()
+                            input = inp
+                            target = tar
                         }
-                        sample = nil
                         collectgarbage()
                         collectgarbage()
 
