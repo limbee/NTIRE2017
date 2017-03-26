@@ -115,13 +115,18 @@ function util:load()
 end
 
 function util:calcPSNR(output,target,scale)
-    output = output:squeeze()
-    target = target:squeeze()
+    local output = output:squeeze():float()
+    local target = target:squeeze():float()
+
     local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
     local psnr = -10*math.log(mse,10)
+
+    output = nil
+    target = nil
+    collectgarbage()
 
     return psnr
 end
@@ -206,35 +211,21 @@ function util:recursiveForward(input, model)
                 local output_
                 if pcall(function() output_ = subModel:forward(input) end) then
                     if 4 * 2 * nOutputPixel < free then
-                        if pcall(function() output_ = output_:clone() end) then
-                            output = output_
+                        if pcall(function() output = output_:clone() end) then
                             output_ = nil
-                            collectgarbage()
-                            collectgarbage()
                         else
                             output = output_:float():clone()
-                            output_ = nil
-                            collectgarbage()
-                            collectgarbage()
                         end
                     else
                         output = output_:float():clone()
-                        output_ = nil
-                        collectgarbage()
-                        collectgarbage()
                     end
-                    subModel.output = nil
-                    subModel.gradInput = nil
-                    subModel:clearState()
-                    collectgarbage()
-                    collectgarbage()
                 else
                     failed = true
-                    output_ = nil
-                    subModel:clearState()
-                    collectgarbage()
-                    collectgarbage()
                 end
+                output_ = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
             end
 
             -- If input and output cannot reside in the memory at the same time
@@ -242,7 +233,7 @@ function util:recursiveForward(input, model)
                 local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
                 local idx = 0
 
-                local splitSize = math.min(math.floor(free / (4 * oH * oW) / 2), nOutputPlane)
+                local splitSize = math.min(math.floor(free / (4 * oH * oW)), nOutputPlane)
                 local splitOutput = torch.CudaTensor()
                 while true do
                     if pcall(function() splitOutput:resize(1, splitSize, oH, oW) end) then
@@ -259,34 +250,37 @@ function util:recursiveForward(input, model)
                     end
                 end
 
-                splitOutput = nil
-                collectgarbage()
-                collectgarbage()
-
                 local conv
                 while idx < nOutputPlane do
                     local split = math.min(nOutputPlane - idx, splitSize)
                     if subModel.__typename:find('SpatialConvolution') then
-                        conv = nn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW):cuda()
+                        conv = cudnn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW):cuda()
                         conv.weight:copy(subModel.weight[{{idx + 1, idx + split}}])
+                        conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
                     elseif subModel.__typename:find('SpatialFullConvolution') then
                         local adjH, adjW = subModel.adjH, subModel.adjW
-                        conv = nn.SpatialFullConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW, adjH, adjW):cuda()
+                        subModel:float()
+                        collectgarbage()
+                        collectgarbage()
+                        conv = cudnn.SpatialFullConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW, adjH, adjW)
                         conv.weight:copy(subModel.weight[{{},{idx + 1, idx + split}}])
+                        conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
+                        conv:cuda()
                     end
-                    conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
 
-                    conv = cudnn.convert(conv, cudnn)
+                    conv.output = splitOutput[{{},{1,split}}]
 
-                    --splitOutput:copy(conv:forward(input))
-                    local splitOutput = conv:forward(input):float()
-                    floatOutput[{{},{idx + 1, idx + split}}]:copy(splitOutput)
+                    conv:forward(input)
+                    floatOutput[{{},{idx + 1, idx + split}}]:copy(conv.output:float())
 
                     idx = idx + split
                 end
+
                 output = floatOutput:clone()
                 floatOutput = nil
                 splitOutput = nil
+                conv:clearState()
+                conv = nil
                 collectgarbage()
                 collectgarbage()
             end
@@ -337,30 +331,66 @@ function util:recursiveForward(input, model)
             collectgarbage()
 
             assert(input:dim() == 4, 'Input dimension should be 4')
-            if 4 * input:numel() < free then
-                output = subModel:forward(input):clone()
+
+            local failed = false
+
+            local output_
+            if pcall(function() output_ = subModel:forward(input) end) then
+                if 4 * input:numel() < free then
+                    if pcall(function() output = output_:clone() end) then
+                        output_ = nil
+                    else
+                        output = output_:float():clone()
+                    end
+                else
+                    output = output_:float():clone()
+                end
+                output_ = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+
             else
                 local _, ch, h, w = table.unpack(input:size():totable())
                 local floatOutput = torch.FloatTensor(input:size())
                 local idx = 0
-                local splitSize = math.min(math.floor(0.9 * free / (4 * h * w)), input:size(2))
+
+                local splitSize = math.min(math.floor(free / (4 * h * w)), input:size(2))
+                local splitOutput = torch.CudaTensor()
+                while true do
+                    if pcall(function() splitOutput:resize(1, splitSize, oH, oW) end) then
+                        break
+                    else
+                        splitSize = math.floor(splitSize / 2)
+                        splitOutput = torch.CudaTensor()
+                        collectgarbage()
+                        collectgarbage()
+                    end
+
+                    if splitSize < 16 then
+                        error('Too low split size!')
+                    end
+                end
 
                 while idx < input:size(2) do
                     local splitSizeInput = math.min(input:size(2) - idx, splitSize)
                     local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
-                    local splitOutput = subModel:forward(splitInput):float()
-                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(splitOutput)
 
-                    subModel:clearState()
-                    splitOutput = nil
-                    splitInput = nil
-                    collectgarbage()
-                    collectgarbage()
+                    subModel.output = splitOutput[{{},{1,splitSizeInput}}]
+                    subModel:forward(splitInput)
+
+                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(subModel.output:float())
 
                     idx = idx + splitSizeInput
                 end
+
                 output = floatOutput:clone()
                 floatOutput = nil
+                splitOutput = nil
+                subModel:clearState()
+                splitInput = nil
+                collectgarbage()
+                collectgarbage()
             end
         elseif subModel.__typename:find('Identity') then
             output = input
@@ -397,7 +427,12 @@ function util:recursiveForward(input, model)
                 if elem:type() == 'torch.CudaTensor' then
                     return elem
                 else
-                    elem = elem:cuda()
+                    if not pcall(function() elem = elem:cuda() end) then
+                        ee = elem
+                        _fr = cutorch.getMemoryUsage(1)
+                        print('free: ' .. _fr/1e9)
+                        require 'trepl'()
+                    end
                     collectgarbage()
                     collectgarbage()
                     return elem
@@ -410,8 +445,10 @@ function util:recursiveForward(input, model)
         return output
     end
 
-    local ret = _recursion(input, __model)
+    local _ret = _recursion(input, __model)
+    local ret = _ret:float():clone()
 
+    _ret = nil
     __model:clearState()
     __model = nil
     input = nil
