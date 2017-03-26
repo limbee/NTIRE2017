@@ -50,10 +50,6 @@ function div2k:__init(opt, split)
                 collectgarbage()
                 collectgarbage()
             end
-            if opt.multiScale then
-                self.dirInpL = paths.concat(apath, 'DIV2K_decoded', 'DIV2K_train_LR_' .. opt.degrade .. '_X' .. opt.scale * 2)
-                self.t7InpL = torch.load(self.dirInpL .. '.t7')
-            end
         elseif split == 'val' then
             self.t7Tar = torch.load(self.dirTar .. 'v.t7')
             self.t7Inp = torch.load(self.dirInp .. 'v.t7')
@@ -76,18 +72,6 @@ function div2k:get(i)
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[idx]
         target = self.t7Tar[idx]
-        --multiscale learning
-        if self.split == 'train' then
-            local ms = torch.random(0, 1)
-            if self.opt.multiScale and (ms == 1) then
-                input = nil
-                target = nil
-                collectgarbage()
-                collectgarbage()
-                input = self.t7InpL[idx]
-                target = self.t7Inp[idx]
-            end
-        end
     else
         local inputName, targetName = self:getFileName(idx, ext)
 
@@ -118,19 +102,14 @@ function div2k:get(i)
     if self.split == 'train' then 
         local ok = true
         local ix, iy, tx, ty
-        local rot45 = torch.random(0, 1)
-        if self.opt.rot45 and (rot45 == 1) then
-            inputPatch = inputPatch * 3 / 2
-            targetPatch = targetPatch * 3 / 2
-        end
 
         repeat
             ix = torch.random(1, wInput - inputPatch + 1)
             iy = torch.random(1, hInput - inputPatch + 1)
-            tx = (scale * (ix - 1)) + 1
-            ty = (scale * (iy - 1)) + 1
             if dataSize == 'big' then
                 tx, ty = ix, iy
+            else
+                tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
             end
         until ok
         
@@ -138,14 +117,6 @@ function div2k:get(i)
         --target = image.crop(target, tx - 1, tx + targetPatch, ty - 1, ty + targetPatch)
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
-
-        --Faster rotation
-        if self.opt.rot45 and (rot45 == 1) then
-            inputPatch = inputPatch * 2 / 3
-            targetPatch = targetPatch * 2 / 3
-            input = image.crop(image.rotate(input, -math.pi / 4, 'bilinear'), 'c', inputPatch, inputPatch)
-            target = image.crop(image.rotate(target, -math.pi / 4, 'bilinear'), 'c', targetPatch, targetPatch)
-        end
     end
 
     if ext == '.t7' then

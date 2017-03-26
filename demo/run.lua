@@ -15,11 +15,17 @@ cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
 cmd:option('-datadir',	'/var/tmp',		'data directory')
-cmd:option('-fr',       'false',        'flip, rotate the data and then average')
+cmd:option('-fr',       'false',        'enables self ensemble with flip and rotation')
+cmd:option('-deps',     '',             'additional dependencies for testing')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
 opt.fr = (opt.fr == 'true')
+
+local depsTable = opt.deps:split('|')
+for i = 1, #depsTable do
+    require depsTable[i]
+end
 
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
@@ -30,12 +36,12 @@ cutorch.setDevice(opt.gpuid)
 local testList = {}
 
 for modelFile in paths.iterfiles('model') do
-    if string.find(modelFile, '.t7') and string.find(modelFile, opt.model) then
+    if modelFile:find('.t7') and modelFile:find(opt.model) then
         local model = torch.load(paths.concat('model', modelFile)):cuda()
         local modelName = modelFile:split('%.')[1]
         local dataSize = opt.dataSize
         if dataSize == 'auto' then
-            dataSize = (string.find(modelFile, 'VDSR') or string.find(modelFile, 'vdsr')) and 'big' or 'small'
+            dataSize = (modelFile:find('VDSR') or modelFile:find('vdsr')) and 'big' or 'small'
         end
         print('>> Testing model: ' .. modelName)
         model:evaluate()
@@ -55,7 +61,7 @@ for modelFile in paths.iterfiles('model') do
                     paths.mkdir(paths.concat('img_output', modelName, testFolder, Xs))
                     paths.mkdir(paths.concat('img_target', modelName, testFolder))
                     for testFile in paths.iterfiles(inputFolder) do
-                        if string.find(testFile, '.png') then
+                        if testFile:find('.png') then
                             table.insert(testList, {inputFolder, testFile, testFolder})
                         end
                     end
@@ -70,15 +76,15 @@ for modelFile in paths.iterfiles('model') do
                 end
                 paths.mkdir(paths.concat('img_output', modelName, 'test', Xs))
                 for testFile in paths.iterfiles(dataDir) do
-                    if string.find(testFile, '.png') then
+                    if testFile:find('.png') then
                         table.insert(testList, {dataDir, testFile})
                     end
                 end
-            --We can test with our own images.
+            --you can test with our own images.
             --Just put the images in the img_input folder.
             else
                 for testFile in paths.iterfiles('img_input') do
-                    if string.find(testFile, '.png') or string.find(testFile, '.jp') then
+                    if testFile:find('.png') or testFile:find('.jp') then
                         table.insert(testList, {'img_input', testFile})
                     end
                 end
@@ -91,9 +97,10 @@ for modelFile in paths.iterfiles('model') do
         for i = 1, #testList do
             local timerLocal = torch.Timer()
             if opt.progress then
-                io.write(('>> \t [%d/%d] %s ......'):format(i,#testList,testList[i][2]))
+                io.write(('>> \t [%d/%d] %s ......'):format(i, #testList, testList[i][2]))
                 io.flush()
             end
+
             local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
             
             local output = nil
@@ -118,11 +125,13 @@ for modelFile in paths.iterfiles('model') do
             output = nil
             collectgarbage()
             collectgarbage()
+
             if opt.progress then
                 io.write(('\t done. (time: %.2fs) \n'):format(timerLocal:time().real))
                 io.flush()
             end
         end
-        print('Elapsed time: ' .. timer:time().real)
+        local elapsed = timer:time().real
+        print(('Elapsed time: %.2f (Average %.2f)'):format(elapsed, elapsed / #testList))
     end
 end
