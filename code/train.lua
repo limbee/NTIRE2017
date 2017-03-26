@@ -28,6 +28,7 @@ function Trainer:__init(model, criterion, opt)
             opt.gradPrior * opt.mulImg^opt.gradPower +
             opt.fd * opt.mulImg
         ) * 2   -- x2 margin
+    self.lastErr = math.huge
 end
 
 function Trainer:train(epoch, dataloader)
@@ -56,7 +57,8 @@ function Trainer:train(epoch, dataloader)
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
 
-        if self.criterion.output >= self.errThreshold then
+        if self.criterion.output >= self.errThreshold or 
+            self.criterion.output >= self.lastErr *2 then
             print('skipping this minibatch with exploding error')
         elseif self.criterion.output ~= self.criterion.output then
             print('skipping this minibatch with nan error')
@@ -96,7 +98,8 @@ function Trainer:train(epoch, dataloader)
         self.optimState.learningRate = prevlr / 2
     end
     
-    return globalErr / globalIter
+    self.lastErr = globalErr / globalIter
+    return self.lastErr
 end
 
 function Trainer:test(epoch, dataloader)
