@@ -29,7 +29,11 @@ function Trainer:train(epoch, dataloader)
     cudnn.fastest = true
     cudnn.benchmark = true
 
+    self.model:clearState()
     self.model:training()
+    collectgarbage()
+    collectgarbage()
+
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
@@ -91,13 +95,13 @@ function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter, avgPSNR = 0, 0
 
+    cudnn.fastest = false
+    cudnn.benchmark = false
+
     self.model:clearState()
     self.model:evaluate()
     collectgarbage()
     collectgarbage()
-
-    cudnn.fastest = false
-    cudnn.benchmark = false
     
     for n, sample in dataloader:run() do
         --self:copyInputs(sample,'test')
@@ -111,7 +115,7 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local output = self.util:recursiveForward(input, self.model):squeeze(1)
+        local output = self.util:recursiveForward(input, self.model, self.opt.safe):squeeze(1)
 
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)

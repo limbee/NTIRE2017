@@ -115,18 +115,14 @@ function util:load()
 end
 
 function util:calcPSNR(output,target,scale)
-    local output = output:squeeze():float()
-    local target = target:squeeze():float()
+    output = output:squeeze()
+    target = target:squeeze()
 
     local _,h,w = table.unpack(output:size():totable())
     local shave = scale + 6
     local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
     local mse = diff:pow(2):mean()
     local psnr = -10*math.log(mse,10)
-
-    output = nil
-    target = nil
-    collectgarbage()
 
     return psnr
 end
@@ -136,17 +132,19 @@ function util:quantize(img, mulImg)
     return img:mul(255 / mulImg):add(0.5):floor():div(255)
 end
 
-function util:recursiveForward(input, model)
+function util:recursiveForward(input, model, safe)
     model:clearState()
-    local __model = model:clone()
+    local input = input:clone()
+    local _model = model:clone()
+    local model = _model:float()
+    _model = nil
     collectgarbage()
     collectgarbage()
 
-    local input = input:clone()
-    __model = __model:float()
+    local gpuid = self.opt and self.opt.gpuid or 1
 
     if torch.type(model) == 'nn.DataParallelTable' then
-        __model = __model:get(1)
+        model = model:get(1)
     end
 
     local function _recursion(input, subModel)
@@ -154,38 +152,43 @@ function util:recursiveForward(input, model)
         collectgarbage()
         collectgarbage()
 
-        local output, gpuid
-        if self.opt then
-            gpuid = self.opt.gpuid
-        else
-            gpuid = 1
-        end
-
+        local output
         local free, total = cutorch.getMemoryUsage(gpuid)
 
-        if subModel.__typename:find('ConcatTable') then
-            output = {}
-            for i = 1, subModel:size() do 
-                local _output = _recursion(input, subModel:get(i))
-                _output = _output:float()
-                subModel:clearState()
-                collectgarbage()
-                collectgarbage()
-                table.insert(output, _output)
-            end
-        elseif subModel.__typename:find('FlattenTable') then
-            output = input[self.opt.selOut]:clone() --choose output which you want
-        elseif subModel.__typename:find('Concat') then  -- nn.Concat layer
-            output = {}
-            for i = 1, subModel:size() do
-                table.insert(output, _recursion(input, subModel:get(i)))
-            end
-            output = torch.cat(output, subModel.dimension)
-        elseif subModel.__typename:find('Sequential') then
+        if subModel.__typename:find('Sequential') then
             output = input
             for i = 1, #subModel do
                 output = _recursion(output, subModel:get(i))
             end
+
+        elseif subModel.__typename:find('ConcatTable') then
+            output = {}
+            for i = 1, subModel:size() do 
+                local _output = _recursion(input, subModel:get(i))
+                table.insert(output, _output)
+
+                _output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+            end
+
+        elseif subModel.__typename:find('FlattenTable') then
+            output = input[self.opt.selOut]:clone() --choose output which you want
+
+        elseif subModel.__typename:find('Concat') then  -- nn.Concat layer
+            output = {}
+            for i = 1, subModel:size() do
+                local _output = _recursion(input, subModel:get(i))
+                table.insert(output, _output)
+
+                _output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+            end
+            output = torch.cat(output, subModel.dimension)
+
         elseif subModel.__typename:find('Convolution') then
             local subModel = subModel:clone():cuda()
             collectgarbage()
@@ -208,21 +211,21 @@ function util:recursiveForward(input, model)
             local failed = false
 
             if 4 * nOutputPixel < free then
-                local output_
-                if pcall(function() output_ = subModel:forward(input) end) then
+                local _output
+                if pcall(function() _output = subModel:forward(input) end) then
                     if 4 * 2 * nOutputPixel < free then
-                        if pcall(function() output = output_:clone() end) then
-                            output_ = nil
+                        if pcall(function() output = _output:clone() end) then
+                            _output = nil
                         else
-                            output = output_:float():clone()
+                            output = _output:float():clone()
                         end
                     else
-                        output = output_:float():clone()
+                        output = _output:float():clone()
                     end
                 else
                     failed = true
                 end
-                output_ = nil
+                _output = nil
                 subModel:clearState()
                 collectgarbage()
                 collectgarbage()
@@ -281,9 +284,13 @@ function util:recursiveForward(input, model)
                 splitOutput = nil
                 conv:clearState()
                 conv = nil
-                collectgarbage()
-                collectgarbage()
             end
+
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
+
         elseif subModel.__typename:find('Shuffle') then
             local subModel = subModel:clone():cuda()
             collectgarbage()
@@ -334,22 +341,18 @@ function util:recursiveForward(input, model)
 
             local failed = false
 
-            local output_
-            if pcall(function() output_ = subModel:forward(input) end) then
+            local _output
+            if pcall(function() _output = subModel:forward(input) end) then
                 if 4 * input:numel() < free then
-                    if pcall(function() output = output_:clone() end) then
-                        output_ = nil
+                    if pcall(function() output = _output:clone() end) then
+                        _output = nil
                     else
-                        output = output_:float():clone()
+                        output = _output:float():clone()
                     end
                 else
-                    output = output_:float():clone()
+                    output = _output:float():clone()
                 end
-                output_ = nil
-                subModel:clearState()
-                collectgarbage()
-                collectgarbage()
-
+                _output = nil
             else
                 local _, ch, h, w = table.unpack(input:size():totable())
                 local floatOutput = torch.FloatTensor(input:size())
@@ -387,33 +390,51 @@ function util:recursiveForward(input, model)
                 output = floatOutput:clone()
                 floatOutput = nil
                 splitOutput = nil
-                subModel:clearState()
                 splitInput = nil
-                collectgarbage()
-                collectgarbage()
             end
+            
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
+
         elseif subModel.__typename:find('Identity') then
             output = input
+
         else -- What else? Please add other modules manually
-            if not pcall(function() output = subModel:forward(input):clone() end) then
-                output = nil
+            local subModel = subModel:clone():cuda()
+            collectgarbage()
+            collectgarbage()
+
+            local _output
+            if pcall(function() _output = subModel:forward(input) end) then
+                if pcall(function() output = _output:clone() end) then
+                    _output = nil
+                else
+                    output = _output:float():clone()
+                end
+                _output = nil
                 subModel:clearState()
                 collectgarbage()
                 collectgarbage()
-                if not pcall(function() output = subModel:forward(input):float():clone() end) then
-                    print('Please handle this layer in recursiveForward function: ')
-                    print(subModel)
-                    input_ = input
-                    subModel_ = subModel
-                    require 'trepl'()
-                end
+            else
+                print('Please handle this layer in recursiveForward function: ')
+                print(subModel)
+                input_ = input
+                subModel_ = subModel
+                require 'trepl'()
             end
+
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
         end
 
         input = nil
         subModel:clearState()
         subModel = nil
-        __model:clearState()
+        model:clearState()
         collectgarbage()
         collectgarbage()
 
@@ -430,7 +451,8 @@ function util:recursiveForward(input, model)
                     if not pcall(function() elem = elem:cuda() end) then
                         ee = elem
                         _fr = cutorch.getMemoryUsage(1)
-                        print('free: ' .. _fr/1e9)
+                        print('elem: ' .. elem:numel() * 4 / 1e9)
+                        print('free: ' .. _fr / 1e9)
                         require 'trepl'()
                     end
                     collectgarbage()
@@ -445,17 +467,17 @@ function util:recursiveForward(input, model)
         return output
     end
 
-    local _ret = _recursion(input, __model)
-    local ret = _ret:float():clone()
+    local _ret = _recursion(input, model)
+    local ret = _ret:float()
 
     _ret = nil
-    __model:clearState()
-    __model = nil
+    model:clearState()
+    model = nil
     input = nil
     collectgarbage()
     collectgarbage()
 
-    return ret
+    return ret:cuda()
 end
 
 return M.util

@@ -41,6 +41,7 @@ function M.parse(arg)
     cmd:option('-load',             '.',        'Load saved training model, history, etc.')
     cmd:option('-clip',             -1,         'Gradient clipping constant(theta)')
     cmd:option('-reset',            'false',    'Reset training')
+    cmd:option('-safe',             'false',    'Slow, but safe from out-of-memory error in test time')
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',     'Optimization method')
     cmd:option('-lr',               1e-4,       'initial learning rate')
