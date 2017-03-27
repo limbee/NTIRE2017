@@ -91,7 +91,6 @@ function div2k:get(i, scaleR)
         target = self.t7Tar[idx]
     else
         local inputName, targetName = self:getFileName(idx, ext)
-
         if ext == '.png' then
             input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
             target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
@@ -134,7 +133,7 @@ function div2k:get(i, scaleR)
         input:mul(self.opt.mulImg)
         target:mul(self.opt.mulImg)
     end
-    
+
     --reject the patch that has small size of spatial gradient
     if (self.split == 'train') and (self.opt.rejection ~= -1) then
         local ni = input / self.opt.mulImg

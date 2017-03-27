@@ -76,7 +76,7 @@ function M.parse(arg)
     cmd:option('-HGVer',            2,          'Hourglass network version')
     cmd:option('-HGDepth',          3,          'Hourglass module depth')
     cmd:option('-nHGBlock',         10,         'Number of hourglass modules')
-
+    cmd:option('-mobranch',         0.75,       'Position of the branch in MOResnet')
     -- Loss
     cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-smoothL1',         0,          'Smooth L1 loss weight')
@@ -96,9 +96,6 @@ function M.parse(arg)
     opt.trainNormLayer = opt.trainNormLayer == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.testOnly = opt.testOnly == 'true'
-    
-    opt.multiScale = opt.multiScale == 'true'
-    opt.rot45 = opt.rot45 == 'true'
 
     opt.reset = opt.reset == 'true'
     
