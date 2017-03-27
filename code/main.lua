@@ -30,10 +30,12 @@ else
     print('Train start')
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
-        psnr[epoch] = trainer:test(epoch, valLoader)
-
+        if not opt.trainOnly
+            psnr[epoch] = trainer:test(epoch, valLoader)
+            util:plot(psnr,'PSNR')
+        end
+        
         util:plot(loss,'loss')
-        util:plot(psnr,'PSNR')
         util:checkpoint(model, criterion, loss, psnr)
     end
 end
