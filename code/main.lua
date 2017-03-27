@@ -44,17 +44,20 @@ else
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
         trainer:reTrain()
-        psnr[epoch] = trainer:test(epoch, valLoader)
-        
+        local epsnr = trainer:test(epoch, valLoader)
+        for i = 1, #scale do
+            psnr[i][epoch] = epsnr[i]
+        end
         --Code for multiscale learning
         for i = 1, #scale do
-            if psnr[epoch][i] > maxPerf[i] then
-                maxPerf[i] = psnr[epoch][i]
+            if psnr[i][epoch] > maxPerf[i] then
+                maxPerf[i] = psnr[i][epoch]
                 maxIdx[i] = epoch
             end
-            print(('Average PSNR: %.4f (X%d)\t/\tHighest PSNR: %.4f (X%d) - epoch %d\n')
-                :format(psnr[epoch][i], scale[i], maxPerf[i], scale[i], maxIdx[i]))
+            print(('Average PSNR: %.4f (X%d)\t/\tHighest PSNR: %.4f (X%d) - epoch %d')
+                :format(psnr[i][epoch], scale[i], maxPerf[i], scale[i], maxIdx[i]))
         end
+        print('')
 
         util:plot(loss, 'loss')
         util:plot(psnr, 'PSNR', label)

@@ -106,6 +106,9 @@ function util:load()
     else
         ok = false
         loss, psnr = {}, {}
+        for i = 1, #self.opt.scale do
+            table.insert(psnr, {})
+        end
         self.opt.startEpoch = 1
     end
 
@@ -135,6 +138,20 @@ end
 --in-place quantizing and divide by 255
 function util:quantize(img, mulImg)
     return img:mul(255 / mulImg):add(0.5):floor():div(255)
+end
+
+function util:selectMultiOutput(model, index)
+    local selectModel = nn.Sequential()
+    for i = 1, model:size() do
+        local modelName = model:get(i).__typename
+        if modelName:find('ParallelTable') or modelName:find('ConcatTable') then
+            selectModel:add(model:get(i):get(index))
+        else
+            selectModel:add(model:get(i))
+        end
+    end
+
+    return selectModel, model
 end
 
 function util:recursiveForward(input, model)

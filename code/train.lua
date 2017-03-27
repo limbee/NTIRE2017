@@ -6,7 +6,9 @@ local Trainer = torch.class('sr.Trainer', M)
 
 function Trainer:__init(model, criterion, opt)
     self.model = model
+    self.tempModel = nil
     self.criterion = criterion
+
     self.opt = opt
     self.optimState = opt.optimState
     
@@ -41,44 +43,30 @@ function Trainer:train(epoch, dataloader)
         dataTime = dataTime + dataTimer:time().real
         self:copyInputs(sample, 'train')
 
-        self.model:zeroGradParameters()
-        self.model:forward(self.input)
         --Code for multiscale learning
-        local sci = 1
         local bs, _, th, tw = table.unpack(self.target:size():totable())
+        local bs, _, ih, iw = table.unpack(self.input:size():totable())
+        local sci = 1
         for i = 1, #self.scale do
-            local bs, _, oh, ow = table.unpack(self.model.output[i]:size():totable())
-            if (oh == th) and (ow == tw) then
+            if self.scale[i] == math.floor(th / ih) then
                 sci = i
                 break
             end
         end
-        self.criterion(self.model.output[sci], self.target)
 
-        if self.criterion.output >= self.opt.mulImg^2 then
-            print('skipping samples with exploding error')
-        elseif self.criterion.output ~= self.criterion.output then
-            print('skipping samples with nan error')
-        else
-            self.err = self.err + self.criterion.output
-            
-            --Code for multiscale learning
-            local gi = {}
-            for i = 1, #self.scale do
-                if i == sci then
-                    table.insert(gi, self.criterion.gradInput)
-                else
-                    table.insert(gi, torch.zeros(self.model.output[i]:size()):cuda())
-                end
-            end
-            self.model:backward(self.input, gi)
+        self.model:zeroGradParameters()
+        self.model, self.tempModel = self.util:selectMultiOutput(self.model, sci)
+        self.model:forward(self.input)
+        self.err = self.err + self.criterion(self.model.output, self.target)
+        self.model:backward(self.input, self.criterion.gradInput)
+        self.model = self.tempModel
 
-            if self.opt.clip > 0 then
-                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
-            end
-            self.optimState.method(self.feval, self.params, self.optimState)
-            self.iter = self.iter + 1
+        if self.opt.clip > 0 then
+            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
         end
+        self.optimState.method(self.feval, self.params, self.optimState)
+
+        self.iter = self.iter + 1
         
         if self.opt.reTrain > 0 then
             local bs = self.opt.batchSize
@@ -164,10 +152,14 @@ function Trainer:test(epoch, dataloader)
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
+            --Select the branch
+            self.model, self.tempModel = self.util:selectMultiOutput(self.model, i)
             local output = self.util:recursiveForward(input, self.model)
-            
-            local selOut = (self.opt.selOut > 0) and self.opt.selOut or i
-            output = output[selOut]
+            self.model = self.tempModel
+
+            if self.opt.selOut > 0 then
+                output = output[selOut]
+            end
 
             output = output:squeeze(1)
             self.util:quantize(output, self.opt.mulImg)
@@ -193,7 +185,7 @@ function Trainer:test(epoch, dataloader)
         :format(epoch, self.opt.testEvery, timer:time().real))
 
     for i = 1, #self.scale do
-        avgPSNR[i] = avgPSNR[i] / iter
+        avgPSNR[i] = avgPSNR[i] * #self.scale / iter
     end
         
     return avgPSNR
