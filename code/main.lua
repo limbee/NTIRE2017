@@ -23,17 +23,10 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-local scale = nil
-local label = nil
-if type(opt.scale) == 'number' then
-    scale = {opt.scale}
-    label = {'PSNR (X' .. opt.scale .. ')'}
-else
-    scale = opt.scale:split('|')
-    for i = 1, #scale do
-        scale[i] = tonumber(scale[i])
-        table.insert(label, 'PSNR (X' .. scale[i] .. ')')
-    end
+local scale = opt.scale
+local label = {}
+for i = 1, #scale do
+    table.insert(label, 'PSNR (X' .. scale[i] .. ')')
 end
 
 if opt.testOnly then
@@ -59,8 +52,8 @@ else
                 maxPerf[i] = psnr[epoch][i]
                 maxIdx[i] = epoch
             end
-            print(('Highest PSNR: %.4f (X%d) - epoch %d\n')
-                :format(maxPerf[i], scale[i], maxIdx[i]))
+            print(('Average PSNR: %.4f (X%d)\t/\tHighest PSNR: %.4f (X%d) - epoch %d\n')
+                :format(psnr[epoch][i], scale[i], maxPerf[i], scale[i], maxIdx[i]))
         end
 
         util:plot(loss, 'loss')

@@ -37,7 +37,7 @@ function M.parse(arg)
     cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
-    cmd:option('-scale',            2,          'Super-resolution upscale factor')
+    cmd:option('-scale',            '2',        'Super-resolution upscale factor')
     cmd:option('-testOnly',         'false',    'Run on validation set only')
     cmd:option('-printEvery',       1e2,        'Print log every # iterations')
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
@@ -99,6 +99,11 @@ function M.parse(arg)
     opt.rot45 = opt.rot45 == 'true'
 
     opt.reset = opt.reset == 'true'
+    
+    opt.scale = opt.scale:split('_')
+    for i = 1, #opt.scale do
+        opt.scale[i] = tonumber(opt.scale[i])
+    end
     
     if opt.netType == 'presnet' then
         opt.nOut = 2

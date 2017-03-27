@@ -21,6 +21,8 @@ function Trainer:__init(model, criterion, opt)
     self.feval = function() return self.err, self.gradParams end
 
     self.util = require 'utils'(opt)
+
+    self.scale = opt.scale
 end
 
 function Trainer:train(epoch, dataloader)
@@ -30,7 +32,6 @@ function Trainer:train(epoch, dataloader)
     local trainTime, dataTime = 0, 0
     
     self.iter, self.err = 0, 0
-    local dsc = dataloader.scale
 
     cudnn.fastest = true
     cudnn.benchmark = true
@@ -42,22 +43,17 @@ function Trainer:train(epoch, dataloader)
 
         self.model:zeroGradParameters()
         self.model:forward(self.input)
-
         --Code for multiscale learning
         local sci = 1
-        if #dsc > 1 then
-            local bs, _, th, tw = table.unpack(self.target:size():totable())
-            for i = 1, #dsc do
-                local bs, _, oh, ow = table.unpack(self.model.output[i]:size():totable())
-                if (oh == th) and (ow == tw) then
-                    sci = i
-                    break;
-                end
+        local bs, _, th, tw = table.unpack(self.target:size():totable())
+        for i = 1, #self.scale do
+            local bs, _, oh, ow = table.unpack(self.model.output[i]:size():totable())
+            if (oh == th) and (ow == tw) then
+                sci = i
+                break
             end
-            self.criterion(self.model.output[sci], self.target)
-        else
-            self.criterion(self.model.output, self.target)
         end
+        self.criterion(self.model.output[sci], self.target)
 
         if self.criterion.output >= self.opt.mulImg^2 then
             print('skipping samples with exploding error')
@@ -67,19 +63,15 @@ function Trainer:train(epoch, dataloader)
             self.err = self.err + self.criterion.output
             
             --Code for multiscale learning
-            if #dsc > 1 then
-                local gi = {}
-                for i = 1, #dsc do
-                    if i == sci then
-                        table.insert(gi, self.criterion.gradInput)
-                    else
-                        table.insert(gi, torch.zeros(self.output[i]:size()):cuda())
-                    end
+            local gi = {}
+            for i = 1, #self.scale do
+                if i == sci then
+                    table.insert(gi, self.criterion.gradInput)
+                else
+                    table.insert(gi, torch.zeros(self.model.output[i]:size()):cuda())
                 end
-                self.model:backward(self.input, gi)
-            else
-                self.model:backward(self.input, self.criterion.gradInput)
             end
+            self.model:backward(self.input, gi)
 
             if self.opt.clip > 0 then
                 self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
@@ -144,9 +136,8 @@ function Trainer:test(epoch, dataloader)
     --Code for multiscale learning
     local timer = torch.Timer()
     local iter, avgPSNR = 0, {}
-    local dsc = dataloader.scale
-
-    for i = 1, #dsc do
+    
+    for i = 1, #self.scale do
         table.insert(avgPSNR, 0)
     end
 
@@ -159,8 +150,8 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
         
     for n, sample in dataloader:run() do
-        for i = 1, #dsc do
-            local sc = dsc[i]
+        for i = 1, #self.scale do
+            local sc = self.scale[i]
 
             self.input = self.input or torch.CudaTensor()
             self.target = self.target or torch.CudaTensor()
@@ -168,17 +159,15 @@ function Trainer:test(epoch, dataloader)
             self.target:resize(sample.target[i]:size()):copy(sample.target[i])
             sample.input[i] = nil
             sample.target[i] = nil
-                                                          
+
             local input = nn.Unsqueeze(1):cuda():forward(self.input)
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
             local output = self.util:recursiveForward(input, self.model)
             
-            if self.opt.nOut > 1 then
-                local selOut = (self.opt.selOut > 0) and self.opt.selOut or i
-                output = output[selOut]
-            end
+            local selOut = (self.opt.selOut > 0) and self.opt.selOut or i
+            output = output[selOut]
 
             output = output:squeeze(1)
             self.util:quantize(output, self.opt.mulImg)
@@ -203,10 +192,8 @@ function Trainer:test(epoch, dataloader)
     print(('epoch %d (iter/epoch: %d)] Test time: %.2f')
         :format(epoch, self.opt.testEvery, timer:time().real))
 
-    for i = 1, #dsc do
+    for i = 1, #self.scale do
         avgPSNR[i] = avgPSNR[i] / iter
-        print(('Average PSNR: %.4f (X%d)')
-            :format(avgPSNR[i], dsc[i]))
     end
         
     return avgPSNR

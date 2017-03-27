@@ -35,76 +35,48 @@ local function getModel(opt)
                                         {0, 0.2701, 0},
                                         {0, 0, 0.2920}}):mul(opt.mulImg)
 
-
             local subMean = nn.SpatialConvolution(3, 3, 1, 1)
             subMean.weight:copy(torch.eye(3, 3):reshape(3, 3, 1, 1))
             subMean.bias:copy(torch.mul(meanVec, -1))
             local addMean = nn.SpatialConvolution(3, 3, 1, 1)
             addMean.weight:copy(torch.eye(3,3):reshape(3, 3, 1, 1))
             addMean.bias:copy(meanVec)
+            if not opt.trainNormLayer then
+                addMean.accGradParameters = function(input, gradOutput, scale) return end
+                subMean.accGradParameters = function(input, gradOutput, scale) return end
+            end
 
             if opt.divStd then
                 local divStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
                 divStd.weight:copy(torch.inverse(stdMat):reshape(3, 3, 1, 1))
                 local mulStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
                 mulStd.weight:copy(stdMat:reshape(3, 3, 1, 1))
+                if not opt.trainNormLayer then
+                    divStd.accGradParameters = function(input, gradOutput, scale) return end
+                    mulStd.accGradParameters = function(input, gradOuptut, scale) return end
+                end
 
                 model:insert(divStd, 1)
                 --Code for multi output model
-                if opt.nOut > 1 then
-                    local pt = nn.ParallelTable()
-                    for i = 1, opt.nOut do
-                        pt:add(mulStd:clone())
-                    end
-                    model:insert(pt)
-                else
-                    model:insert(mulStd)
-                end
-            end
-            model:insert(subMean, 1)
-            --Code for multi output model
-            if opt.nOut > 1 then
                 local pt = nn.ParallelTable()
                 for i = 1, opt.nOut do
-                    pt:add(addMean:clone())
+                    pt:add(mulStd:clone())
                 end
                 model:insert(pt)
-            else
-                model:insert(addMean)
             end
+
+            model:insert(subMean, 1)
+            --Code for multi output model
+            local pt = nn.ParallelTable()
+            for i = 1, opt.nOut do
+                pt:add(addMean:clone())
+            end
+            model:insert(pt)
         else
             assert(not opt.divStd, 'Please set the -subMean option to true')
-            opt.trainNormLayer = false
         end
 
         model = cudnn.convert(model,cudnn)
-
-        if not opt.trainNormLayer then
-            if opt.subMean then
-                model:get(1).accGradParameters = function(input,gradOutput,scale) return end
-                --Code for multi output model
-                if opt.nOut > 1 then
-                    local pt = model:get(#model)
-                    for i = 1, pt:size() do
-                        pt:get(i).accGradParameters = function(input, gradOutput, scale) return end
-                    end
-                else
-                    model:get(#model).accGradParameters = function(input,gradOutput,scale) return end
-                end
-                if opt.divStd then
-                    model:get(2).accGradParameters = function(input,gradOutput,scale) return end
-                    --Code for multi output model
-                    if opt.nOut > 1 then
-                        local pt = model:get(#model - 1)
-                        for i = 1, pt:size() do
-                            pt:get(i).accGradParameters = function(input, gradOutput, scale) return end
-                        end
-                    else
-                        model:get(#model - 1).accGradParameters = function(input,gradOutput,scale) return end
-                    end
-                end
-            end
-        end
     end
 
     model:cuda()

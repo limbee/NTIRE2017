@@ -2,15 +2,7 @@ require 'nn'
 require 'model/common'
 
 local function createModel(opt)
-    local scale = nil
-    if type(opt.scale) == 'number' then
-        scale = {opt.scale}
-    else
-        scale = opt.scale:split('|')
-        for i = 1, #scale do
-            scale[i] = tonumber(scale[i])
-        end
-    end
+    local scale = opt.scale
     opt.nOut = #scale
 
     local addbn = false

@@ -44,7 +44,7 @@ local function getLoss(opt)
         criterion:add(gradPriorLoss, opt.gradPrior)
     end
 
-    if opt.nOut > 1 then
+    if (opt.nOut > 1) and (opt.netType ~= 'moresnet') then 
         local pCri = nn.ParallelCriterion()
         for i = 1, opt.nOut do
             pCri:add(criterion:clone())

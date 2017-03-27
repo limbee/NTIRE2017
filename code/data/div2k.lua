@@ -9,18 +9,7 @@ function div2k:__init(opt, split)
     self.size = 800
     self.opt = opt
     self.split = split
-    
-    self.scale = nil
-    self.multiScale = false
-
-    if type(opt.scale) == 'number' then
-        self.scale = {opt.scale}
-    else
-        self.scale = opt.scale:split('|')
-        for i = 1, #self.scale do
-            self.scale[i] = tonumber(self.scale[i])
-        end
-    end
+    self.scale = opt.scale
 
     --absolute path of the dataset
     local apath = paths.concat(opt.datadir, 'dataset/DIV2K')

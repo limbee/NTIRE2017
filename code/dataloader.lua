@@ -27,6 +27,7 @@ function DataLoader:__init(dataset, opt, split)
         end
         _G.dataset = dataset
         _G.augment = dataset:augment()
+        _G.scale = opt.scale
         return dataset:__size()
     end
 
@@ -36,8 +37,7 @@ function DataLoader:__init(dataset, opt, split)
     self.batchSize = opt.batchSize
     self.split = split
     self.opt = opt
-
-    self.scale = dataset.scale
+    self.scale = opt.scale
 end
 
 function DataLoader:size()
@@ -47,9 +47,9 @@ end
 function DataLoader:run()
     local threads = self.threads
     threads:synchronize()
+
     local size, batchSize = self.__size, self.batchSize
     local perm = torch.randperm(size)
-    local netType = self.opt.netType
     local dataSize = self.opt.dataSize
     local nChannel = self.opt.nChannel
 
@@ -116,13 +116,13 @@ function DataLoader:run()
                         local inp = {}
                         local tar = {}
                         --Code for multiscale learning
-                        for i = 1, #self.scale do
+                        for i = 1, #_G.scale do
                             local sample = _G.dataset:get(idx, i)
                             table.insert(inp, sample.input)
                             table.insert(tar, sample.target)
                         end
                         local ret = {
-                            input = inp
+                            input = inp,
                             target = tar
                         }
                         collectgarbage()
