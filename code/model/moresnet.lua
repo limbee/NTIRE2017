@@ -28,7 +28,7 @@ local function createModel(opt)
         model:add(addSkip(body))
     end
     if back == 0 then
-        model:add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
+        model:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
     end
 
     local cat = concat()
@@ -39,7 +39,7 @@ local function createModel(opt)
                 backRes:add(resBlock(opt.nFeat, addbn, actParams))
             end
             cat:add(backRes
-                :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1))
+                :add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
                 :add(upsample_wo_act(scale[i], opt.upsample, opt.nFeat))
                 :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1)))
         else
