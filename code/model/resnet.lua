@@ -40,7 +40,7 @@ local function createModel(opt)
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
             :add(act(actParams, opt.nFeat))
             :add(addSkip(body))
-            :add(upsample(opt.scale, opt.upsample, opt.nFeat, actParams))
+            :add(upsample(opt.scale[1], opt.upsample, opt.nFeat, actParams))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     elseif opt.modelVer == 2 then
@@ -48,14 +48,14 @@ local function createModel(opt)
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
             :add(act(actParams, opt.nFeat))
             :add(addSkip(body))
-            :add(upsample(opt.scale, opt.upsample, opt.nFeat, actParams))
+            :add(upsample(opt.scale[1], opt.upsample, opt.nFeat, actParams))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     elseif opt.modelVer == 3 then
         model = seq()
             :add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
             :add(addSkip(body))
-            :add(upsample_wo_act(opt.scale, opt.upsample, opt.nFeat))
+            :add(upsample_wo_act(opt.scale[1], opt.upsample, opt.nFeat))
             :add(conv(opt.nFeat,opt.nChannel, 3,3, 1,1, 1,1))
     end
 

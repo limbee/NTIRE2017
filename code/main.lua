@@ -44,7 +44,7 @@ else
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
         trainer:reTrain()
-        if not opt.trainOnly
+        if not opt.trainOnly then
             local epsnr = trainer:test(epoch, valLoader)
             for i = 1, #scale do
                 psnr[i][epoch] = epsnr[i]

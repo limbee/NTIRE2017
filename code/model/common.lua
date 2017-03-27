@@ -4,7 +4,6 @@ require 'nn'
 -- Below are list of common modules used in various architectures.
 -- Thoses are defined as global variables in order to make other codes uncluttered.
 --------------------------------------------------------------------------
-
 seq = nn.Sequential
 conv = nn.SpatialConvolution
 relu = nn.ReLU
