@@ -37,7 +37,8 @@ function M.parse(arg)
     cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
-    cmd:option('-scale',            '2',        'Super-resolution upscale factor')
+    cmd:option('-scale',            '2',          'Super-resolution upscale factor')
+    cmd:option('-trainOnly',        'false',    'Do not perform validation')
     cmd:option('-testOnly',         'false',    'Run on validation set only')
     cmd:option('-printEvery',       1e2,        'Print log every # iterations')
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
@@ -93,6 +94,7 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+    opt.trainOnly = opt.trainOnly == 'true'
     opt.testOnly = opt.testOnly == 'true'
     
     opt.multiScale = opt.multiScale == 'true'
