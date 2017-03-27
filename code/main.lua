@@ -23,17 +23,20 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-if opt.testOnly then
-    print('Test Only')
+if opt.valOnly then
+    print('Validate the model (at epoch ' .. opt.startEpoch - 1 .. ') with ' .. opt.numVal .. ' val images')
     trainer:test(opt.startEpoch - 1, valLoader)
 else
     print('Train start')
     for epoch = opt.startEpoch, opt.nEpochs do
         loss[epoch] = trainer:train(epoch, trainLoader)
-        psnr[epoch] = trainer:test(epoch, valLoader)
-
         util:plot(loss,'loss')
-        util:plot(psnr,'PSNR')
+        
+        if opt.trainOnly then
+            psnr[epoch] = trainer:test(epoch, valLoader)
+            util:plot(psnr,'PSNR')
+        end
+
         util:checkpoint(model, criterion, loss, psnr)
     end
 end

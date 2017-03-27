@@ -35,7 +35,8 @@ function M.parse(arg)
     cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
     cmd:option('-scale',            2,          'Super-resolution upscale factor')
-    cmd:option('-testOnly',         'false',    'Run on validation set only')
+    cmd:option('-valOnly',         'false',    'Run on validation set only')
+    cmd:option('-trainOnly',        'false',    'Train without validation')
     cmd:option('-printEvery',       1e2,        'Print log every # iterations')
     cmd:option('-testEvery',        1e3,        'Test every # iterations')
     cmd:option('-load',             '.',        'Load saved training model, history, etc.')
@@ -91,7 +92,8 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
-    opt.testOnly = opt.testOnly == 'true'
+    opt.valOnly = opt.valOnly == 'true'
+    opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
 
     if opt.load ~= '.' then 
