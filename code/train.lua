@@ -13,7 +13,9 @@ function Trainer:__init(model, criterion, opt)
     self.input = nil
     self.target = nil
 
-    self.params, self.gradParams = model:getParameters()
+    self.params = nil
+    self.gradParams = nil
+
     self.feval = function() return self.err, self.gradParams end
 
     self.util = require 'utils'(opt)
@@ -30,7 +32,9 @@ function Trainer:train(epoch, dataloader)
     cudnn.benchmark = true
 
     self.model:clearState()
+    self.model:cuda()
     self.model:training()
+    self:getParams()
     collectgarbage()
     collectgarbage()
 
@@ -99,6 +103,7 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
 
     self.model:clearState()
+    self.model:float()
     self.model:evaluate()
     collectgarbage()
     collectgarbage()
@@ -159,6 +164,10 @@ function Trainer:get_lr()
     local frac = math.pow(10,mantissa)
 
     return frac, characteristic
+end
+
+function Trainer:getParams()
+    self.params, self.gradParams = self.model:getParameters()
 end
 
 

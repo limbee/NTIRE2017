@@ -135,9 +135,7 @@ end
 function util:recursiveForward(input, model, safe)
     model:clearState()
     local input = input:clone()
-    local _model = model:clone()
-    local model = _model:float()
-    _model = nil
+    local model = model:clone()
     collectgarbage()
     collectgarbage()
 
