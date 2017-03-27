@@ -32,7 +32,7 @@ function Trainer:train(epoch, dataloader)
     local trainTimer = torch.Timer()
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
-    
+
     self.iter, self.err = 0, 0
 
     cudnn.fastest = true
@@ -86,6 +86,7 @@ function Trainer:train(epoch, dataloader)
             if n % self.opt.testEvery ~= 0 then
                 self.err, self.iter = 0, 0
             end
+
             trainTime, dataTime = 0, 0
 
             --This code periodically cleans up GPU memory when we use reTrain table
@@ -103,13 +104,14 @@ function Trainer:train(epoch, dataloader)
             end
         end
 
+        trainTimer:reset()
+        dataTimer:reset()
+
         if n % self.opt.testEvery == 0 then
             break
         end
-
-        trainTimer:reset()
-        dataTimer:reset()
     end
+
     if epoch % self.opt.manualDecay == 0 then
         local prevlr = self.optimState.learningRate
         self.optimState.learningRate = prevlr / 2
