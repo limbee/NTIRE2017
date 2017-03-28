@@ -8,7 +8,7 @@ local function createModel(opt)
     local nBlocks = opt.nResBlock
     local nFeat = opt.nFeat
     local nChannel = opt.nChannel
-    local scale = opt.scale
+    local scale = opt.scale[1]
 
     local conv = nn.SpatialConvolution
     local relu = nn.ReLU

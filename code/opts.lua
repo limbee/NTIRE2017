@@ -17,6 +17,7 @@ function M.parse(arg)
     cmd:option('-gpuid',            1,          'GPU id to use')
     cmd:option('-nThreads',         3,          'number of data loading threads')
     cmd:option('-save',             now,        'subdirectory to save/log experiments in')
+    cmd:option('-preTrained',       'nil',      'directory of pre-trained model')
     -- Data
     cmd:option('-datadir',          '/var/tmp', 'dataset location')
     cmd:option('-dataset',          'div2k',    'dataset for training: div2k | imagenet')
@@ -24,6 +25,7 @@ function M.parse(arg)
     cmd:option('-dataSize',         'small',    'input image size: small | big')
     cmd:option('-degrade',          'bicubic',  'degrade type: bicubic | unknwon')
     cmd:option('-numVal',           10,         'number of images for validation')
+    cmd:option('-rejection',        -1,         'enables patch rejection which has low gradient (uninformative)')
     cmd:option('-colorAug',         'false',    'apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',          'true',     'data pre-processing: subtract mean')
     cmd:option('-divStd',           'false',    'data pre-processing: subtract mean and divide std')
@@ -34,7 +36,7 @@ function M.parse(arg)
     cmd:option('-manualDecay',      200,        'Reduce the learning rate by half per n epoch')
     cmd:option('-batchSize',        16,         'mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,         'Training patch size')
-    cmd:option('-scale',            2,          'Super-resolution upscale factor')
+    cmd:option('-scale',            '2',          'Super-resolution upscale factor')
     cmd:option('-valOnly',          'false',    'Run on validation set only')
     cmd:option('-trainOnly',        'false',    'Train without validation')
     cmd:option('-printEvery',       1e2,        'Print log every # iterations')
@@ -63,28 +65,25 @@ function M.parse(arg)
     cmd:option('-nFeat',            64,         'Number of feature maps in residual blocks in SR network')
     cmd:option('-upsample',         'espcnn',   'Upsampling method: deconv | espcnn')
     cmd:option('-trainNormLayer',   'false',    'Train normalization layer')
-    cmd:option('-selOut',           2,          'Select output if there exists multiple outputs in model')
+    cmd:option('-nOut',             1,          'number of output')
+    cmd:option('-selOut',           -1,          'Select output if there exists multiple outputs in model')
     cmd:option('-modelVer',         1,          'Experimental model version')
     cmd:option('-act',              'relu',     'Activation function: relu | prelu | rrelu | elu | leakyrelu')
     cmd:option('-l',                1/8,        'Parameter l for RReLU')
     cmd:option('-u',                1/3,        'Parameter u for RReLU')
     cmd:option('-alpha',            1,          'Parameter alpha for ELU')
     cmd:option('-negval',           1/100,      'Parameter negval for Leaky ReLU')
+    cmd:option('-fastSwap',         'nil',      'fast-swap for the models that generate multiple outputs')
+    cmd:option('-mobranch',         1,          'Position of the branch in MOResnet')
     -- Loss
     cmd:option('-abs',              1,          'L1 loss weight')
-    cmd:option('-chbn',             0,          'Charbonnier loss weight')
     cmd:option('-smoothL1',         0,          'Smooth L1 loss weight')
     cmd:option('-mse',              0,          'MSE loss weight')
-    cmd:option('-ssim',             0,          'SSIM loss weight')
-    cmd:option('-band',             0,          'Band loss weight')
     cmd:option('-grad',             0,          'Gradient loss weight')
     cmd:option('-grad2',            0,          '2nd order Gradient loss weight')
-    cmd:option('-gradDist',         'mse',      'Distance of gradient loss')
+    cmd:option('-gradDist',         'mse',      'Distance of gradient loss abs | mse')
     cmd:option('-gradPrior',        0,          'Gradient prior weight')
     cmd:option('-gradPower',        0.8,        'Gradient prior power')
-    cmd:option('-fd',               0,          'Fourier loss weight')
-    cmd:option('-fdwc',             0.75,       'Fourier loss wc')
-    cmd:option('-fdFilter',         'lowpass',  'Fourier loss filter type')
     cmd:text()
 
     local opt = cmd:parse(arg or {})
@@ -93,9 +92,18 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
+    opt.fastSwap = nil
+    
+    opt.scale = opt.scale:split('_')
+    opt.psnrLabel = {}
+    for i = 1, #opt.scale do
+        opt.scale[i] = tonumber(opt.scale[i])
+        table.insert(opt.psnrLabel, 'X' .. opt.scale[i])
+    end
 
     if opt.load ~= '.' then 
         opt.save = opt.load
@@ -128,7 +136,7 @@ function M.parse(arg)
     end
     cutorch.manualSeedAll(opt.manualSeed)
 
-    if (opt.nEpochs == 0) then
+    if opt.nEpochs == 0 then
         opt.nEpochs = math.huge
     end
 

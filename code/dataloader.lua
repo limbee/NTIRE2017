@@ -27,15 +27,17 @@ function DataLoader:__init(dataset, opt, split)
         end
         _G.dataset = dataset
         _G.augment = dataset:augment()
+        _G.scale = opt.scale
         return dataset:__size()
     end
 
-    local threads, sizes = Threads(opt.nThreads,init,main)
+    local threads, sizes = Threads(opt.nThreads, init, main)
     self.threads = threads
     self.__size = sizes[1][1]
     self.batchSize = opt.batchSize
     self.split = split
     self.opt = opt
+    self.scale = opt.scale
 end
 
 function DataLoader:size()
@@ -45,13 +47,10 @@ end
 function DataLoader:run()
     local threads = self.threads
     threads:synchronize()
+
     local size, batchSize = self.__size, self.batchSize
     local perm = torch.randperm(size)
-    local netType = self.opt.netType
     local dataSize = self.opt.dataSize
-    local patchSize, scale = self.opt.patchSize, self.opt.scale
-    local tarSize = patchSize
-    local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
     local nChannel = self.opt.nChannel
 
     local idx, sample = 1, nil
@@ -64,6 +63,13 @@ function DataLoader:run()
                     perm = torch.randperm(size)
                 end
                 local indices = perm:narrow(1, idx, batchSize)
+                local patchSize = self.opt.patchSize
+                --Code for multiscale learning
+                local _scaleR = torch.random(1, #self.scale)
+                local scale = self.scale[_scaleR]
+
+                local tarSize = patchSize
+                local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
 
                 threads:addjob(
                     function(indices)
@@ -72,11 +78,11 @@ function DataLoader:run()
 
                         for i = 1, batchSize do
                             local sample = nil
-                            local si = i
                             repeat
-                                sample = _G.dataset:get(indices[si])
-                                si = torch.random(size)
-                            until (sample)
+                                --Code for multiscale learning
+                                sample = _G.dataset:get(indices[i], _scaleR)
+                                indices[i] = torch.random(size)
+                            until sample
 
                             sample = _G.augment(sample)
                             inputBatch[i]:copy(sample.input)
@@ -89,6 +95,7 @@ function DataLoader:run()
                         return {
                             input = inputBatch,
                             target = targetBatch,
+                            scaleR = _scaleR
                         }    
                     end,
                     function (_sample_)
@@ -107,12 +114,18 @@ function DataLoader:run()
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)
-                        local sample = _G.dataset:get(idx)
+                        local inp = {}
+                        local tar = {}
+                        --Code for multiscale learning
+                        for i = 1, #_G.scale do
+                            local sample = _G.dataset:get(idx, i)
+                            table.insert(inp, sample.input)
+                            table.insert(tar, sample.target)
+                        end
                         local ret = {
-                            input = sample.input:clone(),
-                            target = sample.target:clone()
+                            input = inp,
+                            target = tar
                         }
-                        sample = nil
                         collectgarbage()
                         collectgarbage()
 

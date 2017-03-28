@@ -10,11 +10,13 @@ function GradPriorCriterion:__init(opt)
     self.criterion = nn.Sequential()
     self.criterion:add(nn.View(opt.batchSize * opt.nChannel, 1, opt.patchSize, opt.patchSize))
     self.criterion:add(nn.SpatialConstConvolution(self.kernel))
+    self.criterion:add(nn.Abs())
+    --to prevent gradient exloding
+    self.criterion:add(nn.AddConstant(1e-5, true))
     self.criterion:add(nn.Power(opt.gradPower))
     self.criterion:add(nn.Sum(2))
     self.criterion:add(nn.Power(1 / opt.gradPower))
-    self.criterion:add(nn.SpatialAveragePooling(opt.patchSize - self.kernel:size(1) + 1, opt.patchSize - self.kernel:size(1) + 1))
-    self.criterion:add(nn.View(opt.batchSize * opt.nChannel))
+    self.criterion:add(nn.View(-1))
     self.criterion:add(nn.Mean())
     self.criterion = self.criterion:cuda()
     parent.cuda(self)
@@ -22,16 +24,11 @@ end
 
 function GradPriorCriterion:updateOutput(input, target)
     self.output = self.criterion:forward(input)
---[[    
-    for i = 1, #self.criterion do
-        print(self.criterion:get(i).output:size())
-    end
-]]
     return self.output[1]
 end
 
 function GradPriorCriterion:updateGradInput(input, target)
-    self.gradInput = self.criterion:backward(input, torch.ones(1):cuda())
+    self.gradInput = self.criterion:updateGradInput(input, torch.ones(1):cuda())
     return self.gradInput
 end
 --------------------------------------------------------------------------------

@@ -13,7 +13,7 @@ local function createModel(opt)
     local model
 
     local nCh = opt.nChannel
-    local sc = opt.scale
+    local sc = opt.scale[1]
     local nFeat = opt.nFeat
 
     -------------------------------------------------------------------------------------
