@@ -7,6 +7,7 @@ require 'nn'
 
 seq = nn.Sequential
 conv = nn.SpatialConvolution
+deconv = nn.SpatialFullConvolution
 relu = nn.ReLU
 prelu = nn.PReLU
 rrelu = nn.RReLU
@@ -14,11 +15,12 @@ elu = nn.ELU
 leakyrelu = nn.LeakyReLU
 bnorm = nn.SpatialBatchNormalization
 shuffle = nn.PixelShuffle
-deconv = nn.SpatialFullConvolution
 pad = nn.Padding
 concat = nn.ConcatTable
 id = nn.Identity
 cadd = nn.CAddTable
+join = nn.JoinTable
+mulc = nn.MulConstant
 
 function act(actParams, nOutputPlane)
     local nOutputPlane = actParams.nFeat or nOutputPlane
@@ -104,7 +106,9 @@ function upsample_wo_act(scale, method, nFeat)
         elseif scale == 3 then
             return deconv(nFeat,nFeat, 9,9, 3,3, 3,3)
         elseif scale == 4 then
-            return deconv(nFeat,nFeat, 6,6, 2,2, 2,2)
+            return seq()
+                :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
+                :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
         end
     elseif method == 'espcnn' then  -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
         if scale == 2 then
@@ -127,6 +131,8 @@ end
 
 function resBlock(nFeat, addBN, actParams)
     local nFeat = nFeat or 64
+    local scaleRes = nFeat >= 256 and 0.1 or false
+
     actParams.nFeat = nFeat
 
     if addBN then
@@ -137,20 +143,41 @@ function resBlock(nFeat, addBN, actParams)
             :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(bnorm(nFeat)))
     else
-        return addSkip(seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(act(actParams))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1)))
+        if scaleRes then 
+            return addSkip(seq()
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(act(actParams))
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(mulc(scaleRes)))
+        else
+            return addSkip(seq()
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+                :add(act(actParams))
+                :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1)))
+        end
     end
 end
 
-function cbrcb(nFeat, actParams)
+function cbrcb(nFeat, addBN, actParams)
+    local nFeat = nFeat or 64
+    actParams.nFeat = nFeat
+
     return seq()
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
         :add(bnorm(nFeat))
         :add(act(actParams))
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
         :add(bnorm(nFeat))
+end
+
+function crc(nFeat, actParams)
+    local nFeat = nFeat or 64
+    actParams.nFeat = nFeat
+
+    return seq()
+        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+        :add(act(actParams))
+        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
 end
 
 function brcbrc(nFeat, actParams)
@@ -163,9 +190,3 @@ function brcbrc(nFeat, actParams)
         :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
 end
 
-function crc(nFeat, actParams)
-    return seq()
-        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-        :add(act(actParams))
-        :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-end
