@@ -30,12 +30,6 @@ function Trainer:__init(model, criterion, opt)
         table.insert(self.maxPerf, -1)
         table.insert(self.maxIdx, -1)
     end
-
-    self.swapTable = {}
-    for i = 1, #self.scale do
-        local swapped = self.util:swapReady(self.model, i)
-        table.insert(self.swapTable, swapped)
-    end
 end
 
 function Trainer:train(epoch, dataloader)
@@ -53,6 +47,7 @@ function Trainer:train(epoch, dataloader)
 
     self.model:clearState()
     self.model:cuda()
+    self:prepareSwap('cuda')
     self.model:training()
     self:getParams()
     collectgarbage()
@@ -64,14 +59,14 @@ function Trainer:train(epoch, dataloader)
         local sci = sample.scaleR
 
         self.model:zeroGradParameters()
-        --self.model, self.tempModel = self.util:swapModel(self.model, sci)
+        --Fast model swap
         self.tempModel = self.model
         self.model = self.swapTable[sci]
 
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
         self.model:backward(self.input, self.criterion.gradInput)
-        --self.model = self.tempModel
+        --Return to original model
         self.model = self.tempModel
         
         self.iter = self.iter + 1
@@ -124,6 +119,7 @@ function Trainer:test(epoch, dataloader)
 
     self.model:clearState()
     self.model:float()
+    self:prepareSwap('float')
     self.model:evaluate()
     collectgarbage()
     collectgarbage()
@@ -137,9 +133,14 @@ function Trainer:test(epoch, dataloader)
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
-            --Select the branch
-            self.model, self.tempModel = self.util:swapModel(self.model, i)
+            
+            --Fast model swap
+            self.tempModel = self.model
+            self.model = self.swapTable[i]
+
             local output = self.util:recursiveForward(input, self.model, self.opt.safe)
+            
+            --Return to original model
             self.model = self.tempModel
 
             if self.opt.selOut > 0 then
@@ -213,6 +214,19 @@ function Trainer:getParams()
     self.params, self.gradParams = self.model:getParameters()
 end
 
+function Trainer:prepareSwap(modelType)
+    self.swapTable = {}
+    for i = 1, #self.scale do
+        local swapped = self.util:swapModel(self.model, i)
+        if modelType == 'float' then
+            swapped = swapped:float()
+        elseif modelType == 'cuda' then
+            swapped = swapped:cuda()
+        end
+        table.insert(self.swapTable, swapped)
+    end
+end
+
 function Trainer:updateLoss(loss)
     table.insert(loss, {key = self.iter, value = self.retLoss})
 
@@ -222,8 +236,8 @@ end
 function Trainer:updatePSNR(psnr)
     for i = 1, #self.scale do
         table.insert(psnr[i], {key = self.iter, value = self.retPSNR[i]})
-
     end
+
     return psnr
 end
 

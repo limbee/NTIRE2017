@@ -9,7 +9,6 @@ local util = torch.class('sr.util',M)
 function util:__init(opt)
     if opt then
         self.opt = opt
-        self.opt.fastSwap = self.opt.fastSwap and self.opt.fastSwap or self.swapModel
         self.save = opt.save
     end
 end
@@ -179,14 +178,10 @@ function util:quantize(img, mulImg)
     return img:mul(255 / mulImg):add(0.5):floor():div(255)
 end
 
-function util:swapReady(model, index)
-    return util:swapModel(model, index)
-end
-
 function util:swapModel(model, index)
     local sModel = nn.Sequential()
 
-    if (opt.netType == 'moresnet') and (opt.mobranch < 1) then
+    if self.opt.netType == 'moresnet' and self.opt.mobranch < 1 then
         local sSeq = nn.Sequential()
         for i = 1, model:size() do
             local subModel = model:get(i)
@@ -238,7 +233,7 @@ function util:swapModel(model, index)
         end
     end
 
-    return sModel:cuda(), model
+    return sModel
 end
 
 function util:recursiveForward(input, model, safe)
