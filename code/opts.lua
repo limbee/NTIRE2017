@@ -76,7 +76,7 @@ function M.parse(arg)
     cmd:option('-HGVer',            2,          'Hourglass network version')
     cmd:option('-HGDepth',          3,          'Hourglass module depth')
     cmd:option('-nHGBlock',         10,         'Number of hourglass modules')
-    cmd:option('-mobranch',         0.75,       'Position of the branch in MOResnet')
+    cmd:option('-mobranch',         1,          'Position of the branch in MOResnet')
     -- Loss
     cmd:option('-abs',              1,          'L1 loss weight')
     cmd:option('-smoothL1',         0,          'Smooth L1 loss weight')

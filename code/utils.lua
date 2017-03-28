@@ -140,18 +140,21 @@ function util:quantize(img, mulImg)
     return img:mul(255 / mulImg):add(0.5):floor():div(255)
 end
 
-function util:selectMultiOutput(model, index)
-    local selectModel = nn.Sequential()
+function util:swapModel(model, index)
+    local sModel = nn.Sequential()
     for i = 1, model:size() do
         local modelName = model:get(i).__typename
         if modelName:find('ParallelTable') or modelName:find('ConcatTable') then
-            selectModel:add(model:get(i):get(index))
+            sModel:add(model:get(i):get(index))
         else
-            selectModel:add(model:get(i))
+            sModel:add(model:get(i))
+            if modelName:find('MultiSkipAdd') then
+                sModel:add(nn.SelectTable(index))
+            end
         end
     end
 
-    return selectModel, model
+    return sModel, model
 end
 
 function util:recursiveForward(input, model)

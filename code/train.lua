@@ -55,7 +55,7 @@ function Trainer:train(epoch, dataloader)
         end
 
         self.model:zeroGradParameters()
-        self.model, self.tempModel = self.util:selectMultiOutput(self.model, sci)
+        self.model, self.tempModel = self.util:swapModel(self.model, sci)
         self.model:forward(self.input)
         self.err = self.err + self.criterion(self.model.output, self.target)
         self.model:backward(self.input, self.criterion.gradInput)
@@ -155,7 +155,7 @@ function Trainer:test(epoch, dataloader)
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
             --Select the branch
-            self.model, self.tempModel = self.util:selectMultiOutput(self.model, i)
+            self.model, self.tempModel = self.util:swapModel(self.model, i)
             local output = self.util:recursiveForward(input, self.model)
             self.model = self.tempModel
 
