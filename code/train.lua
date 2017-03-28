@@ -10,7 +10,6 @@ function Trainer:__init(model, criterion, opt)
     self.opt = opt
     self.optimState = opt.optimState
     self.iter = opt.lastIter
-    print('\n self.iter : \n' .. self.iter)
     
     self.input = nil
     self.target = nil
