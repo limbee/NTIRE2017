@@ -10,12 +10,13 @@ function Trainer:__init(model, criterion, opt)
     self.opt = opt
     self.optimState = opt.optimState
     self.iter = opt.lastIter
-    print('\n self.iter : \n' .. self.iter)
     
     self.input = nil
     self.target = nil
 
-    self.params, self.gradParams = model:getParameters()
+    self.params = nil
+    self.gradParams = nil
+
     self.feval = function() return self.err, self.gradParams end
 
     self.util = require 'utils'(opt)
@@ -44,7 +45,13 @@ function Trainer:train(epoch, dataloader)
     cudnn.fastest = true
     cudnn.benchmark = true
 
+    self.model:clearState()
+    self.model:cuda()
     self.model:training()
+    self:getParams()
+    collectgarbage()
+    collectgarbage()
+
     for n, sample in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
         --Copy input and target to the GPU
@@ -108,13 +115,14 @@ function Trainer:test(epoch, dataloader)
     local timer = torch.Timer()
     local iter, avgPSNR = 0, 0
 
+    cudnn.fastest = false
+    cudnn.benchmark = false
+
     self.model:clearState()
+    self.model:float()
     self.model:evaluate()
     collectgarbage()
     collectgarbage()
-
-    cudnn.fastest = false
-    cudnn.benchmark = false
     
     for n, sample in dataloader:run() do
         --self:copyInputs(sample,'test')
@@ -128,7 +136,7 @@ function Trainer:test(epoch, dataloader)
         if self.opt.nChannel == 1 then
             input = nn.Unsqueeze(1):cuda():forward(input)
         end
-        local output = self.util:recursiveForward(input, self.model):squeeze(1)
+        local output = self.util:recursiveForward(input, self.model, self.opt.safe):squeeze(1)
 
         self.util:quantize(output, self.opt.mulImg)
         self.target:div(self.opt.mulImg)
@@ -176,6 +184,10 @@ end
 
 function Trainer:get_iter()
     return self.iter
+end
+
+function Trainer:getParams()
+    self.params, self.gradParams = self.model:getParameters()
 end
 
 

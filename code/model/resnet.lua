@@ -18,7 +18,6 @@ local function createModel(opt)
     end
 
     local addbn = opt.modelVer == 1
-    local addrelu = (opt.modelVer == 1) or (opt.modelVer == 2)
 
     local actParams = {}
     actParams.actType = opt.act
