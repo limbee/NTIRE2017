@@ -2,14 +2,6 @@ require 'nn'
 require 'model/common'
 
 local function createModel(opt)
-    if opt.modelVer == 1 then
-        print('\t MOResnet version 1!')
-        print('\t Skip and then branch')
-    elseif opt.modelVer == 2 then
-        print('\t MOResnet version 2!')
-        print('\t Branch and then skip')
-    end
-
     local scale = opt.scale
     opt.nOut = #scale
 
