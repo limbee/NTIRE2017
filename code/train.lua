@@ -9,6 +9,8 @@ function Trainer:__init(model, criterion, opt)
     self.criterion = criterion
     self.opt = opt
     self.optimState = opt.optimState
+    self.iter = opt.lastIter
+    print('\n self.iter : \n' .. self.iter)
     
     self.input = nil
     self.target = nil
@@ -74,13 +76,13 @@ function Trainer:train(epoch, dataloader)
             globalErr = globalErr + self.criterion.output
             globalIter = globalIter + 1
         end
+        self.iter = self.iter + 1
         
         trainTime = trainTime + trainTimer:time().real
         if n % self.opt.printEvery == 0 then
-            local it = (epoch - 1) * self.opt.testEvery + n
             local lr_f, lr_d = self:get_lr()
             print(('[Iter: %.1fk][lr: %.2fe%d]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(it / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
+                :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
             err, iter = 0, 0
             trainTime, dataTime = 0, 0
         end
@@ -170,6 +172,10 @@ function Trainer:get_lr()
     local frac = math.pow(10,mantissa)
 
     return frac, characteristic
+end
+
+function Trainer:get_iter()
+    return self.iter
 end
 
 

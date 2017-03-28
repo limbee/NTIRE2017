@@ -29,12 +29,14 @@ if opt.valOnly then
 else
     print('Train start')
     for epoch = opt.startEpoch, opt.nEpochs do
-        loss[epoch] = trainer:train(epoch, trainLoader)
-        util:plot(loss,'loss')
+        local _loss = trainer:train(epoch, trainLoader)
+        loss[trainer:get_iter()] = _loss
+        util:plot(loss, 'loss')
         
-        if opt.trainOnly then
-            psnr[epoch] = trainer:test(epoch, valLoader)
-            util:plot(psnr,'PSNR')
+        if not opt.trainOnly then
+            local _psnr = trainer:test(epoch, valLoader)
+            psnr[trainer:get_iter()] = _psnr
+            util:plot(psnr, 'PSNR')
         end
 
         util:checkpoint(model, criterion, loss, psnr)

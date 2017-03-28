@@ -13,39 +13,77 @@ function util:__init(opt)
     end
 end
 
-function util:plot(tb,name)
-    local fig = gnuplot.pdffigure(paths.concat(self.save, name .. '.pdf'))
-    local lines = {}
-    if torch.type(tb[1]):find('Tensor') then
-        local nLine = tb[1]:size(1)
-        local value = {}
-        for i = 1, nLine do 
-            value[i] = torch.Tensor(#tb)
-            for j = 1, #tb do
-                value[i][j] = tb[j][i]
+function util:plot(tbl, title, name)
+    -- Assume tbl is a table of numbers, or a table of tables
+    local fig = gnuplot.pdffigure(paths.concat(self.save, title .. '.pdf'))
+    local name = name or title
+
+    local function findMinMax(tb)
+        local minKey, maxKey = math.huge, -math.huge    
+        local minKeyValue, maxKeyValue
+        for k, v in pairs(tb) do
+            if k < minKey then 
+                minKey = k
+                minKeyValue = v
             end
-            table.insert(lines, {name .. ' x' .. tostring(i + 1) , value[i], '-'})
+            if k > maxKey then
+                maxKey = k
+                maxKeyValue = v
+            end
         end
-    else
-        table.insert(lines, {name, torch.Tensor(tb), '-'})
+        return minKeyValue, maxKeyValue
     end
-    gnuplot.plot(lines)
+
+    local function typeTable(tb)
+        for k, v in pairs(tb) do
+            if type(v) == 'table' then
+                return 'table'
+            else
+                return 'number'
+            end
+        end
+    end
+
+    local function toTensor(tb)
+        local numel = 0
+        for k,v in pairs(tb) do numel = numel + 1 end
+        local ts = torch.Tensor(numel,2)
+        local idx = 1
+        for k, v in pairs(tb) do
+            ts[idx][1] = k
+            ts[idx][2] = v
+        end
+        return ts
+    end
+
+    local lines = {}
+    local first, last
+    if typeTable(tbl) ~= 'table' then -- single graph
+        table.insert(lines, {name, toTensor(tbl), '-'})
+        first, last = findMinMax(tbl)
+    else -- multiple lines
+        assert(type(name) == 'table', 'name must be a table, if you want to draw lines more than 1')
+        for i = 1, #tbl do
+            table.insert(lines, {name[i], toTensor(tbl[i]), '-'})
+        end
+        first, last = findMinMax(tbl[1])
+    end
+
+    if first < last then
+        gnuplot.movelegend('right', 'bottom')
+    else
+        gnuplot.movelegend('right', 'top')
+    end
+
+    if not pcall(function() gnuplot.plot(lines) end) then
+        ll = lines
+        tt = tbl
+        nn = name
+        require 'trepl'()
+    end
     gnuplot.grid(true)
     gnuplot.title(name)
     gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
-    if torch.type(tb[1]):find('Tensor') then
-        if tb[1][1] < tb[#tb][1] then
-            gnuplot.movelegend('right', 'bottom')
-        else
-            gnuplot.movelegend('right', 'top')
-        end
-    else
-        if tb[1] < tb[#tb] then
-            gnuplot.movelegend('right', 'bottom')
-        else
-            gnuplot.movelegend('right', 'top')
-        end
-    end
 	gnuplot.plotflush(fig)
 	gnuplot.closeall()  
 end
@@ -55,10 +93,10 @@ function util:checkpoint(model, criterion, loss, psnr)
         model = model:get(1)
     end
 
-    model:clearState()
+    local numLoss = 0
+    for k,v in pairs(loss) do numLoss = numLoss + 1 end
 
-    torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model)
-
+    torch.save(paths.concat(self.save, 'model', 'model_' .. numLoss .. '.t7'), model:clearState())
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
     torch.save(paths.concat(self.save, 'opt.t7'), self.opt)
@@ -66,6 +104,8 @@ end
 
 function util:load()
     local ok, loss, psnr
+    local numLoss = 0
+
     if self.opt.load then
         ok, loss, psnr, opt = pcall(
             function()
@@ -75,23 +115,40 @@ function util:load()
                 return loss, psnr, opt
             end)
         if ok then
-            print(('Loaded history (%d epoch * %d iter/epoch)\n'):format(#loss, self.opt.testEvery))
-            if self.opt.startEpoch > #loss + 1 then
-                error(('Start epoch cannot be bigger than history (%d epochs)'):format(#loss))
+            local _lastIter = 0
+            for k, v in pairs(loss) do
+                if k > _lastIter then 
+                    _lastIter = k
+                end
+                numLoss = numLoss + 1
+            end
+            print(('Loaded history (%d epochs = %d iterations)\n'):format(numLoss, _lastIter))
+            if self.opt.startEpoch > numLoss + 1 then
+                error(('Start epoch cannot be bigger than history (%d epochs)'):format(numLoss))
             elseif self.opt.startEpoch == 1 then
                 error('Please set -startEpoch bigger than 1, if you want to resume the training')
-            elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= #loss then
+            elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= numLoss then
                 print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
-                local _loss, _psnr = {}, {}
-                for i = 1, self.opt.startEpoch - 1 do
-                    _loss[i] = loss[i]
-                    _psnr[i] = psnr[i]
+                local keys = {}
+                for k, v in pairs(loss) do
+                    tabls.insert(keys, k)
                 end
-                loss = _loss
-                psnr = _psnr
+                table.sort(keys)
+                local lastIter = keys[self.opt.startEpoch - 1]
+
+                local _loss, _psnr = {}, {}
+                for k, v in pairs(loss) do
+                    if k <= lastIter then
+                        _loss[k] = loss[k]
+                        _psnr[k] = psnr[k]
+                    end
+                end
+                loss, psnr = _loss, _psnr
+                self.opt.lastIter = lastIter
             else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
-                print(('Continue training (%d epochs~)'):format(#loss + 1))
-                self.opt.startEpoch = #loss + 1
+                print(('Continue training (After %d epochs = %d iterations)'):format(numLoss, _lastIter))
+                self.opt.startEpoch = numLoss + 1
+                self.opt.lastIter = _lastIter
             end
         else
             error('history (loss, psnr, options) does not exist')
@@ -100,11 +157,12 @@ function util:load()
         ok = false
         loss, psnr = {}, {}
         self.opt.startEpoch = 1
+        self.opt.lastIter = 0
     end
 
     if ok then
         local prevlr = self.opt.optimState.learningRate
-        self.opt.optimState.learningRate = prevlr / math.pow(2, math.floor((#loss + 1) / self.opt.manualDecay))
+        self.opt.optimState.learningRate = prevlr / math.pow(2, math.floor((numLoss + 1) / self.opt.manualDecay))
         if self.opt.optimState.learningRate ~= prevlr then
             print(string.format('Learning rate decreased: %.6f -> %.6f',
             prevlr, self.opt.optimState.learningRate))
