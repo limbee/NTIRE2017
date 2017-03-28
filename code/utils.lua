@@ -563,4 +563,51 @@ function util:recursiveForward(input, model, safe)
     return ret:cuda()
 end
 
+function util:x8Forward(img, model)
+    local function _rot90k(_img, k)
+        local _c, _h, _w = table.unpack(_img:size():totable())
+        local ml = math.max(_h, _w)
+        local buffer = torch.Tensor(_c, ml, ml)
+        local hMargin = math.floor((ml - _h) / 2)
+        local wMargin = math.floor((ml - _w) / 2)
+        buffer[{{}, {1 + hMargin, ml - hMargin}, {1 + wMargin, ml - wMargin}}] = _img
+        buffer = image.rotate(buffer, k * math.pi / 2)
+        
+        --return image.crop(buffer, 'c', ml - (2 * hMargin), ml - (2 * wMargin))
+        return buffer[{{}, {1 + wMargin, ml - wMargin}, {1 + hMargin, ml - hMargin}}]
+    end
+    
+    local us = nn.Unsqueeze(1):cuda()
+    local output = util:recursiveForward(us:forward(img:cuda()), model):squeeze(1)
+    for j = 0, 7 do
+        if j ~= 0 then
+            local jmod4 = j % 4
+            local augInput = img
+            if j > 3 then
+                augInput = image.hflip(augInput)
+            end
+            if jmod4 == 2 then
+                augInput = image.rotate(augInput, jmod4 * math.pi / 2)
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augInput = _rot90k(augInput, jmod4)
+            end
+            
+            local augOutput = util:recursiveForward(us:forward(augInput:cuda()), model):squeeze(1):float()
+
+            if jmod4 == 2 then
+                augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augOutput = _rot90k(augOutput, -jmod4)
+            end
+            if j > 3 then
+                augOutput = image.hflip(augOutput)
+            end
+            output:add(augOutput:cuda())
+        end
+    end
+    output:div(8)
+
+    return output
+end
+
 return M.util

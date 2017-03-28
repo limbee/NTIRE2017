@@ -19,6 +19,18 @@ function Trainer:__init(model, criterion, opt)
     self.feval = function() return self.err, self.gradParams end
 
     self.util = require 'utils'(opt)
+
+    self.errThreshold = 
+        (
+            (opt.abs + opt.chbn + opt.smoothL1) * opt.mulImg +
+            opt.mse * opt.mulImg^2 +
+            opt.ssim + 
+            opt.band * opt.mulImg +
+            (opt.grad + opt.grad2*2) * (opt.gradDist == 'mse' and opt.mulImg^2 or opt.mulImg) +
+            opt.gradPrior * opt.mulImg^opt.gradPower +
+            opt.fd * opt.mulImg
+        ) * 2   -- x2 margin
+    self.lastErr = math.huge
 end
 
 function Trainer:train(epoch, dataloader)
@@ -27,7 +39,8 @@ function Trainer:train(epoch, dataloader)
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
     local iter, err = 0, 0
-
+    local globalIter, globalErr = 0, 0
+    
     cudnn.fastest = true
     cudnn.benchmark = true
 
@@ -52,18 +65,22 @@ function Trainer:train(epoch, dataloader)
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
 
-        if self.criterion.output >= self.opt.mulImg^2 then
-            print('skipping samples with exploding error')
+        if self.criterion.output >= self.errThreshold or 
+            self.criterion.output >= self.lastErr *2 then
+            print('skipping this minibatch with exploding error')
         elseif self.criterion.output ~= self.criterion.output then
-            print('skipping samples with nan error')
+            print('skipping this minibatch with nan error')
         else
-            err = err + self.criterion.output
             self.model:backward(self.input, self.criterion.gradInput)
             if self.opt.clip > 0 then
                 self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
             end
             self.optimState.method(self.feval, self.params, self.optimState)
+
+            err = err + self.criterion.output
             iter = iter + 1
+            globalErr = globalErr + self.criterion.output
+            globalIter = globalIter + 1
         end
         
         trainTime = trainTime + trainTimer:time().real
@@ -72,27 +89,25 @@ function Trainer:train(epoch, dataloader)
             local lr_f, lr_d = self:get_lr()
             print(('[Iter: %.1fk][lr: %.2fe%d]\tTime: %.2f (data: %.2f)\terr: %.6f')
                 :format(it / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
-            if n % self.opt.testEvery ~= 0 then
-                err, iter = 0, 0
-            end
+            err, iter = 0, 0
             trainTime, dataTime = 0, 0
-        end
-
-        if n % self.opt.testEvery == 0 then
-            break
         end
 
         trainTimer:reset()
         dataTimer:reset()
+
+        if n % self.opt.testEvery == 0 then
+            break
+        end
     end
+
     if epoch % self.opt.manualDecay == 0 then
         local prevlr = self.optimState.learningRate
         self.optimState.learningRate = prevlr / 2
-        print(string.format('Learning rate decreased: %.6f -> %.6f',
-        prevlr, self.optimState.learningRate))
     end
     
-    return err / iter
+    self.lastErr = globalErr / globalIter
+    return self.lastErr
 end
 
 function Trainer:test(epoch, dataloader)
