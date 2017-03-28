@@ -32,31 +32,44 @@ local function createModel(opt)
     end
 
     local model = seq():add(conv(opt.nChannel, opt.nFeat, 3, 3, 1, 1, 1, 1))
-    if front > 0 then
-        model:add(addSkip(body))
-    end
-    if back == 0 then
-        model:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
-    end
 
-    local cat = concat()
-    for i = 1, #scale do
-        if back > 0 then
-            local backRes = seq()
-            for j = 1, back do
-                backRes:add(resBlock(opt.nFeat, addbn, actParams))
-            end
-            cat:add(backRes
-                :add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
-                :add(upsample_wo_act(scale[i], opt.upsample, opt.nFeat))
-                :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1)))
-        else
+    if back == 0 then
+        body:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
+        model:add(addSkip(body))
+
+        local cat = concat()
+        for i = 1, #scale do
             cat:add(seq()
                 :add(upsample_wo_act(scale[i], opt.upsample, opt.nFeat))
                 :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1)))
         end
-    end    
-    model:add(cat)
+
+        model:add(cat)
+    else
+        local cat = concat()
+        for i = 1, #scale do
+            local bSeq = seq()
+            for j = 1, back do
+                bSeq:add(resBlock(opt.nFeat, addbn, actParams))
+            end
+            bSeq:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
+            cat:add(bSeq)
+        end
+
+        model:add(seq():add(concat()
+                :add(id())
+                :add(body
+                    :add(cat))))
+            :add(nn.MultiSkipAdd(true))
+
+        local par = nn.ParallelTable()
+        for i = 1, #scale do
+            par:add(seq()
+                :add(upsample_wo_act(scale[i], opt.upsample, opt.nFeat))
+                :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1)))
+        end
+        model:add(par)
+    end
 
     return model
 end
