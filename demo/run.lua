@@ -15,7 +15,12 @@ cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
 cmd:option('-datadir',	'/var/tmp',		'data directory')
+cmd:option('-fr',       'false',        'flip, rotate the data and then average')
+
 local opt = cmd:parse(arg or {})
+opt.progress = (opt.progress == 'true')
+opt.fr = (opt.fr == 'true')
+
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
 
@@ -85,15 +90,21 @@ for modelFile in paths.iterfiles('model') do
         local timer = torch.Timer()
         for i = 1, #testList do
             local timerLocal = torch.Timer()
-            if opt.progress == 'true' then
+            if opt.progress then
                 io.write(('>> \t [%d/%d] %s ......'):format(i,#testList,testList[i][2]))
                 io.flush()
             end
             local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
-            input = nn.Unsqueeze(1):forward(input)
-            local output = util:recursiveForward(input:cuda(), model):squeeze(1)
+            
+            local output = nil
+            if opt.fr then
+                output = util:x8Forward(input, model)
+            else
+                local c, h, w = table.unpack(input:size():totable())
+                output = util:recursiveForward(input:cuda():view(1, c, h, w), model):squeeze(1)
+            end
             util:quantize(output, opt.mulImg)
-
+            
             if (opt.type == 'bench') or (opt.type == 'val') then
                 local target = image.load(paths.concat(dataDir, testList[i][3], testList[i][2]), 3, 'float')
                 target = target[{{}, {1, output:size(2)}, {1, output:size(3)}}]
@@ -107,7 +118,7 @@ for modelFile in paths.iterfiles('model') do
             output = nil
             collectgarbage()
             collectgarbage()
-            if opt.progress == 'true' then
+            if opt.progress then
                 io.write(('\t done. (time: %.2fs) \n'):format(timerLocal:time().real))
                 io.flush()
             end

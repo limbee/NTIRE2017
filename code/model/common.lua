@@ -41,12 +41,18 @@ function act(actParams, nOutputPlane)
     end
 end
 
-function addSkip(model)
-    return seq()
+function addSkip(model, global)
+
+    local model = seq()
         :add(concat()
             :add(model)
             :add(id()))
         :add(cadd(true))
+
+    -- global skip or local skip connection of residual block
+    model:get(2).global = global or false
+
+    return model
 end
 
 function upsample(scale, method, nFeat, actParams)
@@ -148,7 +154,7 @@ function resBlock(nFeat, addBN, actParams)
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
                 :add(act(actParams))
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-                :add(mulc(scaleRes)))
+                :add(mulc(scaleRes, true)))
         else
             return addSkip(seq()
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
