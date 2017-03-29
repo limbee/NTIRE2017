@@ -82,7 +82,7 @@ function div2k:get(idx, scaleR)
         _input = self.t7Inp[scaleR][idx]
         _target = self.t7Tar[idx]
     else
-        local inputName, targetName = self:getFileName(idx)
+        local inputName, targetName = self:getFileName(idx, scaleR + 1)
         if self.ext == '.png' then
             _input = image.load(paths.concat(self.dirInp[scaleR], inputName), self.opt.nChannel, 'float')
             _target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
@@ -175,7 +175,7 @@ function div2k:augment()
     end
 end
 
-function div2k:getFileName(idx)
+function div2k:getFileName(idx, scale)
     --filename format: ????x?.png
     local fileName = idx
     local digit = idx
@@ -186,9 +186,9 @@ function div2k:getFileName(idx)
 
     local inputName = nil
     if self.opt.netType == 'recurVDSR' then
-        inputName = 'SRres' .. fileName .. 'x' .. self.opt.scale .. self.ext
+        inputName = 'SRres' .. fileName .. 'x' .. scale .. self.ext
     else
-        inputName = fileName .. 'x' .. self.opt.scale .. self.ext
+        inputName = fileName .. 'x' .. scale .. self.ext
     end
     local targetName = fileName .. self.ext
 
