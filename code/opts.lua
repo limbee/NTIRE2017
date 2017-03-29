@@ -33,7 +33,8 @@ function M.parse(arg)
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,                  'Manual epoch number for resuming the training. Default is the end')
-    cmd:option('-manualDecay',      200,                'Reduce the learning rate by half per n epoch')
+    cmd:option('-lrDecay',          'step',             'Learning rate decaying method: step | exp | inv')
+    cmd:option('-halfLife',         200e3,              'Half-life of learning rate: default is 200e3')
     cmd:option('-batchSize',        16,                 'Mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,                 'Training patch size')
     cmd:option('-scale',            '2',                'Super-resolution upscale factor')
@@ -150,17 +151,6 @@ function M.parse(arg)
         epsilon = opt.epsilon,
         rho = opt.rho
     }
-    if opt.optimMethod == 'SGD' then 
-        opt.optimState.method = optim.sgd
-    elseif opt.optimMethod == 'ADADELTA' then
-        opt.optimState.method = optim.adadelta
-    elseif opt.optimMethod == 'ADAM' then
-        opt.optimState.method = optim.adam
-    elseif opt.optimMethod == 'RMSPROP' then
-        opt.optimState.method = optim.rmsprop
-    else
-        error('unknown optimization method')
-    end  
 
     local opt_text = io.open(paths.concat(opt.save,'options.txt'),'a')
     opt_text:write(os.date("%Y-%m-%d_%H-%M-%S\n"))

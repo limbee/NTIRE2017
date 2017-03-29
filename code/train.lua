@@ -10,8 +10,20 @@ function Trainer:__init(model, criterion, opt)
     self.criterion = criterion
 
     self.opt = opt
-    self.optimState = opt.optimState
     self.scale = opt.scale
+    self.optimState = opt.optimState
+    self.optim = nil
+    if opt.optimMethod == 'SGD' then 
+        self.optim = optim.sgd
+    elseif opt.optimMethod == 'ADADELTA' then
+        self.optim = optim.adadelta
+    elseif opt.optimMethod == 'ADAM' then
+        self.optim = optim.adam
+    elseif opt.optimMethod == 'RMSPROP' then
+        self.optim = optim.rmsprop
+    else
+        error('unknown optimization method')
+    end  
 
     self.iter = opt.lastIter        --Total iterations
 
@@ -76,12 +88,14 @@ function Trainer:train(epoch, dataloader)
         if self.opt.clip > 0 then
             self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
         end
-        self.optimState.method(self.feval, self.params, self.optimState)
+
+        self:calcLR()
+        self.optim(self.feval, self.params, self.optimState)
         trainTime = trainTime + trainTimer:time().real
         
         if n % pe == 0 then
-            local lr_f, lr_d = self:getlr()
-            print(('[Iter: %.1fk - lr: %.2fe%d]\tTime: %.2f (Data: %.2f)\tErr: %.6f')
+            local lr_f, lr_d = self:lrPrint()
+            print(('[Iter: %.1fk / lr: %.2fe%d]\tTime: %.2f (Data: %.2f)\tErr: %.6f')
                 :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, localErr / pe))
             localErr, trainTime, dataTime = 0, 0, 0
         end
@@ -92,13 +106,6 @@ function Trainer:train(epoch, dataloader)
         if n % te == 0 then
             break
         end
-    end
-
-    if epoch % self.opt.manualDecay == 0 then
-        local prevlr = self.optimState.learningRate
-        self.optimState.learningRate = prevlr / 2
-        print(('Learning rate decreased: %.6f -> %.6f')
-            :format(prevlr, self.optimState.learningRate))
     end
 
     self.retLoss = globalErr / globalIter
@@ -199,13 +206,30 @@ function Trainer:copyInputs(input, target, mode)
     collectgarbage()
 end
 
-function Trainer:getlr()
+function Trainer:lrPrint()
     local logLR = math.log(self.optimState.learningRate, 10)
     local characteristic = math.floor(logLR)
     local mantissa = logLR - characteristic
     local frac = math.pow(10,mantissa)
 
     return frac, characteristic
+end
+
+function Trainer:calcLR()
+    local iter, halfLife = self.iter, self.opt.halfLife
+    local lr
+    if self.opt.lrDecay == 'step' then -- decay lr by half periodically
+        local nStep = math.floor((iter - 1) / halfLife)
+        lr = self.opt.lr / math.pow(2, nStep)
+    elseif self.opt.lrDecay == 'exp' then -- decay lr exponentially. y = y0 * e^(-kt)
+        local k = math.log(2) / halfLife
+        lr = self.opt.lr * math.exp(-k * iter)
+    elseif self.opt.lrDecay == 'inv' then -- decay lr as y = y0 / (1 + kt)
+        local k = 1 / halfLife
+        lr = self.opt.lr / (1 + k * iter)
+    end
+
+    self.optimState.learningRate = lr
 end
 
 function Trainer:getParams()
@@ -237,6 +261,12 @@ function Trainer:updatePSNR(psnr)
     end
 
     return psnr
+end
+
+function Trainer:updateLR(lr)
+    table.insert(lr, {key = self.iter, value = self.optimState.learningRate})
+
+    return lr
 end
 
 return M.Trainer
