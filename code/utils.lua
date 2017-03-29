@@ -54,17 +54,32 @@ function util:plot(tbl, name, label)
         return torch.Tensor(xAxis), torch.Tensor(yAxis)
     end
 
+    local function __xAxisScale(xAxis)
+        local maxIter = xAxis:max()
+        if maxIter > 1e6 then
+            return 1e6
+        elseif maxIter > 1e3 then
+            return 1e3
+        else
+            return 1
+        end
+    end
+
     local lines = {}
     local first, last
+    local xAxisScale = 1
     if typeTable(tbl) ~= 'table' then -- single graph
         local xAxis, yAxis = toTensor(tbl)
-        table.insert(lines, {label, xAxis, yAxis, '-'})
+        xAxisScale = __xAxisScale(xAxis)
+        table.insert(lines, {label, xAxis:div(xAxisScale), yAxis, '-'})
         first, last = findMinMax(tbl)
     else -- multiple lines
         assert(type(label) == 'table', 'label must be a table, if you want to draw lines more than 1')
+        local tmp, _ = toTensor(tbl[1])
+        xAxisScale = __xAxisScale(tmp)
         for i = 1, #tbl do
             local xAxis, yAxis = toTensor(tbl[i])
-            table.insert(lines, {label[i], xAxis, yAxis, '-'})
+            table.insert(lines, {label[i], xAxis:div(xAxisScale), yAxis, '-'})
         end
         first, last = findMinMax(tbl[1])
     end
@@ -77,7 +92,11 @@ function util:plot(tbl, name, label)
     end
     gnuplot.grid(true)
     gnuplot.title(name)
-    gnuplot.xlabel('Iterations')
+    local xlabel = 'Iterations'
+    if xAxisScale > 1 then
+        xlabel = xlabel .. ' (*1e' .. math.log(xAxisScale, 10) .. ')'
+    end
+    gnuplot.xlabel(xlabel)
 	gnuplot.plotflush(fig)
 	gnuplot.closeall()  
 end
