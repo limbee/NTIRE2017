@@ -1,14 +1,13 @@
 clear;
 
 %You can select the scale from here
-scale = [1.5 2 3 4];
+scale = [2 3 4];
 
 %You can select the degrading operator from here
 degrade = 'bicubic';
 
 %Folder where 'DIV2K' folder exists
-%apath = '/var/tmp/dataset';
-apath = '../../../';
+apath = '/var/tmp/dataset';
 hrDir = fullfile(apath, 'DIV2K', 'DIV2K_train_HR');
 
 ff = fullfile(apath, 'DIV2K', strcat('DIV2K_train_LR_', degrade));

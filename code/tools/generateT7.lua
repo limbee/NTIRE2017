@@ -3,20 +3,23 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 local cmd = torch.CmdLine()
 cmd:text()
-cmd:text('A image packing tool for DIV2K dataset')
+cmd:text('An image packing tool for DIV2K dataset')
 cmd:text()
 cmd:text('Options:')
-cmd:option('-apath',     '/var/tmp/dataset',    'Absolute path of the DIV2K folder')
-cmd:option('-scale',     '1.5_2_3_4',           'Scales to pack')
-cmd:option('-split',     'false',               'Split or pack')
+cmd:option('-apath',        '/var/tmp/dataset',     'Absolute path of the DIV2K folder')
+cmd:option('-scale',        '2_3_4',            'Scales to pack')
+cmd:option('-split',        'false',                'split or pack')
+cmd:option('-printEvery',   100,                    'print the progress # every iterations')
 
 local opt = cmd:parse(arg or {})
-opt.apath = paths.concat(opt.apath, 'DIV2K')
 opt.scale = opt.scale:split('_')
 opt.split = (opt.split == 'true')
 for i = 1, #opt.scale do
     opt.scale[i] = tonumber(opt.scale[i])
 end
+
+local targetPath = paths.concat(opt.apath, 'DIV2K')
+local outputPath = paths.concat(opt.apath, 'DIV2K_decoded')
 
 local hrDir = 'DIV2K_train_HR'
 local lrDir =
@@ -26,45 +29,65 @@ local lrDir =
     'DIV2K_valid_LR_bicubic',
     'DIV2K_valid_LR_unknown'
 }
-local decDir = 'DIV2K_decoded'
-if not paths.dirp(paths.concat(opt.apath, decDir)) then
-    paths.mkdir(paths.concat(opt.apath, decDir))
+
+if not paths.dirp(outputPath) then
+    paths.mkdir(outputPath)
 end
 
-local convertTable = {{scale = nil, dir = paths.concat(opt.apath, hrDir), saveAs = hrDir}}
+if not paths.dirp(paths.concat(outputPath, hrDir)) then
+    paths.mkdir(paths.concat(outputPath, hrDir))
+end
+
+local convertTable = 
+    {
+        {
+            tDir = paths.concat(targetPath, hrDir), 
+            oDir = paths.concat(outputPath, hrDir)
+        }
+    }
+
 for i = 1, #lrDir do
     for j = 1, #opt.scale do
-        local targetDir = paths.concat(opt.apath, lrDir[i], 'X' .. opt.scale[j])
+        local targetDir = paths.concat(targetPath, lrDir[i], 'X' .. opt.scale[j])
+        local outputDir = paths.concat(outputPath, lrDir[i], 'X' .. opt.scale[j])
         if paths.dirp(targetDir) then
-            table.insert(convertTable, {scale = opt.scale[j], dir = targetDir, saveAs = lrDir[i] .. '_X' .. opt.scale[j]})
+            if not paths.dirp(outputDir) then
+                paths.mkdir(outputDir)
+            end
+            table.insert(convertTable, {tDir = targetDir, oDir = outputDir})
         end
     end
 end
 
 local ext = '.png'
 for i = 1, #convertTable do
-    print('Converting ' .. convertTable[i].dir)
+    print('Converting ' .. convertTable[i].tDir)
     
     local imgTable = {}
     local n = 0
-    for file in paths.files(convertTable[i].dir) do
-        local fileDir = paths.concat(convertTable[i].dir, file)
-        if file:find(ext) then
+    local fileList = paths.dir(convertTable[i].tDir)
+    table.sort(fileList)
+    for j = 1, #fileList do
+        if fileList[j]:find(ext) then
+            local fileDir = paths.concat(convertTable[i].tDir, fileList[j])
             local img = image.load(fileDir):mul(255):byte()
-            table.insert(imgTable, img)
+            
             if opt.split then
-                local fileName = file:split('.png')[1] .. '.t7'
-                torch.save(paths.concat(opt.apath, convertTable[i].dir, fileName), img)
+                local fileName = fileList[j]:split('.png')[1] .. '.t7'
+                torch.save(paths.concat(convertTable[i].oDir, fileName), img)
+            else
+                table.insert(imgTable, img)
             end
+
             n = n + 1
-            if ((n % 100) == 0) then
+            if ((n % opt.printEvery) == 0) then
                 print('Converted ' .. n .. ' files')
             end
         end
     end
 
     if not opt.split then
-        torch.save(paths.concat(opt.apath, decDir, convertTable[i].saveAs .. '.t7'), imgTable)
+        torch.save(paths.concat(convertTable[i].oDir, 'pack.t7'), imgTable)
     end
 
     imageTable = nil

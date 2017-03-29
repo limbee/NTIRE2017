@@ -53,10 +53,10 @@ function Trainer:train(epoch, dataloader)
     collectgarbage()
     collectgarbage()
 
-    for n, sample in dataloader:run() do
+    for n, batch in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-        self:copyInputs(sample.input, sample.target, 'train')
-        local sci = sample.scaleR
+        self:copyInputs(batch.input, batch.target, 'train')
+        local sci = batch.scaleR
 
         self.model:zeroGradParameters()
         --Fast model swap
@@ -124,10 +124,10 @@ function Trainer:test(epoch, dataloader)
     collectgarbage()
     collectgarbage()
     
-    for n, sample in dataloader:run() do
+    for n, batch in dataloader:run() do
         for i = 1, #self.scale do
             local sc = self.scale[i]
-            self:copyInputs(sample.input[i], sample.target[i], 'train')
+            self:copyInputs(batch.input[i], batch.target[i], 'train')
 
             local input = nn.Unsqueeze(1):cuda():forward(self.input)
             if self.opt.nChannel == 1 then
@@ -163,7 +163,7 @@ function Trainer:test(epoch, dataloader)
             collectgarbage()
             collectgarbage()
         end
-        sample = nil
+        batch = nil
         collectgarbage()
         collectgarbage()
     end

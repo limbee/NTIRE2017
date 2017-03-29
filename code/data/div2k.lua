@@ -6,107 +6,99 @@ local M = {}
 local div2k = torch.class('sr.div2k', M)
 
 function div2k:__init(opt, split)
-    self.size = 800
     self.opt = opt
     self.split = split
-    self.scale = opt.scale
 
-    --absolute path of the dataset
-    local apath = paths.concat(opt.datadir, 'dataset/DIV2K')
+    self.size = 800
+    self.offset = self.size - self.opt.numVal
+    self.scale = self.opt.scale
+    self.dataSize = self.opt.dataSize
+
+    --Absolute path of the dataset
+    local apath = nil
+    self.ext = nil
+
+    if self.datatype == 'png' then
+        apath = paths.concat(opt.datadir, 'DIV2K')
+        self.ext = '.png'
+    else
+        apath = paths.concat(opt.datadir, 'DIV2K_decoded')
+        self.ext = '.t7'
+    end
+
     local tHR = 'DIV2K_train_HR'
     local tLR = 'DIV2K_train_LR_'
-    local dec = 'DIV2K_decoded'
 
-    if opt.datatype ~= 't7pack' then
-        self.dirTar = paths.concat(apath, tHR)
-        self.dirInp = paths.concat(apath, tLR .. opt.degrade, 'X' .. opt.scale)
+    self.dirTar = paths.concat(apath, tHR)
+    self.dirInp = {}
 
-        if opt.dataSize == 'big' then
-            self.dirInp = self.dirInp .. 'b'
-        end
-        if opt.netType == 'recurVDSR' then  --SRresOutput
-            self.dirInp = self.dirInp .. '_SRresOutput'
-        end
-    else
-        self.dirTar = paths.concat(apath, dec, tHR)
-        self.dirInp = {}
-        for i = 1, #self.scale do
-            table.insert(self.dirInp,
-                    paths.concat(apath, dec, tLR .. opt.degrade .. '_X' .. self.scale[i]))
-            if opt.dataSize == 'big' then
-                self.dirInp[i] = self.dirInp[i] .. 'b'
-            end
-        end
+    for i = 1, #self.scale do
+        table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
+        self.dirInp[i] = opt.dataSize == 'small' and self.dirInp[i] or self.dirInp[i]
+        self.dirInp[i] = opt.netType ~= 'recurVDSR' and self.dirInp[i] or self.dirInp[i] .. '_SRresOutput'
+    end
+
+    --Load single .t7 files that contains all dataset
+    if opt.datatype == 't7pack' then
+        print('\tLoading t7pack:')
         if split == 'train' then
-            self.t7Tar = torch.load(self.dirTar .. '.t7')
-            if not paths.filep(self.dirTar .. 'v.t7') then
-                local valTar = {}
-                for i = (self.size - opt.numVal + 1), self.size do
-                    table.insert(valTar, self.t7Tar[i])
-                end
-                torch.save(self.dirTar .. 'v.t7', valTar)
-                valTar = nil
-                collectgarbage()
-                collectgarbage()
-            end
+            --Here, we will split the validation sets and save them as *v.t7 file
+            self.t7Tar = torch.load(paths.concat(self.dirTar, 'pack.t7'))
+            torch.save(paths.concat(self.dirTar, 'pack_v.t7'), {unpack(self.t7Tar, self.offset + 1)})
+            print('\tTrain set: ' .. self.dirTar .. '/pack.t7 loaded')
 
             self.t7Inp = {}
             for i = 1, #self.dirInp do
-                table.insert(self.t7Inp, torch.load(self.dirInp[i] .. '.t7'))
-                if not paths.filep(self.dirInp[i] .. 'v.t7') then
-                    local valInp = {}
-                    for j = (self.size - opt.numVal + 1), self.size do
-                        table.insert(valInp, self.t7Inp[i][j])
-                    end
-                    torch.save(self.dirInp[i] .. 'v.t7', valInp)
-                    valInp = nil
-                    collectgarbage()
-                    collectgarbage()
-                end
+                table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack.t7')))
+                torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), {unpack(self.t7Inp[i], self.offset + 1)})
+                print('\tTrain set: ' .. self.dirInp[i] .. '/pack.t7 loaded')
             end
         elseif split == 'val' then
-            self.t7Tar = torch.load(self.dirTar .. 'v.t7')
+            self.t7Tar = torch.load(paths.concat(self.dirTar, 'pack_v.t7'))
+            print('\tValidation set: ' .. self.dirTar .. '/pack_v.t7 loaded')
             self.t7Inp = {}
             for i = 1, #self.dirInp do
-                table.insert(self.t7Inp, torch.load(self.dirInp[i] .. 'v.t7'))
+                table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack_v.t7')))
+                print('\tValidation set: ' .. self.dirInp[i] .. '/pack_v.t7 loaded')
             end
         end
-    end 
-end
-
-function div2k:get(i, scaleR)
-    local scale = self.scale[scaleR]
-    local netType = self.opt.netType
-    local dataSize = self.opt.dataSize
-    local idx = i
-    if (self.split == 'val') and (self.opt.datatype ~= 't7pack') then
-        idx = idx + (self.size - self.opt.numVal)
     end
 
-    local input, target
-    local ext = (self.opt.datatype == 'png') and '.png' or '.t7'
+    collectgarbage()
+    collectgarbage()
+end
+
+function div2k:get(idx, scaleR)
+    local scale = self.scale[scaleR]
+    local dataSize = self.dataSize
+
+    if (self.split == 'val') and (self.opt.datatype ~= 't7pack') then
+        idx = idx + self.offset
+    end
+
+    local _input, _target
 
     if self.opt.datatype == 't7pack' then
-        input = self.t7Inp[scaleR][idx]
-        target = self.t7Tar[idx]
+        _input = self.t7Inp[scaleR][idx]
+        _target = self.t7Tar[idx]
     else
-        local inputName, targetName = self:getFileName(idx, ext)
-        if ext == '.png' then
-            input = image.load(paths.concat(self.dirInp, inputName), self.opt.nChannel, 'float')
-            target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+        local inputName, targetName = self:getFileName(idx)
+        if self.ext == '.png' then
+            _input = image.load(paths.concat(self.dirInp[scaleR], inputName), self.opt.nChannel, 'float')
+            _target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
         else
-            input = torch.load(paths.concat(self.dirInp, inputName)):float()
+            _input = torch.load(paths.concat(self.dirInp[scaleR], inputName))
+            _target = torch.load(paths.concat(self.dirTar, targetName))
         end
     end
 
-    local channel, h, w = table.unpack(target:size():totable())
+    local channel, h, w = unpack(_target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
     if dataSize == 'big' then
         hInput, wInput = hTarget, wTarget
     end
-    target = target[{{}, {1, hTarget}, {1, wTarget}}]
-
+    _target = _target[{{}, {1, hTarget}, {1, wTarget}}]
     local patchSize = self.opt.patchSize
     local targetPatch = patchSize
     local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
@@ -114,29 +106,29 @@ function div2k:get(i, scaleR)
         return nil
     end
 
-    if self.split == 'train' then 
+    --Generate patches for training
+    if self.split == 'train' then
         local ix = torch.random(1, wInput - inputPatch + 1)
         local iy = torch.random(1, hInput - inputPatch + 1)
         local tx, ty = ix, iy
-        if dataSize ~= 'big' then
+        if dataSize == 'small' then
             tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
         end
-        
-        input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
-        target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
+        _input = _input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
+        _target = _target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if ext == '.t7' then
-        input = input:float():mul(self.opt.mulImg / 255)
-        target = target:float():mul(self.opt.mulImg / 255)
+    if self.ext == '.png' then
+        _input:mul(self.opt.mulImg)
+        _target:mul(self.opt.mulImg)
     else
-        input:mul(self.opt.mulImg)
-        target:mul(self.opt.mulImg)
+        _input = _input:float():mul(self.opt.mulImg / 255)
+        _target = _target:float():mul(self.opt.mulImg / 255)
     end
 
-    --reject the patch that has small size of spatial gradient
+    --Reject the patch that has small size of spatial gradient
     if (self.split == 'train') and (self.opt.rejection ~= -1) then
-        local ni = input / self.opt.mulImg
+        local ni = _input / self.opt.mulImg
         local dx = image.crop(ni - image.translate(ni, -1, 0), 'tl', inputPatch - 1, inputPatch - 1)
         local dy = image.crop(ni - image.translate(ni, 0, -1), 'tl', inputPatch - 1, inputPatch - 1)
         local dsum = dx:pow(2) + dy:pow(2)
@@ -148,14 +140,14 @@ function div2k:get(i, scaleR)
     end
 
     return {
-        input = input,
-        target = target
+        input = _input,
+        target = _target
     }
 end
 
 function div2k:__size()
     if self.split == 'train' then
-        return self.size - self.opt.numVal
+        return self.offset
     elseif self.split == 'val' then
         return self.opt.numVal
     end
@@ -183,7 +175,7 @@ function div2k:augment()
     end
 end
 
-function div2k:getFileName(idx, ext)
+function div2k:getFileName(idx)
     --filename format: ????x?.png
     local fileName = idx
     local digit = idx
@@ -192,13 +184,13 @@ function div2k:getFileName(idx, ext)
         digit = digit * 10
     end
 
-    local inputName
+    local inputName = nil
     if self.opt.netType == 'recurVDSR' then
-        inputName = 'SRres' .. fileName .. 'x' .. self.opt.scale .. ext
+        inputName = 'SRres' .. fileName .. 'x' .. self.opt.scale .. self.ext
     else
-        inputName = fileName .. 'x' .. self.opt.scale .. ext
+        inputName = fileName .. 'x' .. self.opt.scale .. self.ext
     end
-    local targetName = fileName .. ext
+    local targetName = fileName .. self.ext
 
     return inputName, targetName
 end

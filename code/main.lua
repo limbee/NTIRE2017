@@ -23,8 +23,6 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-local scale = opt.scale
-
 if opt.valOnly then
     print('Validate the model (at epoch ' .. opt.startEpoch - 1 .. ') with ' .. opt.numVal .. ' val images')
     trainer:test(opt.startEpoch - 1, valLoader)
