@@ -14,7 +14,6 @@ function Trainer:__init(model, criterion, opt)
     self.scale = opt.scale
 
     self.iter = opt.lastIter        --Total iterations
-    self.err = 0
 
     self.input = nil
     self.target = nil
@@ -70,7 +69,6 @@ function Trainer:train(epoch, dataloader)
         self.model = self.tempModel
         
         self.iter = self.iter + 1
-        self.err = self.criterion.output
         globalIter = globalIter + 1
         globalErr = globalErr + self.criterion.output
         localErr = localErr + self.criterion.output

@@ -12,7 +12,7 @@ local function createModel(opt)
 
     local body = seq()
     for i=1,opt.nResBlock do
-        body:add(resBlock(opt.nFeat, false, actParams))
+        body:add(resBlock(opt.nFeat, false, actParams, opt.scaleRes))
     end
     body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
 

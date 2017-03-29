@@ -75,6 +75,7 @@ function M.parse(arg)
     cmd:option('-negval',           1/100,              'Parameter negval for Leaky ReLU')
     cmd:option('-fastSwap',         'nil',              'Fast-swap for the models that generate multiple outputs')
     cmd:option('-mobranch',         1,                  'Position of the branch in MOResnet')
+    cmd:option('-scaleRes',         1,                  'Scale each residuals in residual blocks')
     -- Loss
     cmd:option('-abs',              1,                  'L1 loss weight')
     cmd:option('-smoothL1',         0,                  'Smooth L1 loss weight')
