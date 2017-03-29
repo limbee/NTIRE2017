@@ -56,12 +56,12 @@ function Trainer:train(epoch, dataloader)
     for n, batch in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
         self:copyInputs(batch.input, batch.target, 'train')
-        local sci = batch.scaleR
+        local scaleIdx = batch.scaleIdx
 
         self.model:zeroGradParameters()
         --Fast model swap
         self.tempModel = self.model
-        self.model = self.swapTable[sci]
+        self.model = self.swapTable[scaleIdx]
 
         self.model:forward(self.input)
         self.criterion(self.model.output, self.target)
@@ -167,7 +167,7 @@ function Trainer:test(epoch, dataloader)
         collectgarbage()
         collectgarbage()
     end
-    print(('epoch %d (iter/epoch: %d)] Test time: %.2f')
+    print(('[Epoch %d (iter/epoch: %d)] Test time: %.2f')
         :format(epoch, self.opt.testEvery, timer:time().real))
 
     for i = 1, #self.scale do
@@ -176,8 +176,8 @@ function Trainer:test(epoch, dataloader)
             self.maxPerf[i] = avgPSNR[i]
             self.maxIdx[i] = epoch
         end
-        print(('Average PSNR: %.4f (X%d) / Highest PSNR: %.4f (X%d) - epoch %d')
-            :format(avgPSNR[i], self.scale[i], self.maxPerf[i], self.scale[i], self.maxIdx[i]))
+        print(('(scale %d) Average PSNR: %.4f (Highest ever: %.4f at epoch = %d)')
+            :format(self.scale[i], avgPSNR[i], self.maxPerf[i], self.maxIdx[i]))
     end
     print('')
     

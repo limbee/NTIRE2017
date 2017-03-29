@@ -72,34 +72,34 @@ function DataLoader:run()
 
                 threads:addjob(
                     function(indices)
-                        local _scaleR = torch.random(1, #_G.scale)
-                        local scale = _G.scale[_scaleR]
+                        local scaleIdx = torch.random(1, #_G.scale)
+                        local scale = _G.scale[scaleIdx]
                         local tarSize = patchSize
                         local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
 
-                        local _inputBatch = torch.zeros(batchSize, nChannel, inpSize, inpSize)
-                        local _targetBatch = torch.zeros(batchSize, nChannel, tarSize, tarSize)
+                        local input = torch.Tensor(batchSize, nChannel, inpSize, inpSize)
+                        local target = torch.Tensor(batchSize, nChannel, tarSize, tarSize)
 
                         for i = 1, batchSize do
                             local sample = nil
                             repeat
                                 --Code for multiscale learning
-                                sample = _G.dataset:get(indices[i], _scaleR)
+                                sample = _G.dataset:get(indices[i], scaleIdx)
                                 indices[i] = torch.random(size)
                             until sample
 
                             sample = _G.augment(sample)
-                            _inputBatch[i]:copy(sample.input)
-                            _targetBatch[i]:copy(sample.target)
+                            input[i]:copy(sample.input)
+                            target[i]:copy(sample.target)
                             sample = nil
                         end
                         collectgarbage()
                         collectgarbage()
 
                         return {
-                            input = _inputBatch,
-                            target = _targetBatch,
-                            scaleR = _scaleR
+                            input = input,
+                            target = target,
+                            scaleIdx = scaleIdx 
                         }    
                     end,
                     function (_batch_)
