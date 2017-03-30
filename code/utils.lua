@@ -16,7 +16,7 @@ end
 function util:plot(tbl, name, label)
     -- Assume tbl is a table of numbers, or a table of tables
     local fig = gnuplot.pdffigure(paths.concat(self.save, name .. '.pdf'))
-    label = label or name
+    local label = label or name
 
     local function findMinMax(tb)
         local minKey, maxKey = math.huge, -math.huge    
@@ -54,17 +54,35 @@ function util:plot(tbl, name, label)
         return torch.Tensor(xAxis), torch.Tensor(yAxis)
     end
 
+    local function __xAxisScale(xAxis)
+        local maxIter = xAxis:max()
+        if maxIter > 1e6 then
+            return 1e6
+        elseif maxIter > 1e3 then
+            return 1e3
+        else
+            return 1
+        end
+    end
+
     local lines = {}
     local first, last
+    local xAxisScale = 1
     if typeTable(tbl) ~= 'table' then -- single graph
         local xAxis, yAxis = toTensor(tbl)
-        table.insert(lines, {label, xAxis, yAxis, '-'})
+        xAxisScale = __xAxisScale(xAxis)
+        if name == 'Learning Rate' then
+            yAxis:log():div(math.log(10))
+        end
+        table.insert(lines, {label, xAxis:div(xAxisScale), yAxis, '-'})
         first, last = findMinMax(tbl)
     else -- multiple lines
         assert(type(label) == 'table', 'label must be a table, if you want to draw lines more than 1')
+        local tmp, _ = toTensor(tbl[1])
+        xAxisScale = __xAxisScale(tmp)
         for i = 1, #tbl do
             local xAxis, yAxis = toTensor(tbl[i])
-            table.insert(lines, {label[i], xAxis, yAxis, '-'})
+            table.insert(lines, {label[i], xAxis:div(xAxisScale), yAxis, '-'})
         end
         first, last = findMinMax(tbl[1])
     end
@@ -77,12 +95,22 @@ function util:plot(tbl, name, label)
     end
     gnuplot.grid(true)
     gnuplot.title(name)
-    gnuplot.xlabel('Iterations')
+    local xlabel = 'Iterations'
+    if xAxisScale > 1 then
+        xlabel = xlabel .. ' (*1e' .. math.log(xAxisScale, 10) .. ')'
+    end
+    gnuplot.xlabel(xlabel)
+    if name == 'Learning Rate' then
+        -- gnuplot.raw('set logscale y') -- it doesn't seeem supported in torch
+        -- gnuplot.raw('set format y "%.1t * 10^{%L}"')
+        gnuplot.raw('set format y "%.1t"')
+        gnuplot.ylabel('log10(LR)')
+    end
 	gnuplot.plotflush(fig)
 	gnuplot.closeall()  
 end
 
-function util:checkpoint(model, criterion, loss, psnr)
+function util:checkpoint(model, criterion, loss, psnr, lr)
     if torch.type(model) == 'nn.DataParallelTable' then
         model = model:get(1)
     end
@@ -90,20 +118,22 @@ function util:checkpoint(model, criterion, loss, psnr)
     torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model:clearState())
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
+    torch.save(paths.concat(self.save, 'learning_rate.t7'), lr)
     torch.save(paths.concat(self.save, 'opt.t7'), self.opt)
 end
 
 function util:load()
-    local ok, loss, psnr
+    local ok, loss, psnr, lr
     local numLoss = 0
 
     if self.opt.load then
-        ok, loss, psnr, opt = pcall(
+        ok, loss, psnr, lr, opt = pcall(
             function()
                 local loss = torch.load(paths.concat(self.save, 'loss.t7'))
                 local psnr = torch.load(paths.concat(self.save, 'psnr.t7'))
+                local lr = torch.load(paths.concat(self.save, 'learning_rate.t7'))
                 local opt = torch.load(paths.concat(self.save, 'opt.t7'))
-                return loss, psnr, opt
+                return loss, psnr, lr, opt 
             end)
         if ok then
             numLoss = #loss
@@ -115,11 +145,12 @@ function util:load()
                 error('Please set -startEpoch bigger than 1, if you want to resume the training')
             elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= numLoss then
                 print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
-                local _loss, _psnr = {}, {}
+                local _loss, _psnr, _lr = {}, {}, {}
                 local lastIter = loss[#loss].key
                 for i = 1, #loss do
                     if loss[i].key < lastIter then
                         table.insert(_loss, loss[i])
+                        table.insert(_lr, lr[i])
                     end
                 end
                 for i = 1, #self.opt.scale do
@@ -131,7 +162,7 @@ function util:load()
                     end
                 end
 
-                loss, psnr = _loss, _psnr
+                loss, psnr, lr = _loss, _psnr, _lr
                 self.opt.lastIter = lastIter
             else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
                 print(('Continue training (After %d epochs = %d iterations)'):format(numLoss, _lastIter))
@@ -139,11 +170,11 @@ function util:load()
                 self.opt.lastIter = _lastIter
             end
         else
-            error('history (loss, psnr, options) does not exist')
+            error('history (loss, psnr, lr, options) does not exist')
         end
     else
         ok = false
-        loss, psnr = {}, {}
+        loss, psnr, lr = {}, {}, {}
         for i = 1, #self.opt.scale do
             table.insert(psnr, {})
         end
@@ -151,16 +182,7 @@ function util:load()
         self.opt.lastIter = 0
     end
 
-    if ok then
-        local prevlr = self.opt.optimState.learningRate
-        self.opt.optimState.learningRate = prevlr / math.pow(2, math.floor((numLoss + 1) / self.opt.manualDecay))
-        if self.opt.optimState.learningRate ~= prevlr then
-            print(string.format('Learning rate decreased: %.6f -> %.6f',
-            prevlr, self.opt.optimState.learningRate))
-        end
-    end
-
-    return ok, loss, psnr
+    return ok, loss, psnr, lr
 end
 
 function util:calcPSNR(output, target, scale)

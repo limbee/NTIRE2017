@@ -10,7 +10,7 @@ local opts = require 'opts'
 local opt = opts.parse(arg)
 
 local util = require 'utils'(opt)
-local load, loss, psnr = util:load()
+local load, loss, psnr, lr = util:load()
 
 local DataLoader = require 'dataloader'
 local Trainer = require 'train'
@@ -31,7 +31,8 @@ else
 
     for epoch = opt.startEpoch, opt.nEpochs do
         trainer:train(epoch, trainLoader)
-        util:plot(trainer:updateLoss(loss), 'loss')
+        util:plot(trainer:updateLoss(loss), 'Loss')
+        util:plot(trainer:updateLR(lr), 'Learning Rate')
         
         --Skip validation
         if not opt.trainOnly then
@@ -39,6 +40,6 @@ else
             util:plot(trainer:updatePSNR(psnr), 'PSNR', opt.psnrLabel)
         end
         
-        util:checkpoint(model, criterion, loss, psnr)
+        util:checkpoint(model, criterion, loss, psnr, lr)
     end
 end

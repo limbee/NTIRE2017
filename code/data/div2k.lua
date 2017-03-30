@@ -76,37 +76,37 @@ function div2k:__init(opt, split)
     collectgarbage()
 end
 
-function div2k:get(idx, scaleR)
-    local scale = self.scale[scaleR]
+function div2k:get(idx, scaleIdx)
+    local scale = self.scale[scaleIdx]
     local dataSize = self.dataSize
 
     if (self.split == 'val') and (self.opt.datatype ~= 't7pack') then
         idx = idx + self.offset
     end
 
-    local _input, _target
+    local input, target
 
     if self.opt.datatype == 't7pack' then
-        _input = self.t7Inp[scaleR][idx]
-        _target = self.t7Tar[idx]
+        input = self.t7Inp[scaleIdx][idx]
+        target = self.t7Tar[idx]
     else
         local inputName, targetName = self:getFileName(idx, scale)
         if self.ext == '.png' then
-            _input = image.load(paths.concat(self.dirInp[scaleR], inputName), self.opt.nChannel, 'float')
-            _target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+            input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
+            target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
         else
-            _input = torch.load(paths.concat(self.dirInp[scaleR], inputName))
-            _target = torch.load(paths.concat(self.dirTar, targetName))
+            input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
+            target = torch.load(paths.concat(self.dirTar, targetName))
         end
     end
 
-    local channel, h, w = unpack(_target:size():totable())
+    local channel, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
     if dataSize == 'big' then
         hInput, wInput = hTarget, wTarget
     end
-    _target = _target[{{}, {1, hTarget}, {1, wTarget}}]
+    target = target[{{}, {1, hTarget}, {1, wTarget}}]
     local patchSize = self.opt.patchSize
     local targetPatch = patchSize
     local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
@@ -122,21 +122,21 @@ function div2k:get(idx, scaleR)
         if dataSize == 'small' then
             tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
         end
-        _input = _input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
-        _target = _target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
+        input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
+        target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
     if self.ext == '.png' then
-        _input:mul(self.opt.mulImg)
-        _target:mul(self.opt.mulImg)
+        input:mul(self.opt.mulImg)
+        target:mul(self.opt.mulImg)
     else
-        _input = _input:float():mul(self.opt.mulImg / 255)
-        _target = _target:float():mul(self.opt.mulImg / 255)
+        input = input:float():mul(self.opt.mulImg / 255)
+        target = target:float():mul(self.opt.mulImg / 255)
     end
 
     --Reject the patch that has small size of spatial gradient
     if (self.split == 'train') and (self.opt.rejection ~= -1) then
-        local ni = _input / self.opt.mulImg
+        local ni = input / self.opt.mulImg
         local dx = image.crop(ni - image.translate(ni, -1, 0), 'tl', inputPatch - 1, inputPatch - 1)
         local dy = image.crop(ni - image.translate(ni, 0, -1), 'tl', inputPatch - 1, inputPatch - 1)
         local dsum = dx:pow(2) + dy:pow(2)
@@ -148,8 +148,8 @@ function div2k:get(idx, scaleR)
     end
 
     return {
-        input = _input,
-        target = _target
+        input = input,
+        target = target
     }
 end
 

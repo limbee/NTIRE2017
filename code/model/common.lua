@@ -139,9 +139,9 @@ function upsample_wo_act(scale, method, nFeat)
     end
 end
 
-function resBlock(nFeat, addBN, actParams)
+function resBlock(nFeat, addBN, actParams, scaleRes)
     local nFeat = nFeat or 64
-    local scaleRes = nFeat >= 256 and 0.1 or false
+    local scaleRes = (scaleRes and scaleRes ~= 1) and scaleRes or false
 
     actParams.nFeat = nFeat
 
