@@ -8,8 +8,8 @@ function DataLoader.create(opt)
     print('loading data...')
     local loaders = {}
     for i, split in ipairs{'train', 'val'} do
-        local dataset = require('data/' .. opt.dataset)(opt, split)
         print('\tInitializing data loader for ' .. split .. ' set...')
+        local dataset = require('data/' .. opt.dataset)(opt, split)
         loaders[i] = M.DataLoader(dataset, opt, split)
     end
     return unpack(loaders)

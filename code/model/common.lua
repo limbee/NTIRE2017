@@ -115,6 +115,8 @@ function upsample_wo_act(scale, method, nFeat)
             return seq()
                 :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
                 :add(deconv(nFeat,nFeat, 6,6, 2,2, 2,2))
+        elseif scale == 1 then
+            return id()
         end
     elseif method == 'espcnn' then  -- Shi et al., 'Real-Time Single Image and Video Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural Network'
         if scale == 2 then
@@ -131,6 +133,8 @@ function upsample_wo_act(scale, method, nFeat)
                 :add(shuffle(2))
                 :add(conv(nFeat,4*nFeat, 3,3, 1,1, 1,1))
                 :add(shuffle(2))
+        elseif scale == 1 then
+            return id()
         end
     end
 end
