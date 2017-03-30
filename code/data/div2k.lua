@@ -193,10 +193,10 @@ function div2k:getFileName(idx, scale)
     end
 
     local targetName = fileName .. self.ext
+    local inputName = nil
     if scale == 1 then
         inputName = targetName
     else
-        local inputName = nil
         if self.opt.netType ~= 'recurVDSR' then
             inputName = fileName .. 'x' .. scale .. self.ext
         else
