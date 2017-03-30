@@ -6,32 +6,41 @@ local Trainer = torch.class('sr.Trainer', M)
 
 function Trainer:__init(model, criterion, opt)
     self.model = model
+    self.tempModel = nil
     self.criterion = criterion
+
     self.opt = opt
+    self.scale = opt.scale
     self.optimState = opt.optimState
-    self.iter = opt.lastIter
-    
+    self.optim = nil
+    if opt.optimMethod == 'SGD' then 
+        self.optim = optim.sgd
+    elseif opt.optimMethod == 'ADADELTA' then
+        self.optim = optim.adadelta
+    elseif opt.optimMethod == 'ADAM' then
+        self.optim = optim.adam
+    elseif opt.optimMethod == 'RMSPROP' then
+        self.optim = optim.rmsprop
+    else
+        error('unknown optimization method')
+    end  
+
+    self.iter = opt.lastIter        --Total iterations
+
     self.input = nil
     self.target = nil
-
     self.params = nil
     self.gradParams = nil
 
-    self.feval = function() return self.err, self.gradParams end
-
+    self.feval = function() return self.errB, self.gradParams end
     self.util = require 'utils'(opt)
 
-    self.errThreshold = 
-        (
-            (opt.abs + opt.chbn + opt.smoothL1) * opt.mulImg +
-            opt.mse * opt.mulImg^2 +
-            opt.ssim + 
-            opt.band * opt.mulImg +
-            (opt.grad + opt.grad2*2) * (opt.gradDist == 'mse' and opt.mulImg^2 or opt.mulImg) +
-            opt.gradPrior * opt.mulImg^opt.gradPower +
-            opt.fd * opt.mulImg
-        ) * 2   -- x2 margin
-    self.lastErr = math.huge
+    self.retLoss, self.retPSNR = nil, nil
+    self.maxPerf, self.maxIdx = {}, {}
+    for i = 1, #self.scale do
+        table.insert(self.maxPerf, -1)
+        table.insert(self.maxIdx, -1)
+    end
 end
 
 function Trainer:train(epoch, dataloader)
@@ -39,141 +48,184 @@ function Trainer:train(epoch, dataloader)
     local trainTimer = torch.Timer()
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
-    local iter, err = 0, 0
-    local globalIter, globalErr = 0, 0
-    
+    local globalIter, globalErr, localErr = 0, 0, 0
+
+    local pe = self.opt.printEvery
+    local te = self.opt.testEvery
+
     cudnn.fastest = true
     cudnn.benchmark = true
 
     self.model:clearState()
     self.model:cuda()
+    if self.opt.nGPU == 1 then
+        self:prepareSwap('cuda')
+    end
     self.model:training()
     self:getParams()
     collectgarbage()
     collectgarbage()
 
-    for n, sample in dataloader:run() do
+    for n, batch in dataloader:run() do
         dataTime = dataTime + dataTimer:time().real
-        --Copy input and target to the GPU
-        --self:copyInputs(sample, 'train')
-        self.input = sample.input:cuda()
-        self.target = sample.target:cuda()
-        sample = nil
-        collectgarbage()
-        collectgarbage()
-        
+        self:copyInputs(batch.input, batch.target, 'train')
+        local scaleIdx = batch.scaleIdx
+
         self.model:zeroGradParameters()
-        self.model:forward(self.input)
-        self.criterion(self.model.output, self.target)
-
-        if self.criterion.output >= self.errThreshold or 
-            self.criterion.output >= self.lastErr *2 then
-            print('skipping this minibatch with exploding error')
-        elseif self.criterion.output ~= self.criterion.output then
-            print('skipping this minibatch with nan error')
-        else
-            self.model:backward(self.input, self.criterion.gradInput)
-            if self.opt.clip > 0 then
-                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
-            end
-            self.optimState.method(self.feval, self.params, self.optimState)
-
-            err = err + self.criterion.output
-            iter = iter + 1
-            globalErr = globalErr + self.criterion.output
-            globalIter = globalIter + 1
+        if self.opt.nGPU == 1 then
+            --Fast model swap
+            self.tempModel = self.model
+            self.model = self.swapTable[scaleIdx]
         end
-        self.iter = self.iter + 1
+
+        self.model:forward(self.input.train)
+        self.criterion(self.model.output, self.target)
+        self.model:backward(self.input.train, self.criterion.gradInput)
         
+        if self.opt.nGPU == 1 then
+            --Return to original model
+            self.model = self.tempModel
+        end
+        
+        self.iter = self.iter + 1
+        globalIter = globalIter + 1
+        globalErr = globalErr + self.criterion.output
+        localErr = localErr + self.criterion.output
+
+        if self.opt.clip > 0 then
+            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+        end
+
+        self:calcLR()
+        self.optim(self.feval, self.params, self.optimState)
         trainTime = trainTime + trainTimer:time().real
-        if n % self.opt.printEvery == 0 then
-            local lr_f, lr_d = self:get_lr()
-            print(('[Iter: %.1fk][lr: %.2fe%d]\tTime: %.2f (data: %.2f)\terr: %.6f')
-                :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, err / iter))
-            err, iter = 0, 0
-            trainTime, dataTime = 0, 0
+        
+        if n % pe == 0 then
+            local lr_f, lr_d = self:lrPrint()
+            print(('[Iter: %.1fk / lr: %.2fe%d] \tTime: %.2f (Data: %.2f) \tErr: %.6f')
+                :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, localErr / pe))
+            localErr, trainTime, dataTime = 0, 0, 0
         end
 
         trainTimer:reset()
         dataTimer:reset()
 
-        if n % self.opt.testEvery == 0 then
+        if n % te == 0 then
             break
         end
     end
 
-    if epoch % self.opt.manualDecay == 0 then
-        local prevlr = self.optimState.learningRate
-        self.optimState.learningRate = prevlr / 2
-    end
-    
-    self.lastErr = globalErr / globalIter
-    return self.lastErr
+    self.retLoss = globalErr / globalIter
 end
 
 function Trainer:test(epoch, dataloader)
+    --Code for multiscale learning
     local timer = torch.Timer()
-    local iter, avgPSNR = 0, 0
+    local iter, avgPSNR = 0, {}
+    for i = 1, #self.scale do
+        table.insert(avgPSNR, 0)
+    end
 
     cudnn.fastest = false
     cudnn.benchmark = false
 
     self.model:clearState()
-    self.model:float()
-    self.model:evaluate()
+    if self.opt.nGPU == 1 then
+        self.modelTest = self.model
+    else
+        self.modelTest = self.modelTest or self.model:get(1):float()
+    end
+    self.modelTest:evaluate()
+    if self.opt.nGPU == 1 then
+        self:prepareSwap('float')
+    end
     collectgarbage()
     collectgarbage()
     
-    for n, sample in dataloader:run() do
-        --self:copyInputs(sample,'test')
-        self.input = sample.input:cuda()
-        self.target = sample.target:cuda()
-        sample = nil
-        collectgarbage()
-        collectgarbage()
+    for n, batch in dataloader:run() do
+        for i = 1, #self.scale do
+            local sc = self.scale[i]
+            self:copyInputs(batch.input[i], batch.target[i], 'test')
 
-        local input = nn.Unsqueeze(1):cuda():forward(self.input)
-        if self.opt.nChannel == 1 then
-            input = nn.Unsqueeze(1):cuda():forward(input)
+            local input = nn.Unsqueeze(1):cuda():forward(self.input.test)
+            if self.opt.nChannel == 1 then
+                input = nn.Unsqueeze(1):cuda():forward(input)
+            end
+            
+            if self.opt.nGPU == 1 then    
+                --Fast model swap
+                self.tempModel = self.modelTest
+                self.modelTest = self.swapTable[i]
+            end
+
+            local output = self.util:recursiveForward(input, self.modelTest, self.opt.safe)
+            
+            if self.opt.nGPU == 1 then
+                --Return to original model
+                self.modelTest = self.tempModel
+            end
+
+            if self.opt.selOut > 0 then
+                output = output[selOut]
+            end
+
+            output = output:squeeze(1)
+            self.util:quantize(output, self.opt.mulImg)
+            self.target:div(self.opt.mulImg)
+            avgPSNR[i] = avgPSNR[i] + self.util:calcPSNR(output, self.target, sc)
+
+            image.save(paths.concat(self.opt.save, 'result', n .. '_X' .. sc .. '.png'), output) 
+
+            iter = iter + 1
+            
+            self.modelTest:clearState()
+            self.input.test = nil
+            self.target = nil
+            output = nil
+            collectgarbage()
+            collectgarbage()
         end
-        local output = self.util:recursiveForward(input, self.model, self.opt.safe):squeeze(1)
-
-        self.util:quantize(output, self.opt.mulImg)
-        self.target:div(self.opt.mulImg)
-        avgPSNR = avgPSNR + self.util:calcPSNR(output, self.target, self.opt.scale)
-
-        image.save(paths.concat(self.opt.save, 'result', n .. '.png'), output) 
-
-        iter = iter + 1
-        self.model:clearState()
-        output = nil
+        batch = nil
         collectgarbage()
         collectgarbage()
     end
+    print(('[Epoch %d (iter/epoch: %d)] Test time: %.2f')
+        :format(epoch, self.opt.testEvery, timer:time().real))
 
-    print(('[epoch %d (iter/epoch: %d)] Average PSNR: %.4f,  Test time: %.2f\n')
-        :format(epoch, self.opt.testEvery, avgPSNR / iter, timer:time().real))
-
-    return avgPSNR / iter
+    for i = 1, #self.scale do
+        avgPSNR[i] = avgPSNR[i] * #self.scale / iter
+        if avgPSNR[i] > self.maxPerf[i] then
+            self.maxPerf[i] = avgPSNR[i]
+            self.maxIdx[i] = epoch
+        end
+        print(('(scale %d) Average PSNR: %.4f (Highest ever: %.4f at epoch = %d)')
+            :format(self.scale[i], avgPSNR[i], self.maxPerf[i], self.maxIdx[i]))
+    end
+    print('')
+    
+    self.retPSNR = avgPSNR
 end
 
-function Trainer:copyInputs(sample, mode)
+function Trainer:copyInputs(input, target, mode)
+    self.input = {}
     if mode == 'train' then
-        self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
+        self.input.train = self.input.train or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
+        self.input.train:resize(input:size()):copy(input)
     elseif mode == 'test' then
-        self.input = self.input or torch.CudaTensor()
+        self.input.test = self.input.test or torch.CudaTensor()
+        self.input.test:resize(input:size()):copy(input)
     end
 
-    self.input:resize(sample.input:size()):copy(sample.input)
     self.target = self.target or torch.CudaTensor()
-    self.target:resize(sample.target:size()):copy(sample.target)
+    self.target:resize(target:size()):copy(target)
 
-    sample = nil
+    input = nil
+    target = nil
     collectgarbage()
     collectgarbage()
 end
 
-function Trainer:get_lr()
+function Trainer:lrPrint()
     local logLR = math.log(self.optimState.learningRate, 10)
     local characteristic = math.floor(logLR)
     local mantissa = logLR - characteristic
@@ -182,13 +234,58 @@ function Trainer:get_lr()
     return frac, characteristic
 end
 
-function Trainer:get_iter()
-    return self.iter
+function Trainer:calcLR()
+    local iter, halfLife = self.iter, self.opt.halfLife
+    local lr
+    if self.opt.lrDecay == 'step' then -- decay lr by half periodically
+        local nStep = math.floor((iter - 1) / halfLife)
+        lr = self.opt.lr / math.pow(2, nStep)
+    elseif self.opt.lrDecay == 'exp' then -- decay lr exponentially. y = y0 * e^(-kt)
+        local k = math.log(2) / halfLife
+        lr = self.opt.lr * math.exp(-k * iter)
+    elseif self.opt.lrDecay == 'inv' then -- decay lr as y = y0 / (1 + kt)
+        local k = 1 / halfLife
+        lr = self.opt.lr / (1 + k * iter)
+    end
+
+    self.optimState.learningRate = lr
 end
 
 function Trainer:getParams()
     self.params, self.gradParams = self.model:getParameters()
 end
 
+function Trainer:prepareSwap(modelType)
+    self.swapTable = {}
+    for i = 1, #self.scale do
+        local swapped = self.util:swapModel(self.model, i)
+        if modelType == 'float' then
+            swapped = swapped:float()
+        elseif modelType == 'cuda' then
+            swapped = swapped:cuda()
+        end
+        table.insert(self.swapTable, swapped)
+    end
+end
+
+function Trainer:updateLoss(loss)
+    table.insert(loss, {key = self.iter, value = self.retLoss})
+
+    return loss
+end
+
+function Trainer:updatePSNR(psnr)
+    for i = 1, #self.scale do
+        table.insert(psnr[i], {key = self.iter, value = self.retPSNR[i]})
+    end
+
+    return psnr
+end
+
+function Trainer:updateLR(lr)
+    table.insert(lr, {key = self.iter, value = self.optimState.learningRate})
+
+    return lr
+end
 
 return M.Trainer

@@ -168,7 +168,7 @@ local function createModel(opt)
     model = seq()
         :add(conv(opt.nChannel,nFeat, 3,3, 1,1, 1,1))
         :add(body)
-        :add(upsample_wo_act(opt.scale, opt.upsample, nFeat))
+        :add(upsample_wo_act(opt.scale[1], opt.upsample, nFeat))
         :add(conv(nFeat,opt.nChannel, 3,3, 1,1, 1,1))
 
     return model

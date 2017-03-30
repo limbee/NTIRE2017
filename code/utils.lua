@@ -13,29 +13,29 @@ function util:__init(opt)
     end
 end
 
-function util:plot(tbl, title, name)
+function util:plot(tbl, name, label)
     -- Assume tbl is a table of numbers, or a table of tables
-    local fig = gnuplot.pdffigure(paths.concat(self.save, title .. '.pdf'))
-    local name = name or title
+    local fig = gnuplot.pdffigure(paths.concat(self.save, name .. '.pdf'))
+    local label = label or name
 
     local function findMinMax(tb)
         local minKey, maxKey = math.huge, -math.huge    
         local minKeyValue, maxKeyValue
-        for k, v in pairs(tb) do
-            if k < minKey then 
-                minKey = k
-                minKeyValue = v
+        for i = 1, #tb do
+            if tb[i].key < minKey then
+                minKey = tb[i].key
+                minKeyValue = tb[i].value
             end
-            if k > maxKey then
-                maxKey = k
-                maxKeyValue = v
+            if tb[i].key > maxKey then
+                maxKey = tb[i].key
+                maxKeyValue = tb[i].value
             end
         end
         return minKeyValue, maxKeyValue
     end
 
     local function typeTable(tb)
-        for k, v in pairs(tb) do
+        for k, v in pairs(tb[1]) do
             if type(v) == 'table' then
                 return 'table'
             else
@@ -45,83 +45,99 @@ function util:plot(tbl, title, name)
     end
 
     local function toTensor(tb)
-        local numel = 0
-        for k,v in pairs(tb) do numel = numel + 1 end
-        local ts = torch.Tensor(numel,2)
-        local idx = 1
-        for k, v in pairs(tb) do
-            ts[idx][1] = k
-            ts[idx][2] = v
+        local xAxis = {}
+        local yAxis = {}
+        for i = 1, #tb do
+            table.insert(xAxis, tb[i].key)
+            table.insert(yAxis, tb[i].value)
         end
-        return ts
+        return torch.Tensor(xAxis), torch.Tensor(yAxis)
+    end
+
+    local function __xAxisScale(xAxis)
+        local maxIter = xAxis:max()
+        if maxIter > 1e6 then
+            return 1e6
+        elseif maxIter > 1e3 then
+            return 1e3
+        else
+            return 1
+        end
     end
 
     local lines = {}
     local first, last
+    local xAxisScale = 1
     if typeTable(tbl) ~= 'table' then -- single graph
-        table.insert(lines, {name, toTensor(tbl), '-'})
+        local xAxis, yAxis = toTensor(tbl)
+        xAxisScale = __xAxisScale(xAxis)
+        if name == 'Learning Rate' then
+            yAxis:log():div(math.log(10))
+        end
+        table.insert(lines, {label, xAxis:div(xAxisScale), yAxis, '-'})
         first, last = findMinMax(tbl)
     else -- multiple lines
-        assert(type(name) == 'table', 'name must be a table, if you want to draw lines more than 1')
+        assert(type(label) == 'table', 'label must be a table, if you want to draw lines more than 1')
+        local tmp, _ = toTensor(tbl[1])
+        xAxisScale = __xAxisScale(tmp)
         for i = 1, #tbl do
-            table.insert(lines, {name[i], toTensor(tbl[i]), '-'})
+            local xAxis, yAxis = toTensor(tbl[i])
+            table.insert(lines, {label[i], xAxis:div(xAxisScale), yAxis, '-'})
         end
         first, last = findMinMax(tbl[1])
     end
 
+    gnuplot.plot(lines)
     if first < last then
         gnuplot.movelegend('right', 'bottom')
     else
         gnuplot.movelegend('right', 'top')
     end
-
-    if not pcall(function() gnuplot.plot(lines) end) then
-        ll = lines
-        tt = tbl
-        nn = name
-        require 'trepl'()
-    end
     gnuplot.grid(true)
     gnuplot.title(name)
-    gnuplot.xlabel('iteration (*' .. self.opt.testEvery .. ')')
+    local xlabel = 'Iterations'
+    if xAxisScale > 1 then
+        xlabel = xlabel .. ' (*1e' .. math.log(xAxisScale, 10) .. ')'
+    end
+    gnuplot.xlabel(xlabel)
+    if name == 'Learning Rate' then
+        -- gnuplot.raw('set logscale y') -- it doesn't seeem supported in torch
+        -- gnuplot.raw('set format y "%.1t * 10^{%L}"')
+        gnuplot.raw('set format y "%.1t"')
+        gnuplot.ylabel('log10(LR)')
+    end
 	gnuplot.plotflush(fig)
 	gnuplot.closeall()  
 end
 
-function util:checkpoint(model, criterion, loss, psnr)
+function util:checkpoint(model, criterion, loss, psnr, lr)
     if torch.type(model) == 'nn.DataParallelTable' then
         model = model:get(1)
     end
 
-    local numLoss = 0
-    for k,v in pairs(loss) do numLoss = numLoss + 1 end
-
-    torch.save(paths.concat(self.save, 'model', 'model_' .. numLoss .. '.t7'), model:clearState())
+    torch.save(paths.concat(self.save, 'model', 'model_' .. #loss .. '.t7'), model:clearState())
     torch.save(paths.concat(self.save, 'loss.t7'), loss)
     torch.save(paths.concat(self.save, 'psnr.t7'), psnr)
+    torch.save(paths.concat(self.save, 'learning_rate.t7'), lr)
     torch.save(paths.concat(self.save, 'opt.t7'), self.opt)
 end
 
 function util:load()
-    local ok, loss, psnr
+    local ok, loss, psnr, lr
     local numLoss = 0
 
     if self.opt.load then
-        ok, loss, psnr, opt = pcall(
+        ok, loss, psnr, lr, opt = pcall(
             function()
                 local loss = torch.load(paths.concat(self.save, 'loss.t7'))
                 local psnr = torch.load(paths.concat(self.save, 'psnr.t7'))
+                local lr = torch.load(paths.concat(self.save, 'learning_rate.t7'))
                 local opt = torch.load(paths.concat(self.save, 'opt.t7'))
-                return loss, psnr, opt
+                return loss, psnr, lr, opt 
             end)
         if ok then
-            local _lastIter = 0
-            for k, v in pairs(loss) do
-                if k > _lastIter then 
-                    _lastIter = k
-                end
-                numLoss = numLoss + 1
-            end
+            numLoss = #loss
+            local _lastIter = loss[numLoss].key
             print(('Loaded history (%d epochs = %d iterations)\n'):format(numLoss, _lastIter))
             if self.opt.startEpoch > numLoss + 1 then
                 error(('Start epoch cannot be bigger than history (%d epochs)'):format(numLoss))
@@ -129,21 +145,24 @@ function util:load()
                 error('Please set -startEpoch bigger than 1, if you want to resume the training')
             elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= numLoss then
                 print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
-                local keys = {}
-                for k, v in pairs(loss) do
-                    tabls.insert(keys, k)
-                end
-                table.sort(keys)
-                local lastIter = keys[self.opt.startEpoch - 1]
-
-                local _loss, _psnr = {}, {}
-                for k, v in pairs(loss) do
-                    if k <= lastIter then
-                        _loss[k] = loss[k]
-                        _psnr[k] = psnr[k]
+                local _loss, _psnr, _lr = {}, {}, {}
+                local lastIter = loss[#loss].key
+                for i = 1, #loss do
+                    if loss[i].key < lastIter then
+                        table.insert(_loss, loss[i])
+                        table.insert(_lr, lr[i])
                     end
                 end
-                loss, psnr = _loss, _psnr
+                for i = 1, #self.opt.scale do
+                    table.insert(_psnr, {})
+                    for j = 1, #psnr do
+                        if psnr[i][j].key < lastIter then
+                            table.insert(_psnr, psnr[i][j])
+                        end
+                    end
+                end
+
+                loss, psnr, lr = _loss, _psnr, _lr
                 self.opt.lastIter = lastIter
             else -- This is the default setting. startEpoch = 0 corresponds to #loss + 1
                 print(('Continue training (After %d epochs = %d iterations)'):format(numLoss, _lastIter))
@@ -151,43 +170,92 @@ function util:load()
                 self.opt.lastIter = _lastIter
             end
         else
-            error('history (loss, psnr, options) does not exist')
+            error('history (loss, psnr, lr, options) does not exist')
         end
     else
         ok = false
-        loss, psnr = {}, {}
+        loss, psnr, lr = {}, {}, {}
+        for i = 1, #self.opt.scale do
+            table.insert(psnr, {})
+        end
         self.opt.startEpoch = 1
         self.opt.lastIter = 0
     end
 
-    if ok then
-        local prevlr = self.opt.optimState.learningRate
-        self.opt.optimState.learningRate = prevlr / math.pow(2, math.floor((numLoss + 1) / self.opt.manualDecay))
-        if self.opt.optimState.learningRate ~= prevlr then
-            print(string.format('Learning rate decreased: %.6f -> %.6f',
-            prevlr, self.opt.optimState.learningRate))
-        end
-    end
-
-    return ok, loss, psnr
+    return ok, loss, psnr, lr
 end
 
-function util:calcPSNR(output,target,scale)
-    output = output:squeeze()
-    target = target:squeeze()
-
-    local _,h,w = table.unpack(output:size():totable())
+function util:calcPSNR(output, target, scale)
+    local diff = (output - target):squeeze()
+    local _, h, w = table.unpack(diff:size():totable())
     local shave = scale + 6
-    local diff = (output - target)[{{},{shave + 1, h - shave}, {shave + 1, w - shave}}]
-    local mse = diff:pow(2):mean()
-    local psnr = -10*math.log(mse,10)
+    local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
+    local psnr = -10 * math.log10(diffShave:pow(2):mean())
 
     return psnr
 end
 
---in-place quantizing and divide by 255
+--in-place quantization and divide by 255
 function util:quantize(img, mulImg)
     return img:mul(255 / mulImg):add(0.5):floor():div(255)
+end
+
+function util:swapModel(model, index)
+    local sModel = nn.Sequential()
+
+    if self.opt.netType == 'moresnet' and self.opt.mobranch < 1 then
+        local sSeq = nn.Sequential()
+        for i = 1, model:size() do
+            local subModel = model:get(i)
+            local modelName = subModel.__typename
+            if modelName:find('Sequential') then
+                local mainSeq = subModel:get(1):get(2)
+                for j = 1, mainSeq:size() - 1 do
+                    sSeq:add(mainSeq:get(j))
+                end
+                subSeq = mainSeq:get(mainSeq:size()):get(index)
+                for j = 1, subSeq:size() do
+                    sSeq:add(subSeq:get(j))
+                end
+                sModel:add(nn.ConcatTable()
+                            :add(nn.Identity())
+                            :add(sSeq))
+                        :add(nn.CAddTable(true))
+            elseif modelName:find('ParallelTable') then
+                sModel:add(subModel:get(index))
+            elseif not modelName:find('MultiSkipAdd') then
+                sModel:add(subModel)
+            end
+        end
+    else
+        for i = 1, model:size() do
+            local subModel = model:get(i)
+            local modelName = subModel.__typename
+            if modelName:find('ParallelTable') then
+                sModel:add(subModel:get(index))
+            elseif modelName:find('ConcatTable') then
+                local isSkip = false
+                for i = 1, subModel:size() do
+                    if subModel:get(i).__typename:find('Identity') then
+                        isSkip = true
+                        break
+                    end
+                end
+                if isSkip then
+                    sModel:add(subModel)
+                else
+                    sModel:add(subModel:get(index))
+                end
+            else
+                sModel:add(subModel)
+                if modelName:find('MultiSkipAdd') then
+                    sModel:add(nn.SelectTable(index))
+                end
+            end
+        end
+    end
+
+    return sModel
 end
 
 function util:recursiveForward(input, model, safe)
@@ -532,12 +600,23 @@ function util:recursiveForward(input, model, safe)
                 splitOutput = nil
                 splitInput = nil
             end
-            
             subModel:clearState()
             subModel = nil
             collectgarbage()
             collectgarbage()
-
+        elseif subModel.__typename:find('FlattenTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('SelectTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('NarrowTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('MultiSkipAdd') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('ParallelTable') then
+            output = {}
+            for i = 1, #input do
+                table.insert(output, subModel:get(i):forward(input[i]):clone())
+            end
         elseif subModel.__typename:find('Identity') then
             output = input
 
