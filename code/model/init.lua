@@ -67,11 +67,12 @@ local function getModel(opt)
 
             model:insert(subMean, 1)
             --Code for multi output model
-            local pt = nn.ParallelTable()
-            for i = 1, opt.nOut do
-                pt:add(addMean:clone())
-            end
-            model:insert(pt)
+            -- local pt = nn.ParallelTable()
+            -- for i = 1, opt.nOut do
+            --     pt:add(addMean:clone())
+            -- end
+            -- model:insert(pt)
+            model:insert(addMean)
         else
             assert(not opt.divStd, 'Please set the -subMean option to true')
         end

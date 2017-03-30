@@ -58,7 +58,9 @@ function Trainer:train(epoch, dataloader)
 
     self.model:clearState()
     self.model:cuda()
-    self:prepareSwap('cuda')
+    if self.opt.nGPU == 1 then
+        self:prepareSwap('cuda')
+    end
     self.model:training()
     self:getParams()
     collectgarbage()
@@ -70,15 +72,20 @@ function Trainer:train(epoch, dataloader)
         local scaleIdx = batch.scaleIdx
 
         self.model:zeroGradParameters()
-        --Fast model swap
-        self.tempModel = self.model
-        self.model = self.swapTable[scaleIdx]
+        if self.opt.nGPU == 1 then
+            --Fast model swap
+            self.tempModel = self.model
+            self.model = self.swapTable[scaleIdx]
+        end
 
-        self.model:forward(self.input)
+        self.model:forward(self.input.train)
         self.criterion(self.model.output, self.target)
-        self.model:backward(self.input, self.criterion.gradInput)
-        --Return to original model
-        self.model = self.tempModel
+        self.model:backward(self.input.train, self.criterion.gradInput)
+        
+        if self.opt.nGPU == 1 then
+            --Return to original model
+            self.model = self.tempModel
+        end
         
         self.iter = self.iter + 1
         globalIter = globalIter + 1
@@ -95,7 +102,7 @@ function Trainer:train(epoch, dataloader)
         
         if n % pe == 0 then
             local lr_f, lr_d = self:lrPrint()
-            print(('[Iter: %.1fk / lr: %.2fe%d]\tTime: %.2f (Data: %.2f)\tErr: %.6f')
+            print(('[Iter: %.1fk / lr: %.2fe%d] \tTime: %.2f (Data: %.2f) \tErr: %.6f')
                 :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, localErr / pe))
             localErr, trainTime, dataTime = 0, 0, 0
         end
@@ -123,30 +130,40 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
 
     self.model:clearState()
-    self.model:float()
-    self:prepareSwap('float')
-    self.model:evaluate()
+    if self.opt.nGPU == 1 then
+        self.modelTest = self.model
+    else
+        self.modelTest = self.modelTest or self.model:get(1):float()
+    end
+    self.modelTest:evaluate()
+    if self.opt.nGPU == 1 then
+        self:prepareSwap('float')
+    end
     collectgarbage()
     collectgarbage()
     
     for n, batch in dataloader:run() do
         for i = 1, #self.scale do
             local sc = self.scale[i]
-            self:copyInputs(batch.input[i], batch.target[i], 'train')
+            self:copyInputs(batch.input[i], batch.target[i], 'test')
 
-            local input = nn.Unsqueeze(1):cuda():forward(self.input)
+            local input = nn.Unsqueeze(1):cuda():forward(self.input.test)
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
             
-            --Fast model swap
-            self.tempModel = self.model
-            self.model = self.swapTable[i]
+            if self.opt.nGPU == 1 then    
+                --Fast model swap
+                self.tempModel = self.modelTest
+                self.modelTest = self.swapTable[i]
+            end
 
-            local output = self.util:recursiveForward(input, self.model, self.opt.safe)
+            local output = self.util:recursiveForward(input, self.modelTest, self.opt.safe)
             
-            --Return to original model
-            self.model = self.tempModel
+            if self.opt.nGPU == 1 then
+                --Return to original model
+                self.modelTest = self.tempModel
+            end
 
             if self.opt.selOut > 0 then
                 output = output[selOut]
@@ -161,8 +178,8 @@ function Trainer:test(epoch, dataloader)
 
             iter = iter + 1
             
-            self.model:clearState()
-            self.input = nil
+            self.modelTest:clearState()
+            self.input.test = nil
             self.target = nil
             output = nil
             collectgarbage()
@@ -190,14 +207,16 @@ function Trainer:test(epoch, dataloader)
 end
 
 function Trainer:copyInputs(input, target, mode)
+    self.input = {}
     if mode == 'train' then
-        self.input = self.input or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
+        self.input.train = self.input.train or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
+        self.input.train:resize(input:size()):copy(input)
     elseif mode == 'test' then
-        self.input = self.input or torch.CudaTensor()
+        self.input.test = self.input.test or torch.CudaTensor()
+        self.input.test:resize(input:size()):copy(input)
     end
-    self.target = self.target or torch.CudaTensor()
 
-    self.input:resize(input:size()):copy(input)
+    self.target = self.target or torch.CudaTensor()
     self.target:resize(target:size()):copy(target)
 
     input = nil
