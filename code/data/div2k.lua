@@ -49,17 +49,25 @@ function div2k:__init(opt, split)
 
             self.t7Inp = {}
             for i = 1, #self.dirInp do
-                table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack.t7')))
-                torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), {unpack(self.t7Inp[i], self.offset + 1)})
-                print('\tTrain set: ' .. self.dirInp[i] .. '/pack.t7 loaded')
+                if self.scale[i] ~= 1 then
+                    table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack.t7')))
+                    torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), {unpack(self.t7Inp[i], self.offset + 1)})
+                    print('\tTrain set: ' .. self.dirInp[i] .. '/pack.t7 loaded')
+                else
+                    table.insert(self.t7Inp, self.t7Tar)
+                end
             end
         elseif split == 'val' then
             self.t7Tar = torch.load(paths.concat(self.dirTar, 'pack_v.t7'))
             print('\tValidation set: ' .. self.dirTar .. '/pack_v.t7 loaded')
             self.t7Inp = {}
             for i = 1, #self.dirInp do
-                table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack_v.t7')))
-                print('\tValidation set: ' .. self.dirInp[i] .. '/pack_v.t7 loaded')
+                if self.scale[i] ~= 1 then
+                    table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack_v.t7')))
+                    print('\tValidation set: ' .. self.dirInp[i] .. '/pack_v.t7 loaded')
+                else
+                    table.insert(self.t7Inp, self.t7Tar)
+                end
             end
         end
     end
@@ -82,7 +90,7 @@ function div2k:get(idx, scaleR)
         _input = self.t7Inp[scaleR][idx]
         _target = self.t7Tar[idx]
     else
-        local inputName, targetName = self:getFileName(idx)
+        local inputName, targetName = self:getFileName(idx, scale)
         if self.ext == '.png' then
             _input = image.load(paths.concat(self.dirInp[scaleR], inputName), self.opt.nChannel, 'float')
             _target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
@@ -175,7 +183,7 @@ function div2k:augment()
     end
 end
 
-function div2k:getFileName(idx)
+function div2k:getFileName(idx, scale)
     --filename format: ????x?.png
     local fileName = idx
     local digit = idx
@@ -184,13 +192,17 @@ function div2k:getFileName(idx)
         digit = digit * 10
     end
 
-    local inputName = nil
-    if self.opt.netType == 'recurVDSR' then
-        inputName = 'SRres' .. fileName .. 'x' .. self.opt.scale .. self.ext
-    else
-        inputName = fileName .. 'x' .. self.opt.scale .. self.ext
-    end
     local targetName = fileName .. self.ext
+    if scale == 1 then
+        inputName = targetName
+    else
+        local inputName = nil
+        if self.opt.netType ~= 'recurVDSR' then
+            inputName = fileName .. 'x' .. scale .. self.ext
+        else
+            inputName = 'SRres' .. fileName .. 'x' .. scale .. self.ext
+        end
+    end
 
     return inputName, targetName
 end
