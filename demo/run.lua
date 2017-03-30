@@ -3,6 +3,7 @@ require 'cunn'
 require 'cudnn'
 require 'image'
 require 'optim'
+require '../code/model/common'
 
 local cmd = torch.CmdLine()
 cmd:option('-type',     'val', 	        'demo type: bench | test | val')
@@ -21,11 +22,6 @@ cmd:option('-deps',     '',             'additional dependencies for testing')
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
 opt.fr = (opt.fr == 'true')
-
-local depsTable = opt.deps:split('|')
-for i = 1, #depsTable do
-    require depsTable[i]
-end
 
 local now = os.date('%Y-%m-%d_%H-%M-%S')
 local util = require '../code/utils'(nil)
