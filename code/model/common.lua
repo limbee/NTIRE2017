@@ -168,6 +168,26 @@ function resBlock(nFeat, addBN, actParams, scaleRes)
     end
 end
 
+function nextBlock(nextnFeat, nextC, nextF, actParams)
+    local nextnFeat = nextnFeat or 256
+    local nextC = nextC or 32
+    local nextF = nextF or 4
+
+    local cat = concat()
+    for i = 1, nextC do
+        cat:add(seq()
+            :add(conv(nextnFeat, nextF, 1, 1, 1, 1, 0, 0))
+            :add(act(actParams))
+            :add(conv(nextF, nextF, 3, 3, 1, 1, 1, 1))
+            :add(act(actParams))
+            :add(conv(nextF, nextnFeat, 1, 1, 1, 1, 0, 0)))
+    end
+
+    return addSkip(seq()
+                    :add(cat)
+                    :add(cadd(true)))
+end
+
 function cbrcb(nFeat, addBN, actParams)
     local nFeat = nFeat or 64
     actParams.nFeat = nFeat
