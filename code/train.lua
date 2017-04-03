@@ -81,7 +81,7 @@ function Trainer:train(epoch, dataloader)
         self.model:forward(self.input.train)
         self.criterion(self.model.output, self.target)
         self.model:backward(self.input.train, self.criterion.gradInput)
-        
+
         if self.opt.nGPU == 1 then
             --Return to original model
             self.model = self.tempModel
@@ -133,11 +133,11 @@ function Trainer:test(epoch, dataloader)
     if self.opt.nGPU == 1 then
         self.modelTest = self.model
     else
-        self.modelTest = self.modelTest or self.model:get(1):float()
+        self.modelTest = self.modelTest or self.model:get(1)
     end
     self.modelTest:evaluate()
     if self.opt.nGPU == 1 then
-        self:prepareSwap('float')
+        self:prepareSwap('cuda')
     end
     collectgarbage()
     collectgarbage()
@@ -158,8 +158,8 @@ function Trainer:test(epoch, dataloader)
                 self.modelTest = self.swapTable[i]
             end
 
-            local output = self.util:recursiveForward(input, self.modelTest, self.opt.safe)
-            
+            local output = self.util:chopForward(input, self.modelTest, self.scale[i])
+
             if self.opt.nGPU == 1 then
                 --Return to original model
                 self.modelTest = self.tempModel

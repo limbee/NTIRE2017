@@ -99,10 +99,10 @@ for i = 1, #opt.ensemble do
         local input = image.load(paths.concat(testList[i][1], testList[i][2]), 3, 'float'):mul(opt.mulImg)
         local output = nil
         if opt.fr then
-            output = util:x8Forward(input, model)
+            output = util:x8Forward(input, model, opt.scale)
         else
             local c, h, w = table.unpack(input:size():totable())
-            output = util:recursiveForward(input:cuda():view(1, c, h, w), model):squeeze(1)
+            output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale):squeeze(1)
         end
 
         if #eO < i then

@@ -258,6 +258,41 @@ function util:swapModel(model, index)
     return sModel
 end
 
+function util:chopForward(input, model, scale)
+    local b, c, h, w = unpack(input:size():totable())
+    local shave = 30
+    local sizeAvailable = 400 * 400
+    
+    if (h * w) < sizeAvailable then
+        local output = model:forward(input):clone()
+        model:clearState()
+        collectgarbage()
+        collectgarbage()
+        return output
+    end
+
+    local wHalf1, hHalf1 = math.floor(w / 2), math.floor(h / 2)
+    local wHalf2, hHalf2 = w - wHalf1, h - hHalf1
+    local w1, w2 = wHalf1 + shave, w - wHalf2 - shave
+    local h1, h2 = hHalf1 + shave, h - hHalf2 - shave
+
+    local p1 = util:chopForward(input[{{}, {}, {1, h1}, {1, w1}}], model, scale)
+    local p2 = util:chopForward(input[{{}, {}, {1, h1}, {w2 + 1, w}}], model, scale)
+    local p3 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {1, w1}}], model, scale)
+    local p4 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {w2 + 1, w}}], model, scale)
+    local ret = torch.CudaTensor(b, c, scale * h, scale * w)
+    w, h = scale * w, scale * h
+    w1, w2, h1, h2 = scale * w1, scale * w2, scale * h1, scale * h2
+    wHalf1, wHalf2, hHalf1, hHalf2 = scale * wHalf1, scale * wHalf2, scale * hHalf1, scale * hHalf2
+
+    ret[{{}, {}, {1, hHalf1}, {1, wHalf1}}] = p1[{{}, {}, {1, hHalf1}, {1, wHalf1}}]
+    ret[{{}, {}, {1, hHalf1}, {wHalf1 + 1, w}}] = p2[{{}, {}, {1, hHalf1}, {wHalf1 - w2 + 1, w - w2}}]
+    ret[{{}, {}, {hHalf1 + 1, h}, {1, wHalf1}}] = p3[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {1, wHalf1}}]
+    ret[{{}, {}, {hHalf1 + 1, h}, {wHalf1 + 1, w}}] = p4[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {wHalf1 - w2 + 1, w - w2}}]
+
+    return ret
+end
+
 function util:recursiveForward(input, model, safe)
     model:clearState()
     local input = input:clone()
@@ -700,22 +735,34 @@ function util:recursiveForward(input, model, safe)
     return ret:cuda()
 end
 
-function util:x8Forward(img, model)
+function util:x8Forward(img, model, scale)
     local function _rot90k(_img, k)
+        k = (k + 4) % 4
         local _c, _h, _w = table.unpack(_img:size():totable())
         local ml = math.max(_h, _w)
         local buffer = torch.Tensor(_c, ml, ml)
-        local hMargin = math.floor((ml - _h) / 2)
-        local wMargin = math.floor((ml - _w) / 2)
-        buffer[{{}, {1 + hMargin, ml - hMargin}, {1 + wMargin, ml - wMargin}}] = _img
+        local hMargin = ml - _h
+        local wMargin = ml - _w
+        buffer[{{}, {1, _h}, {1, _w}}] = _img
         buffer = image.rotate(buffer, k * math.pi / 2)
         
-        --return image.crop(buffer, 'c', ml - (2 * hMargin), ml - (2 * wMargin))
-        return buffer[{{}, {1 + wMargin, ml - wMargin}, {1 + hMargin, ml - hMargin}}]
+        if _w > _h then
+            if k == 1 then
+                return buffer[{{}, {1, _w}, {1, _h}}]
+            elseif k == 3 then
+                return buffer[{{}, {1, _w}, {_w - _h + 1, _w}}]
+            end
+        else
+            if k == 1 then
+                return buffer[{{}, {_h - _w + 1, _h}, {1, _h}}]
+            elseif k == 3 then
+                return buffer[{{}, {1, _w}, {1, _h}}]
+            end
+        end
     end
     
     local us = nn.Unsqueeze(1):cuda()
-    local output = util:recursiveForward(us:forward(img:cuda()), model):squeeze(1)
+    local output = util:chopForward(us:forward(img:cuda()), model, scale):squeeze(1)
     for j = 0, 7 do
         if j ~= 0 then
             local jmod4 = j % 4
@@ -729,7 +776,7 @@ function util:x8Forward(img, model)
                 augInput = _rot90k(augInput, jmod4)
             end
             
-            local augOutput = util:recursiveForward(us:forward(augInput:cuda()), model):squeeze(1):float()
+            local augOutput = util:chopForward(us:forward(augInput:cuda()), model, scale):squeeze(1):float()
 
             if jmod4 == 2 then
                 augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
