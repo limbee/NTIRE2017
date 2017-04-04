@@ -6,7 +6,6 @@ local Trainer = torch.class('sr.Trainer', M)
 
 function Trainer:__init(model, criterion, opt)
     self.model = model
-    self.tempModel = nil
     self.criterion = criterion
 
     self.opt = opt
@@ -53,13 +52,17 @@ function Trainer:train(epoch, dataloader)
     local pe = self.opt.printEvery
     local te = self.opt.testEvery
 
+    local isMO = self.opt.netType:find('moresnet')
+
     cudnn.fastest = true
     cudnn.benchmark = true
 
     self.model:clearState()
-    self.model:cuda()
-    if self.opt.nGPU == 1 then
-        self:prepareSwap('cuda')
+    local tempModel = nil
+    local swapTable = nil
+
+    if isMO then
+        swapTable = self:prepareSwap()
     end
     self.model:training()
     self:getParams()
@@ -72,19 +75,25 @@ function Trainer:train(epoch, dataloader)
         local scaleIdx = batch.scaleIdx
 
         self.model:zeroGradParameters()
-        if self.opt.nGPU == 1 then
+        if isMO then
             --Fast model swap
-            self.tempModel = self.model
-            self.model = self.swapTable[scaleIdx]
+            tempModel = self.model
+            self.model = swapTable[scaleIdx]
         end
 
         self.model:forward(self.input.train)
         self.criterion(self.model.output, self.target)
         self.model:backward(self.input.train, self.criterion.gradInput)
 
-        if self.opt.nGPU == 1 then
+        if isMO then
             --Return to original model
-            self.model = self.tempModel
+            self.model = nil
+            collectgarbage()
+            collectgarbage()
+            self.model = tempModel
+            tempModel = nil
+            collectgarbage()
+            collectgarbage()
         end
         
         self.iter = self.iter + 1
@@ -115,6 +124,18 @@ function Trainer:train(epoch, dataloader)
         end
     end
 
+    if isMO then
+        for i = 1, #swapTable do
+            swapTable[i]:clearState()
+            swapTable[i] = nil
+            collectgarbage()
+            collectgarbage()
+        end
+        swapTable = nil
+        collectgarbage()
+        collectgarbage()
+    end
+
     self.retLoss = globalErr / globalIter
 end
 
@@ -126,18 +147,25 @@ function Trainer:test(epoch, dataloader)
         table.insert(avgPSNR, 0)
     end
 
+    local isMO = self.opt.netType:find('moresnet')
+
     cudnn.fastest = false
     cudnn.benchmark = false
 
     self.model:clearState()
+    local modelTest = nil
+    local tempModel = nil
+    local swapTable = nil
+
     if self.opt.nGPU == 1 then
-        self.modelTest = self.model
+        modelTest = self.model
     else
-        self.modelTest = self.modelTest or self.model:get(1)
+        modelTest = modelTest or self.model:get(1)
     end
-    self.modelTest:evaluate()
-    if self.opt.nGPU == 1 then
-        self:prepareSwap('cuda')
+    modelTest:evaluate()
+
+    if isMO then
+        swapTable = self:prepareSwap()
     end
     collectgarbage()
     collectgarbage()
@@ -151,18 +179,24 @@ function Trainer:test(epoch, dataloader)
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
-            
-            if self.opt.nGPU == 1 then    
+
+            if isMO then    
                 --Fast model swap
-                self.tempModel = self.modelTest
-                self.modelTest = self.swapTable[i]
+                tempModel = modelTest
+                modelTest = swapTable[i]
             end
 
-            local output = self.util:chopForward(input, self.modelTest, self.scale[i])
+            local output = self.util:chopForward(input, modelTest, self.scale[i])
 
-            if self.opt.nGPU == 1 then
+            if isMO then
                 --Return to original model
-                self.modelTest = self.tempModel
+                modelTest = nil
+                collectgarbage()
+                collectgarbage()
+                modelTest = tempModel
+                tempModel = nil
+                collectgarbage()
+                collectgarbage()
             end
 
             if self.opt.selOut > 0 then
@@ -178,17 +212,31 @@ function Trainer:test(epoch, dataloader)
 
             iter = iter + 1
             
-            self.modelTest:clearState()
+            modelTest:clearState()
             self.input.test = nil
             self.target = nil
             output = nil
             collectgarbage()
             collectgarbage()
         end
-        batch = nil
+    end
+    
+    modelTest = nil
+    collectgarbage()
+    collectgarbage()
+
+    if isMO then
+        for i = 1, #swapTable do
+            swapTable[i]:clearState()
+            swapTable[i] = nil
+            collectgarbage()
+            collectgarbage()
+        end
+        swapTable = nil
         collectgarbage()
         collectgarbage()
     end
+
     print(('[Epoch %d (iter/epoch: %d)] Test time: %.2f')
         :format(epoch, self.opt.testEvery, timer:time().real))
 
@@ -255,17 +303,13 @@ function Trainer:getParams()
     self.params, self.gradParams = self.model:getParameters()
 end
 
-function Trainer:prepareSwap(modelType)
-    self.swapTable = {}
+function Trainer:prepareSwap()
+    local ret = {}
     for i = 1, #self.scale do
-        local swapped = self.util:swapModel(self.model, i)
-        if modelType == 'float' then
-            swapped = swapped:float()
-        elseif modelType == 'cuda' then
-            swapped = swapped:cuda()
-        end
-        table.insert(self.swapTable, swapped)
+        table.insert(ret, self.util:swapModel(self.model, i))
     end
+
+    return ret
 end
 
 function Trainer:updateLoss(loss)

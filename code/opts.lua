@@ -28,7 +28,6 @@ function M.parse(arg)
     cmd:option('-rejection',        -1,                 'Enables patch rejection which has low gradient (uninformative)')
     cmd:option('-colorAug',         'false',            'Apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',          'true',             'Data pre-processing: subtract mean')
-    cmd:option('-divStd',           'false',            'Data pre-processing: subtract mean and divide std')
     cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
@@ -57,6 +56,7 @@ function M.parse(arg)
     cmd:option('-epsilon',          1e-8,               'ADAM epsilon')
     cmd:option('-rho',              0.95,               'ADADELTA rho')
     -- Model
+    cmd:option('-printModel',       'false',            'Print model at the start of the training')
     cmd:option('-netType',          'baseline',         'SR network architecture. Options: baseline | resnet | vdsr | msresnet')
     cmd:option('-filtsize',         3,                  'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,                 'Number of convolution layer (for VDSR)')
@@ -92,6 +92,8 @@ function M.parse(arg)
     cmd:text()
 
     local opt = cmd:parse(arg or {})
+
+    opt.printModel = opt.printModel == 'true'
 
     opt.colorAug = opt.colorAug == 'true'
     opt.subMean = opt.subMean == 'true'
