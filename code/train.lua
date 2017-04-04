@@ -87,13 +87,7 @@ function Trainer:train(epoch, dataloader)
 
         if isMO then
             --Return to original model
-            self.model = nil
-            collectgarbage()
-            collectgarbage()
             self.model = tempModel
-            tempModel = nil
-            collectgarbage()
-            collectgarbage()
         end
         
         self.iter = self.iter + 1
@@ -122,18 +116,6 @@ function Trainer:train(epoch, dataloader)
         if n % te == 0 then
             break
         end
-    end
-
-    if isMO then
-        for i = 1, #swapTable do
-            swapTable[i]:clearState()
-            swapTable[i] = nil
-            collectgarbage()
-            collectgarbage()
-        end
-        swapTable = nil
-        collectgarbage()
-        collectgarbage()
     end
 
     self.retLoss = globalErr / globalIter
@@ -190,13 +172,7 @@ function Trainer:test(epoch, dataloader)
 
             if isMO then
                 --Return to original model
-                modelTest = nil
-                collectgarbage()
-                collectgarbage()
                 modelTest = tempModel
-                tempModel = nil
-                collectgarbage()
-                collectgarbage()
             end
 
             if self.opt.selOut > 0 then
@@ -224,18 +200,6 @@ function Trainer:test(epoch, dataloader)
     modelTest = nil
     collectgarbage()
     collectgarbage()
-
-    if isMO then
-        for i = 1, #swapTable do
-            swapTable[i]:clearState()
-            swapTable[i] = nil
-            collectgarbage()
-            collectgarbage()
-        end
-        swapTable = nil
-        collectgarbage()
-        collectgarbage()
-    end
 
     print(('[Epoch %d (iter/epoch: %d)] Test time: %.2f')
         :format(epoch, self.opt.testEvery, timer:time().real))
