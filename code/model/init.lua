@@ -67,7 +67,7 @@ local function getModel(opt)
     cudnn.fastest = true
     cudnn.benchmark = true
 
-    if opt.nGPU > 1 then
+    if (opt.nGPU > 1) and (opt.isSwap == false) then
         local gpus = torch.range(1, opt.nGPU):totable()
         local fastest, benchmark = cudnn.fastest, cudnn.benchmark
 

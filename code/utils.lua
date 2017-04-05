@@ -259,15 +259,38 @@ function util:swapModel(model, index)
                 end
             end
         end]]
+    elseif self.opt.netType == 'moresnet_deblur' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(index))
+            :add(model:get(4))
+            :add(model:get(5):get(index))
+            :add(model:get(6):get(index))
     end
 
-    return sModel
+    if self.opt.nGPU == 1 then
+        return sModel
+    --[[else
+        local gpus = torch.range(1, self.opt.nGPU):totable()
+        local fastest, benchmark = cudnn.fastest, cudnn.benchmark
+
+        local dpt = nn.DataParallelTable(1, true, true)
+            :add(sModel, gpus)
+            :threads(function()
+                local cudnn = require 'cudnn'
+                cudnn.fastest, cudnn.benchmark = fastest, benchmark
+            end)
+        dpt.gradInput = nil
+        
+        return dpt:cuda()]]
+    end
 end
 
 function util:chopForward(input, model, scale)
     local b, c, h, w = unpack(input:size():totable())
-    local shave = 30
-    local sizeAvailable = 300 * 300
+    local shave = 20
+    local sizeAvailable = 55000
     
     if (h * w) < sizeAvailable then
         local output = model:forward(input):clone()
@@ -360,6 +383,448 @@ function util:x8Forward(img, model, scale)
     output:div(8)
 
     return output
+end
+
+function util:recursiveForward(input, model, safe)
+    model:clearState()
+    local input = input:clone()
+    local model = model:clone()
+    collectgarbage()
+    collectgarbage()
+
+    local gpuid = self.opt and self.opt.gpuid or 1
+
+    if torch.type(model) == 'nn.DataParallelTable' then
+        model = model:get(1)
+    end
+
+    local function _recursion(input, subModel)
+        subModel:clearState()
+        collectgarbage()
+        collectgarbage()
+
+        local output
+        local free, total = cutorch.getMemoryUsage(gpuid)
+
+        if subModel.__typename:find('Sequential') then
+            output = input
+            for i = 1, #subModel do
+                output = _recursion(output, subModel:get(i))
+            end
+
+        elseif subModel.__typename:find('ConcatTable') then
+            output = {}
+            for i = 1, subModel:size() do 
+                local _output = _recursion(input, subModel:get(i))
+                table.insert(output, _output)
+
+                _output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+            end
+
+        elseif subModel.__typename:find('FlattenTable') then
+            output = input[self.opt.selOut]:clone() --choose output which you want
+
+        elseif subModel.__typename:find('Concat') then  -- nn.Concat layer
+            output = {}
+            for i = 1, subModel:size() do
+                local _output = _recursion(input, subModel:get(i))
+                table.insert(output, _output)
+
+                _output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+            end
+            output = torch.cat(output, subModel.dimension)
+
+        elseif subModel.__typename:find('Convolution') then
+            local subModel = subModel:clone():cuda()
+            collectgarbage()
+            collectgarbage()
+
+            assert(input:dim() == 4, 'Input dimension should be 4')
+            local nInputPlane, nOutputPlane = subModel.nInputPlane, subModel.nOutputPlane
+            local kH,kW, dH,dW = subModel.kH, subModel.kW, subModel.dH, subModel.dW
+            local padH, padW = subModel.padH, subModel.padW
+            local oH, oW
+            if subModel.__typename:find('SpatialConvolution') then
+                oH = math.floor((input:size(3) + 2*padH - kH) / dH + 1)
+                oW = math.floor((input:size(4) + 2*padW - kW) / dW + 1)
+            elseif subModel.__typename:find('SpatialFullConvolution') then
+                oH = (input:size(3) - 1) * dH - 2 * padH + kH + subModel.adjH
+                oW = (input:size(4) - 1) * dW - 2 * padW + kW + subModel.adjW
+            end
+
+            local nOutputPixel = nOutputPlane * oH * oW
+            local failed = false
+
+            if input:type() == 'torch.CudaTensor' then
+                if 4 * nOutputPixel < free then
+                    local _output
+                    if pcall(function() _output = subModel:forward(input) end) then
+                        if 4 * 2 * nOutputPixel < free then
+                            if pcall(function() output = _output:clone() end) then
+                                _output = nil
+                            else
+                                output = _output:float():clone()
+                            end
+                        else
+                            output = _output:float():clone()
+                        end
+                    else
+                        failed = true
+                    end
+                    _output = nil
+                    subModel:clearState()
+                    collectgarbage()
+                    collectgarbage()
+                end
+
+                -- If input and output cannot reside in the memory at the same time
+                if failed or 4 * nOutputPixel >= free then
+                    local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW)
+                    local idx = 0
+
+                    local splitSize = math.min(math.floor(free / (4 * oH * oW)), nOutputPlane)
+                    local splitOutput = torch.CudaTensor()
+                    while true do
+                        if pcall(function() splitOutput:resize(1, splitSize, oH, oW) end) then
+                            break
+                        else
+                            splitSize = math.floor(splitSize / 2)
+                            splitOutput = torch.CudaTensor()
+                            collectgarbage()
+                            collectgarbage()
+                        end
+
+                        if splitSize < 4 then
+                            error('Too low split size!')
+                        end
+                    end
+
+                    local conv
+                    while idx < nOutputPlane do
+                        local split = math.min(nOutputPlane - idx, splitSize)
+                        subModel:float()
+                        collectgarbage()
+                        collectgarbage()
+                        if subModel.__typename:find('SpatialConvolution') then
+                            conv = cudnn.SpatialConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW)
+                            conv.weight:copy(subModel.weight[{{idx + 1, idx + split}}])
+                            conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
+                        elseif subModel.__typename:find('SpatialFullConvolution') then
+                            local adjH, adjW = subModel.adjH, subModel.adjW
+                            conv = cudnn.SpatialFullConvolution(nInputPlane, split, kH, kW, dH, dW, padH, padW, adjH, adjW)
+                            conv.weight:copy(subModel.weight[{{},{idx + 1, idx + split}}])
+                            conv.bias:copy(subModel.bias[{{idx + 1, idx + split}}])
+                        end
+                        conv:cuda()
+
+                        conv.output = splitOutput[{{},{1,split}}]
+
+                        conv:forward(input)
+                        floatOutput[{{},{idx + 1, idx + split}}]:copy(conv.output:float())
+
+                        idx = idx + split
+                    end
+
+                    output = floatOutput:clone()
+                    floatOutput = nil
+                    splitOutput = nil
+                    conv:clearState()
+                    conv = nil
+                end
+
+            elseif input:type() == 'torch.FloatTensor' then -- this is the worst case
+                local _, ch, h, w = table.unpack(input:size():totable())
+                local splitSizeInput = ch / 2
+                local splitInput = torch.CudaTensor()
+                while true do
+                    if pcall(function() splitInput:resizeAs(input[{{},{1,splitSizeInput}}]) end) then
+                        break
+                    else
+                        splitSizeInput = splitSizeInput / 2
+                        splitInput = torch.CudaTensor()
+                        collectgarbage()
+                        collectgarbage()
+                    end
+
+                    if splitSizeInput < 4 then
+                        error('Too low split size!')
+                    end
+                end
+
+                local _free = cutorch.getMemoryUsage(gpuid)
+                local splitSizeOutput = math.min(math.floor(_free / (4 * oH * oW)), nOutputPlane)
+                local splitOutput = torch.CudaTensor()
+                while true do
+                    if pcall(function() splitOutput:resizeAs(1, splitSizeOutput, oH, oW) end) then
+                        break
+                    else
+                        splitSizeOutput = splitSizeOutput / 2
+                        splitOutput = torch.CudaTensor()
+                        collectgarbage()
+                        collectgarbage()
+                    end
+
+                    if splitSizeOutput < 4 then
+                        error('Too low split size!')
+                    end
+                end
+
+                local idxInput, idxOutput = 0
+                local floatOutput = torch.Tensor(1, nOutputPlane, oH, oW):zero()
+
+                subModel:float()
+                collectgarbage()
+                collectgarbage()
+
+                local conv
+                while idxInput < nInputPlane do
+                    local splitSizeInput = math.min(nInputPlane - idxInput, splitSizeInput)    
+                    splitInput:resize(1, splitSizeInput, oH, oW)
+                    splitInput:copy(input[{{},{idxInput + 1, idxInput + splitSizeInput}}])
+                    while idxOutput < nOutputPlane do
+                        local splitSizeOutput = math.min(nOutputPlane - idxOutput, splitSizeOutput)
+
+                        if subModel.__typename:find('SpatialConvolution') then
+                            conv = cudnn.SpatialConvolution(splitSizeInput, splitSizeOutput, kH, kW, dH, dW, padH, padW):noBias()
+                            conv.weight:copy(subModel.weight[{{idxOutput + 1, idxOutput + splitSizeOutput},{idxInput + 1, idxInput + splitSizeInput}}])
+                        elseif subModel.__typename:find('SpatialFullConvolution') then
+                            local adjH, adjW = subModel.adjH, subModel.adjW
+                            conv = cudnn.SpatialFullConvolution(splitSizeInput, splitSizeOutput, kH, kW, dH, dW, padH, padW, adjH, adjW):noBias()
+                            conv.weight:copy(subModel.weight[{{idxInput + 1, idxInput + splitSizeInput},{idxOutput + 1, idxOutput + splitSizeOutput}}])
+                        end
+                        conv:cuda()
+
+                        conv.output = splitOutput[{{},{1, splitSizeOutput}}]
+
+                        conv:forward(splitInput)
+                        floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:add(conv.output:float())
+
+                        idxOutput = idxOutput + splitSizeOutput
+                    end
+                    idxInput = idxInput + splitSizeInput
+                end
+                floatOutput:add(subModel.bias:view(1,subModel.bias:size(1),1,1):repeatTensor(1,1,oH,oW))
+
+                output = floatOutput:clone()
+                floatOutput = nil
+                splitInput = nil
+                splitOutput = nil
+                conv:clearState()
+                conv = nil
+            else
+                error('Unknown input datatype')
+            end
+
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
+
+        elseif subModel.__typename:find('Shuffle') then
+            local subModel = subModel:clone():cuda()
+            collectgarbage()
+            collectgarbage()
+
+            assert(input:dim() == 4, 'Input dimension should be 4')
+            local sc = subModel.upscaleFactor
+            local nOutputPixel = input:numel() * sc * sc
+            if 4 * 2 * nOutputPixel < free then
+                output = subModel:forward(input):clone()
+            elseif 4 * nOutputPixel < free then
+                output = subModel:forward(input)
+                output = output:float():clone()
+            else
+                local _, ch, h, w = table.unpack(input:size():totable())
+                local nInputPlane, nOutputPlane = ch, ch / (sc * sc)
+                local floatOutput = torch.Tensor(1, nOutputPlane, h * sc, w * sc)
+                local idx = 0
+                local splitSize = math.min(
+                    math.floor((0.9 * free / (4 * h * w)) / (sc * sc)) * (sc * sc),
+                    nInputPlane)
+                
+                while idx < nInputPlane do
+                    local splitSizeInput = math.min(nInputPlane - idx, splitSize)
+                    local splitSizeOutput = splitSizeInput / (sc * sc)
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+                    local splitOutput = subModel:forward(splitInput):float():clone()
+                    local idxOutput = idx / (sc * sc)
+                    floatOutput[{{},{idxOutput + 1, idxOutput + splitSizeOutput}}]:copy(splitOutput)
+
+                    subModel:clearState()
+                    splitOutput = nil
+                    splitInput = nil
+                    collectgarbage()
+                    collectgarbage()
+
+                    idx = idx + splitSizeInput
+                end
+                output = floatOutput:clone()
+                floatOutput = nil
+            end
+        elseif subModel.__typename:find('ReLU') or subModel.__typename:find('MulConst') then
+            local subModel = subModel:clone():cuda()
+            collectgarbage()
+            collectgarbage()
+
+            assert(input:dim() == 4, 'Input dimension should be 4')
+
+            local failed = false
+
+            local _output
+            if pcall(function() _output = subModel:forward(input) end) then
+                if 4 * input:numel() < free then
+                    if pcall(function() output = _output:clone() end) then
+                        _output = nil
+                    else
+                        output = _output:float():clone()
+                    end
+                else
+                    output = _output:float():clone()
+                end
+                _output = nil
+            else
+                local _, ch, h, w = table.unpack(input:size():totable())
+                local floatOutput = torch.FloatTensor(input:size())
+                local idx = 0
+
+                local splitSize = math.min(math.floor(free / (4 * h * w)), input:size(2))
+                local splitOutput = torch.CudaTensor()
+                while true do
+                    if pcall(function() splitOutput:resize(1, splitSize, oH, oW) end) then
+                        break
+                    else
+                        splitSize = math.floor(splitSize / 2)
+                        splitOutput = torch.CudaTensor()
+                        collectgarbage()
+                        collectgarbage()
+                    end
+
+                    if splitSize < 4 then
+                        error('Too low split size!')
+                    end
+                end
+
+                while idx < input:size(2) do
+                    local splitSizeInput = math.min(input:size(2) - idx, splitSize)
+                    local splitInput = input[{{},{idx + 1, idx + splitSizeInput}}]
+
+                    subModel.output = splitOutput[{{},{1,splitSizeInput}}]
+                    subModel:forward(splitInput)
+
+                    floatOutput[{{},{idx + 1, idx + splitSizeInput}}]:copy(subModel.output:float())
+
+                    idx = idx + splitSizeInput
+                end
+
+                output = floatOutput:clone()
+                floatOutput = nil
+                splitOutput = nil
+                splitInput = nil
+            end
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
+        elseif subModel.__typename:find('FlattenTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('SelectTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('NarrowTable') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('MultiSkipAdd') then
+            output = subModel:forward(input)
+        elseif subModel.__typename:find('ParallelTable') then
+            output = {}
+            for i = 1, #input do
+                table.insert(output, subModel:get(i):forward(input[i]):clone())
+            end
+        elseif subModel.__typename:find('Identity') then
+            output = input
+
+        else -- What else? Please add other modules manually
+            local subModel = subModel:clone():cuda()
+            collectgarbage()
+            collectgarbage()
+
+            local _output
+            if pcall(function() _output = subModel:forward(input) end) then
+                if pcall(function() output = _output:clone() end) then
+                    _output = nil
+                else
+                    output = _output:float():clone()
+                end
+                _output = nil
+                subModel:clearState()
+                collectgarbage()
+                collectgarbage()
+            else
+                print('Please handle this layer in recursiveForward function: ')
+                print(subModel)
+                input_ = input
+                subModel_ = subModel
+                require 'trepl'()
+            end
+
+            subModel:clearState()
+            subModel = nil
+            collectgarbage()
+            collectgarbage()
+        end
+
+        input = nil
+        subModel:clearState()
+        subModel = nil
+        model:clearState()
+        collectgarbage()
+        collectgarbage()
+
+        local function recursiveCuda(elem)
+            if type(elem) == 'table' then
+                for k,v in pairs(elem) do
+                    v = recursiveCuda(v)
+                end
+                return elem
+            elseif type(elem) == 'userdata' then
+                if elem:type() == 'torch.CudaTensor' then
+                    return elem
+                else
+                    -- if not pcall(function() elem = elem:cuda() end) then
+                    --     ee = elem
+                    --     _fr = cutorch.getMemoryUsage(1)
+                    --     print('elem: ' .. elem:numel() * 4 / 1e9)
+                    --     print('free: ' .. _fr / 1e9)
+                    --     require 'trepl'()
+                    -- end
+                    pcall(function() elem = elem:cuda() end)
+                    collectgarbage()
+                    collectgarbage()
+                    return elem
+                end
+            end
+        end
+
+        output = recursiveCuda(output)
+
+        return output
+    end
+
+    local _ret = _recursion(input, model)
+    local ret = _ret:float()
+
+    _ret = nil
+    model:clearState()
+    model = nil
+    input = nil
+    collectgarbage()
+    collectgarbage()
+
+    return ret:cuda()
 end
 
 return M.util

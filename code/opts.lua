@@ -74,7 +74,7 @@ function M.parse(arg)
     cmd:option('-u',                1/3,                'Parameter u for RReLU')
     cmd:option('-alpha',            1,                  'Parameter alpha for ELU')
     cmd:option('-negval',           1/100,              'Parameter negval for Leaky ReLU')
-    cmd:option('-fastSwap',         'nil',              'Fast-swap for the models that generate multiple outputs')
+    cmd:option('-isSwap',           'false',            'Fast-swap for the models that generate multiple outputs')
     cmd:option('-mobranch',         1,                  'Position of the branch in MOResnet')
     cmd:option('-scaleRes',         1,                  'Scale each residuals in residual blocks')
     cmd:option('-nextnFeat',        256,                'ResNeXt nFeat')
@@ -103,8 +103,8 @@ function M.parse(arg)
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
-    opt.fastSwap = nil
-    
+    opt.isSwap = opt.isSwap == 'true'
+
     opt.scale = opt.scale:split('_')
     opt.psnrLabel = {}
     for i = 1, #opt.scale do

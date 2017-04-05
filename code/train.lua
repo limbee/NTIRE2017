@@ -52,18 +52,16 @@ function Trainer:train(epoch, dataloader)
     local pe = self.opt.printEvery
     local te = self.opt.testEvery
 
-    local isMO = self.opt.netType:find('moresnet')
+    local isSwap = self.opt.isSwap
+    local swapTable = self:prepareSwap(isSwap)
+    local tempModel = nil
 
     cudnn.fastest = true
     cudnn.benchmark = true
 
     self.model:clearState()
-    local tempModel = nil
-    local swapTable = nil
 
-    if isMO then
-        swapTable = self:prepareSwap()
-    end
+
     self.model:training()
     self:getParams()
     collectgarbage()
@@ -75,7 +73,7 @@ function Trainer:train(epoch, dataloader)
         local scaleIdx = batch.scaleIdx
 
         self.model:zeroGradParameters()
-        if isMO then
+        if isSwap then
             --Fast model swap
             tempModel = self.model
             self.model = swapTable[scaleIdx]
@@ -85,7 +83,7 @@ function Trainer:train(epoch, dataloader)
         self.criterion(self.model.output, self.target)
         self.model:backward(self.input.train, self.criterion.gradInput)
 
-        if isMO then
+        if isSwap then
             --Return to original model
             self.model = tempModel
         end
@@ -129,15 +127,15 @@ function Trainer:test(epoch, dataloader)
         table.insert(avgPSNR, 0)
     end
 
-    local isMO = self.opt.netType:find('moresnet')
+    local isSwap = self.opt.isSwap
+    local swapTable = self:prepareSwap(isSwap)
+    local tempModel = nil
 
     cudnn.fastest = false
     cudnn.benchmark = false
 
     self.model:clearState()
     local modelTest = nil
-    local tempModel = nil
-    local swapTable = nil
 
     if self.opt.nGPU == 1 then
         modelTest = self.model
@@ -146,9 +144,6 @@ function Trainer:test(epoch, dataloader)
     end
     modelTest:evaluate()
 
-    if isMO then
-        swapTable = self:prepareSwap()
-    end
     collectgarbage()
     collectgarbage()
     
@@ -162,7 +157,7 @@ function Trainer:test(epoch, dataloader)
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
 
-            if isMO then    
+            if isSwap then    
                 --Fast model swap
                 tempModel = modelTest
                 modelTest = swapTable[i]
@@ -170,7 +165,7 @@ function Trainer:test(epoch, dataloader)
 
             local output = self.util:chopForward(input, modelTest, self.scale[i])
 
-            if isMO then
+            if isSwap then
                 --Return to original model
                 modelTest = tempModel
             end
@@ -267,12 +262,13 @@ function Trainer:getParams()
     self.params, self.gradParams = self.model:getParameters()
 end
 
-function Trainer:prepareSwap()
+function Trainer:prepareSwap(isSwap)
     local ret = {}
-    for i = 1, #self.scale do
-        table.insert(ret, self.util:swapModel(self.model, i))
+    if isSwap then
+        for i = 1, #self.scale do
+            table.insert(ret, self.util:swapModel(self.model, i))
+        end
     end
-
     return ret
 end
 
