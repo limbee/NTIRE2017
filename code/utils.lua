@@ -258,12 +258,12 @@ function util:swapModel(model, index)
     return sModel
 end
 
-function util:chopForward(input, model, scale)
+function util:chopForward(input, model, scale, chopShave, chopSize)
     local b, c, h, w = unpack(input:size():totable())
-    local shave = 30
-    local sizeAvailable = 400 * 400
+    local chopShave = chopShave or 10
+    local chopSize = chopSize or 400 * 400
     
-    if (h * w) < sizeAvailable then
+    if (h * w) < chopSize then
         local output = model:forward(input):clone()
         model:clearState()
         collectgarbage()
@@ -273,22 +273,29 @@ function util:chopForward(input, model, scale)
 
     local wHalf1, hHalf1 = math.floor(w / 2), math.floor(h / 2)
     local wHalf2, hHalf2 = w - wHalf1, h - hHalf1
-    local w1, w2 = wHalf1 + shave, w - wHalf2 - shave
-    local h1, h2 = hHalf1 + shave, h - hHalf2 - shave
+    local w1, w2 = wHalf1 + chopShave, w - wHalf2 - chopShave
+    local h1, h2 = hHalf1 + chopShave, h - hHalf2 - chopShave
 
-    local p1 = util:chopForward(input[{{}, {}, {1, h1}, {1, w1}}], model, scale)
-    local p2 = util:chopForward(input[{{}, {}, {1, h1}, {w2 + 1, w}}], model, scale)
-    local p3 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {1, w1}}], model, scale)
-    local p4 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {w2 + 1, w}}], model, scale)
+    local p1 = util:chopForward(input[{{}, {}, {1, h1}, {1, w1}}], model, scale, chopShave, chopSize)
+    local p2 = util:chopForward(input[{{}, {}, {1, h1}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
+    local p3 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {1, w1}}], model, scale, chopShave, chopSize)
+    local p4 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
     local ret = torch.CudaTensor(b, c, scale * h, scale * w)
     w, h = scale * w, scale * h
     w1, w2, h1, h2 = scale * w1, scale * w2, scale * h1, scale * h2
     wHalf1, wHalf2, hHalf1, hHalf2 = scale * wHalf1, scale * wHalf2, scale * hHalf1, scale * hHalf2
 
-    ret[{{}, {}, {1, hHalf1}, {1, wHalf1}}] = p1[{{}, {}, {1, hHalf1}, {1, wHalf1}}]
-    ret[{{}, {}, {1, hHalf1}, {wHalf1 + 1, w}}] = p2[{{}, {}, {1, hHalf1}, {wHalf1 - w2 + 1, w - w2}}]
-    ret[{{}, {}, {hHalf1 + 1, h}, {1, wHalf1}}] = p3[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {1, wHalf1}}]
-    ret[{{}, {}, {hHalf1 + 1, h}, {wHalf1 + 1, w}}] = p4[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {wHalf1 - w2 + 1, w - w2}}]
+    ret[{{}, {}, {1, hHalf1}, {1, wHalf1}}]:copy(p1[{{}, {}, {1, hHalf1}, {1, wHalf1}}])
+    ret[{{}, {}, {1, hHalf1}, {wHalf1 + 1, w}}]:copy(p2[{{}, {}, {1, hHalf1}, {wHalf1 - w2 + 1, w - w2}}])
+    ret[{{}, {}, {hHalf1 + 1, h}, {1, wHalf1}}]:copy(p3[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {1, wHalf1}}])
+    ret[{{}, {}, {hHalf1 + 1, h}, {wHalf1 + 1, w}}]:copy(p4[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {wHalf1 - w2 + 1, w - w2}}])
+
+    p1 = nil
+    p2 = nil
+    p3 = nil
+    p4 = nil
+    collectgarbage()
+    collectgarbage()
 
     return ret
 end

@@ -158,7 +158,7 @@ function Trainer:test(epoch, dataloader)
                 self.modelTest = self.swapTable[i]
             end
 
-            local output = self.util:chopForward(input, self.modelTest, self.scale[i])
+            local output = self.util:chopForward(input, self.modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
 
             if self.opt.nGPU == 1 then
                 --Return to original model
