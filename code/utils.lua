@@ -227,8 +227,14 @@ function util:swapModel(model, index)
                 sModel:add(subModel)
             end
         end
-    else
-        for i = 1, model:size() do
+    elseif self.opt.netType == 'moresnet' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3))
+            :add(model:get(4):get(index))
+            :add(model:get(5):get(index))
+        --[[for i = 1, model:size() do
             local subModel = model:get(i)
             local modelName = subModel.__typename
             if modelName:find('ParallelTable') then
@@ -252,10 +258,33 @@ function util:swapModel(model, index)
                     sModel:add(nn.SelectTable(index))
                 end
             end
-        end
+        end]]
+    elseif self.opt.netType == 'moresnet_deblur' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(index))
+            :add(model:get(4))
+            :add(model:get(5):get(index))
+            :add(model:get(6):get(index))
     end
 
-    return sModel
+    if self.opt.nGPU == 1 then
+        return sModel
+    --[[else
+        local gpus = torch.range(1, self.opt.nGPU):totable()
+        local fastest, benchmark = cudnn.fastest, cudnn.benchmark
+
+        local dpt = nn.DataParallelTable(1, true, true)
+            :add(sModel, gpus)
+            :threads(function()
+                local cudnn = require 'cudnn'
+                cudnn.fastest, cudnn.benchmark = fastest, benchmark
+            end)
+        dpt.gradInput = nil
+        
+        return dpt:cuda()]]
+    end
 end
 
 function util:chopForward(input, model, scale, chopShave, chopSize)
@@ -271,33 +300,88 @@ function util:chopForward(input, model, scale, chopShave, chopSize)
         return output
     end
 
-    local wHalf1, hHalf1 = math.floor(w / 2), math.floor(h / 2)
-    local wHalf2, hHalf2 = w - wHalf1, h - hHalf1
-    local w1, w2 = wHalf1 + chopShave, w - wHalf2 - chopShave
-    local h1, h2 = hHalf1 + chopShave, h - hHalf2 - chopShave
+    local wHalf, hHalf = math.floor(w / 2), math.floor(h / 2)
+    local w1, w2 = wHalf + chopShave, wHalf - chopShave
+    local h1, h2 = hHalf + chopShave, hHalf - chopShave
 
     local p1 = util:chopForward(input[{{}, {}, {1, h1}, {1, w1}}], model, scale, chopShave, chopSize)
     local p2 = util:chopForward(input[{{}, {}, {1, h1}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
     local p3 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {1, w1}}], model, scale, chopShave, chopSize)
     local p4 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
     local ret = torch.CudaTensor(b, c, scale * h, scale * w)
-    w, h = scale * w, scale * h
+    w, wHalf, h, hHalf = scale * w, scale * wHalf, scale * h, scale * hHalf
     w1, w2, h1, h2 = scale * w1, scale * w2, scale * h1, scale * h2
-    wHalf1, wHalf2, hHalf1, hHalf2 = scale * wHalf1, scale * wHalf2, scale * hHalf1, scale * hHalf2
+    chopShave = scale * chopShave
 
-    ret[{{}, {}, {1, hHalf1}, {1, wHalf1}}]:copy(p1[{{}, {}, {1, hHalf1}, {1, wHalf1}}])
-    ret[{{}, {}, {1, hHalf1}, {wHalf1 + 1, w}}]:copy(p2[{{}, {}, {1, hHalf1}, {wHalf1 - w2 + 1, w - w2}}])
-    ret[{{}, {}, {hHalf1 + 1, h}, {1, wHalf1}}]:copy(p3[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {1, wHalf1}}])
-    ret[{{}, {}, {hHalf1 + 1, h}, {wHalf1 + 1, w}}]:copy(p4[{{}, {}, {hHalf1 - h2 + 1, h - h2}, {wHalf1 - w2 + 1, w - w2}}])
+    ret[{{}, {}, {1, hHalf}, {1, wHalf}}]:copy(p1[{{}, {}, {1, hHalf}, {1, wHalf}}])
+    ret[{{}, {}, {1, hHalf}, {wHalf + 1, w}}]:copy(p2[{{}, {}, {1, hHalf}, {chopShave + 1, w - w2}}])
+    ret[{{}, {}, {hHalf + 1, h}, {1, wHalf}}]:copy(p3[{{}, {}, {chopShave + 1, h - h2}, {1, wHalf}}])
+    ret[{{}, {}, {hHalf + 1, h}, {wHalf + 1, w}}]:copy(p4[{{}, {}, {chopShave + 1, h - h2}, {chopShave + 1, w - w2}}])
 
-    p1 = nil
-    p2 = nil
-    p3 = nil
-    p4 = nil
+    p1, p2, p3, p4 = nil, nil, nil, nil
     collectgarbage()
     collectgarbage()
 
     return ret
+end
+
+function util:x8Forward(img, model, scale)
+    local function _rot90k(_img, k)
+        k = (k + 4) % 4
+        local _c, _h, _w = table.unpack(_img:size():totable())
+        local ml = math.max(_h, _w)
+        local buffer = torch.Tensor(_c, ml, ml)
+        local hMargin = ml - _h
+        local wMargin = ml - _w
+        buffer[{{}, {1, _h}, {1, _w}}] = _img
+        buffer = image.rotate(buffer, k * math.pi / 2)
+        
+        if _w > _h then
+            if k == 1 then
+                return buffer[{{}, {1, _w}, {1, _h}}]
+            elseif k == 3 then
+                return buffer[{{}, {1, _w}, {_w - _h + 1, _w}}]
+            end
+        else
+            if k == 1 then
+                return buffer[{{}, {_h - _w + 1, _h}, {1, _h}}]
+            elseif k == 3 then
+                return buffer[{{}, {1, _w}, {1, _h}}]
+            end
+        end
+    end
+    
+    local us = nn.Unsqueeze(1):cuda()
+    local output = util:chopForward(us:forward(img:cuda()), model, scale, self.opt.chopShave, self.opt.chopSize):squeeze(1)
+    for j = 0, 7 do
+        if j ~= 0 then
+            local jmod4 = j % 4
+            local augInput = img
+            if j > 3 then
+                augInput = image.hflip(augInput)
+            end
+            if jmod4 == 2 then
+                augInput = image.rotate(augInput, jmod4 * math.pi / 2)
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augInput = _rot90k(augInput, jmod4)
+            end
+            
+            local augOutput = util:chopForward(us:forward(augInput:cuda()), model, scale, self.opt.chopShave, self.opt.chopSize):squeeze(1):float()
+
+            if jmod4 == 2 then
+                augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
+            elseif (jmod4 == 1) or (jmod4 == 3) then
+                augOutput = _rot90k(augOutput, -jmod4)
+            end
+            if j > 3 then
+                augOutput = image.hflip(augOutput)
+            end
+            output:add(augOutput:cuda())
+        end
+    end
+    output:div(8)
+
+    return output
 end
 
 function util:recursiveForward(input, model, safe)
@@ -740,65 +824,6 @@ function util:recursiveForward(input, model, safe)
     collectgarbage()
 
     return ret:cuda()
-end
-
-function util:x8Forward(img, model, scale)
-    local function _rot90k(_img, k)
-        k = (k + 4) % 4
-        local _c, _h, _w = table.unpack(_img:size():totable())
-        local ml = math.max(_h, _w)
-        local buffer = torch.Tensor(_c, ml, ml)
-        local hMargin = ml - _h
-        local wMargin = ml - _w
-        buffer[{{}, {1, _h}, {1, _w}}] = _img
-        buffer = image.rotate(buffer, k * math.pi / 2)
-        
-        if _w > _h then
-            if k == 1 then
-                return buffer[{{}, {1, _w}, {1, _h}}]
-            elseif k == 3 then
-                return buffer[{{}, {1, _w}, {_w - _h + 1, _w}}]
-            end
-        else
-            if k == 1 then
-                return buffer[{{}, {_h - _w + 1, _h}, {1, _h}}]
-            elseif k == 3 then
-                return buffer[{{}, {1, _w}, {1, _h}}]
-            end
-        end
-    end
-    
-    local us = nn.Unsqueeze(1):cuda()
-    local output = util:chopForward(us:forward(img:cuda()), model, scale):squeeze(1)
-    for j = 0, 7 do
-        if j ~= 0 then
-            local jmod4 = j % 4
-            local augInput = img
-            if j > 3 then
-                augInput = image.hflip(augInput)
-            end
-            if jmod4 == 2 then
-                augInput = image.rotate(augInput, jmod4 * math.pi / 2)
-            elseif (jmod4 == 1) or (jmod4 == 3) then
-                augInput = _rot90k(augInput, jmod4)
-            end
-            
-            local augOutput = util:chopForward(us:forward(augInput:cuda()), model, scale):squeeze(1):float()
-
-            if jmod4 == 2 then
-                augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
-            elseif (jmod4 == 1) or (jmod4 == 3) then
-                augOutput = _rot90k(augOutput, -jmod4)
-            end
-            if j > 3 then
-                augOutput = image.hflip(augOutput)
-            end
-            output:add(augOutput:cuda())
-        end
-    end
-    output:div(8)
-
-    return output
 end
 
 return M.util

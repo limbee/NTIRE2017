@@ -18,7 +18,7 @@ function div2k:__init(opt, split)
     local apath = nil
     self.ext = nil
 
-    if self.datatype == 'png' then
+    if opt.datatype == 'png' then
         apath = paths.concat(opt.datadir, 'DIV2K')
         self.ext = '.png'
     else
@@ -162,7 +162,7 @@ function div2k:__size()
 end
 
 function div2k:augment()
-    if self.split == 'train' then
+    if (self.split == 'train') and (self.opt.degrade == 'bicubic') then
         local transforms = {}
         if self.opt.colorAug then
             table.insert(transforms,
@@ -178,7 +178,7 @@ function div2k:augment()
         table.insert(transforms, transform.Rotation())
 
         return transform.Compose(transforms)
-    elseif self.split == 'val' then
+    else
         return function(sample) return sample end
     end
 end

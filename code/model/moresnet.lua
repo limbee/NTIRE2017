@@ -4,7 +4,7 @@ require 'model/common'
 local function createModel(opt)
     local scale = opt.scale
     opt.nOut = #scale
-    opt.hardSwap = true
+    opt.isSwap = true
     
     local addbn = false
     local addrelu = false

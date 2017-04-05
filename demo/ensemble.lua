@@ -13,12 +13,14 @@ cmd:option('-dataset',  'DIV2K',        'test dataset')
 cmd:option('-dataSize', 'small',         'test data size')
 cmd:option('-mulImg',   255,            'multiply constant to input image')
 cmd:option('-progress', 'true',         'show current progress')
-cmd:option('-ensemble', '',             'Models to ensemble.Delimiter is +')
+cmd:option('-ensemble', '',             'Models to ensemble. Delimiter is +')
 cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
 cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
 cmd:option('-datadir',	'/var/tmp',		'data directory')
 cmd:option('-fr',       'false',        'enables self ensemble with flip and rotation')
+cmd:option('-chopShave',10,             'Shave width for chopForward')
+cmd:option('-chopSize', 16e4,           'Minimum chop size for chopForward')
 cmd:option('-deps',     '',             'additional dependencies for testing')
 
 local opt = cmd:parse(arg or {})
@@ -102,7 +104,7 @@ for i = 1, #opt.ensemble do
             output = util:x8Forward(input, model, opt.scale)
         else
             local c, h, w = table.unpack(input:size():totable())
-            output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale):squeeze(1)
+            output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale, opt.chopShave, opt.chopSize):squeeze(1)
         end
 
         if #eO < i then

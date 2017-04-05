@@ -46,33 +46,16 @@ local function getModel(opt)
                 subMean.accGradParameters = function(input, gradOutput, scale) return end
             end
 
-            if opt.divStd then
-                local divStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
-                divStd.weight:copy(torch.inverse(stdMat):reshape(3, 3, 1, 1))
-                local mulStd = nn.SpatialConvolution(3, 3, 1, 1):noBias()
-                mulStd.weight:copy(stdMat:reshape(3, 3, 1, 1))
-                if not opt.trainNormLayer then
-                    divStd.accGradParameters = function(input, gradOutput, scale) return end
-                    mulStd.accGradParameters = function(input, gradOuptut, scale) return end
-                end
-
-                model:insert(divStd, 1)
-                --Code for multi output model
+            model:insert(subMean, 1)
+            if opt.netType:find('moresnet') then
                 local pt = nn.ParallelTable()
-                for i = 1, opt.nOut do
-                    pt:add(mulStd:clone())
+                for i = 1, #opt.scale do
+                    pt:add(addMean:clone())
                 end
                 model:insert(pt)
+            else
+                model:insert(addMean)
             end
-
-            model:insert(subMean, 1)
-            --Code for multi output model
-            -- local pt = nn.ParallelTable()
-            -- for i = 1, opt.nOut do
-            --     pt:add(addMean:clone())
-            -- end
-            -- model:insert(pt)
-            model:insert(addMean)
         else
             assert(not opt.divStd, 'Please set the -subMean option to true')
         end
@@ -84,7 +67,7 @@ local function getModel(opt)
     cudnn.fastest = true
     cudnn.benchmark = true
 
-    if opt.nGPU > 1 then
+    if (opt.nGPU > 1) and (opt.isSwap == false) then
         local gpus = torch.range(1, opt.nGPU):totable()
         local fastest, benchmark = cudnn.fastest, cudnn.benchmark
 
@@ -99,6 +82,10 @@ local function getModel(opt)
         model = dpt:cuda()
     end
 
+    if opt.printModel then
+        print(model)
+    end
+    
     return model
 end
 

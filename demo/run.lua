@@ -17,6 +17,8 @@ cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
 cmd:option('-gpuid',	1,		        'GPU id for use')
 cmd:option('-datadir',	'/var/tmp',		'data directory')
 cmd:option('-fr',       'false',        'enables self ensemble with flip and rotation')
+cmd:option('-chopShave',10,             'Shave width for chopForward')
+cmd:option('-chopSize', 16e4,           'Minimum chop size for chopForward')
 cmd:option('-deps',     '',             'additional dependencies for testing')
 
 local opt = cmd:parse(arg or {})
@@ -105,7 +107,7 @@ for modelFile in paths.iterfiles('model') do
             else
                 local c, h, w = table.unpack(input:size():totable())
                 --output = util:recursiveForward(input:cuda():view(1, c, h, w), model):squeeze(1)
-                output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale):squeeze(1)
+                output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale, opt.chopShave, opt.chopSize):squeeze(1)
             end
             util:quantize(output, opt.mulImg)
             
