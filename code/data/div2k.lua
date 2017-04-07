@@ -100,7 +100,7 @@ function div2k:get(idx, scaleIdx)
         end
     end
 
-    local channel, h, w = unpack(target:size():totable())
+    local _, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
     if dataSize == 'big' then
@@ -136,14 +136,46 @@ function div2k:get(idx, scaleIdx)
 
     --Reject the patch that has small size of spatial gradient
     if (self.split == 'train') and (self.opt.rejection ~= -1) then
-        local ni = input / self.opt.mulImg
-        local dx = image.crop(ni - image.translate(ni, -1, 0), 'tl', inputPatch - 1, inputPatch - 1)
-        local dy = image.crop(ni - image.translate(ni, 0, -1), 'tl', inputPatch - 1, inputPatch - 1)
+        local grT, grP = nil, nil
+        if self.opt.rejectionTarget == 'input' then
+            grT, grP = input, inputPatch
+        elseif self.opt.rejectionTarget == 'target' then
+            grT, grP = target, targetPatch
+        end
+
+        local dx = grT[{{}, {1, grP - 1}, {1, grP - 1}}] - grT[{{}, {1, grP - 1}, {2, grP}}]
+        local dy = grT[{{}, {1, grP - 1}, {1, grP - 1}}] - grT[{{}, {2, grP}, {1, grP - 1}}]
         local dsum = dx:pow(2) + dy:pow(2)
         local dsqrt = dsum:sqrt()
         local gradValue = dsqrt:view(-1):mean()
-        if gradValue <= self.opt.rejection then
+        
+        if self.gradStatistics == nil then
+            self.gradSamples = 10000
+            self.gsTable = {}
+            self.gradStatistics = {}
+            for i = 1, #self.scale do
+                table.insert(self.gsTable, {})
+                table.insert(self.gradStatistics, -1)
+            end
+            print('Caculating median of gradient for ' .. self.gradSamples .. ' samples...')
             return nil
+        end
+        
+        if #self.gsTable[scaleIdx] < self.gradSamples then
+            table.insert(self.gsTable[scaleIdx], gradValue)
+            return nil
+        else
+            if self.gradStatistics[scaleIdx] == -1 then
+                local threshold = math.floor(self.gradSamples * self.opt.rejection / 100)
+                table.sort(self.gsTable[scaleIdx])
+                self.gradStatistics[scaleIdx] = self.gsTable[scaleIdx][threshold] / self.opt.mulImg
+                print('Gradient threshold for scale ' .. self.scale[scaleIdx] .. ': ' .. self.gradStatistics[scaleIdx])
+                return nil
+            else
+                if gradValue <= self.gradStatistics[scaleIdx] then
+                    return nil
+                end
+            end
         end
     end
 
