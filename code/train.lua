@@ -167,7 +167,7 @@ function Trainer:test(epoch, dataloader)
                 --Fast model swap
                 tempModel = modelTest
                 --modelTest = swapTable[i]
-                modelTest = self.util:swapModel(tempModel, sc)
+                modelTest = self.util:swapModel(tempModel, i)
             end
 
             local output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
