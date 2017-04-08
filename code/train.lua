@@ -34,7 +34,7 @@ function Trainer:__init(model, criterion, opt)
     self.feval = function() return self.errB, self.gradParams end
     self.util = require 'utils'(opt)
 
-    self.retLoss, self.retPSNR = nil, nil
+    self.retLoss, self.retPSNR = 1e9, 1e9
     self.maxPerf, self.maxIdx = {}, {}
     for i = 1, #self.scale do
         table.insert(self.maxPerf, -1)
@@ -76,11 +76,12 @@ function Trainer:train(epoch, dataloader)
         if isSwap then
             --Fast model swap
             tempModel = self.model
-            self.model = swapTable[scaleIdx]
+            --self.model = swapTable[scaleIdx]
+            self.model = self.util:swapModel(self.model, scaleIdx)
         end
 
         self.model:forward(self.input.train)
-        self.criterion(self.model.output, self.target)
+        local currentErr = self.criterion(self.model.output, self.target)
         self.model:backward(self.input.train, self.criterion.gradInput)
 
         if isSwap then
@@ -88,20 +89,25 @@ function Trainer:train(epoch, dataloader)
             self.model = tempModel
         end
         
-        self.iter = self.iter + 1
-        globalIter = globalIter + 1
-        globalErr = globalErr + self.criterion.output
-        localErr = localErr + self.criterion.output
+        if currentErr < (self.retLoss * 2) then
+            self.iter = self.iter + 1
+            globalIter = globalIter + 1
+            globalErr = globalErr + currentErr
+            localErr = localErr + currentErr
 
-        if self.opt.clip > 0 then
-            self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+            if self.opt.clip > 0 then
+                self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
+            end
+
+            self:calcLR()
+            self.optim(self.feval, self.params, self.optimState)
+        else
+            print(('Warning: Error is too large! Skip this batch. (Err: %.6f)'):format(currentErr))
         end
 
-        self:calcLR()
-        self.optim(self.feval, self.params, self.optimState)
         trainTime = trainTime + trainTimer:time().real
         
-        if n % pe == 0 then
+        if self.iter % pe == 0 then
             local lr_f, lr_d = self:lrPrint()
             print(('[Iter: %.1fk / lr: %.2fe%d] \tTime: %.2f (Data: %.2f) \tErr: %.6f')
                 :format(self.iter / 1000, lr_f, lr_d, trainTime, dataTime, localErr / pe))
@@ -111,7 +117,7 @@ function Trainer:train(epoch, dataloader)
         trainTimer:reset()
         dataTimer:reset()
 
-        if n % te == 0 then
+        if self.iter % te == 0 then
             break
         end
     end
@@ -160,7 +166,8 @@ function Trainer:test(epoch, dataloader)
             if isSwap then    
                 --Fast model swap
                 tempModel = modelTest
-                modelTest = swapTable[i]
+                --modelTest = swapTable[i]
+                modelTest = self.util:swapModel(tempModel, sc)
             end
 
             local output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
