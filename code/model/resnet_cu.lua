@@ -13,6 +13,7 @@ local function createModel(opt)
     actParams.negval = opt.negval
     
     print('\t Load pre-trained SRResnet and change upsampler')
+    assert(opt.preTrained ~= '.', 'Please specify -preTrained option')
     local refModel = torch.load(opt.preTrained)
     local nSeq = 0
     local model = nn.Sequential()
@@ -28,9 +29,7 @@ local function createModel(opt)
                 end
             end
         end
-        if subModelName:find('SpatialConvolution') and (subModel.kW == 1) and (subModel.kW == 1) then
-            print('\t Skipping subMean and divStd layers')
-        elseif isShuffler then
+        if isShuffler then
             print('\t Changing upsample layers')
             model:add(upsample_wo_act(opt.scale[1], opt.upsample, opt.nFeat))
         else

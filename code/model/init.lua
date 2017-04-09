@@ -15,14 +15,16 @@ local function getModel(opt)
         if torch.type(model) == 'nn.DataParallelTable' then
             model = model:get(1)
         end
-    else
-        if (opt.preTrained ~= 'nil') and (opt.netType ~= 'resnet_cu') then
-            print('Loading pre-trained model from: ' .. opt.preTrained)
-            model = torch.load(opt.preTrained)
-        else
-            print('Creating model from file: models/' .. opt.netType .. '.lua')
+    elseif opt.preTrained ~= '.' then
+        print('Loading pre-trained model from: ' .. opt.preTrained)
+        if opt.netType == 'resnet_cu' then
             model = require('model/' .. opt.netType)(opt)
+        else
+            model = torch.load(opt.preTrained)
         end
+    else
+        print('Creating model from file: models/' .. opt.netType .. '.lua')
+        model = require('model/' .. opt.netType)(opt)
 
         if opt.subMean then
             if torch.type(model) ~= 'nn.Sequential' then
