@@ -139,9 +139,13 @@ function upsample_wo_act(scale, method, nFeat)
     end
 end
 
-function resBlock(nFeat, addBN, actParams, scaleRes)
+function resBlock(nFeat, addBN, actParams, scaleRes, ipMulc)
     local nFeat = nFeat or 64
     local scaleRes = (scaleRes and scaleRes ~= 1) and scaleRes or false
+	local ipMulc = ipMulc or false
+	if not scaleRes then
+		assert(not ipMulc, 'Please specify -scaleRes option')
+	end
 
     actParams.nFeat = nFeat
 
@@ -158,7 +162,7 @@ function resBlock(nFeat, addBN, actParams, scaleRes)
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
                 :add(act(actParams))
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-                :add(mulc(scaleRes, true)))
+                :add(mulc(scaleRes, ipMulc)))
         else
             return addSkip(seq()
                 :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))

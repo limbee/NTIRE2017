@@ -79,6 +79,7 @@ function M.parse(arg)
     cmd:option('-isSwap',           'false',            'Fast-swap for the models that generate multiple outputs')
     cmd:option('-mobranch',         1,                  'Position of the branch in MOResnet')
     cmd:option('-scaleRes',         1,                  'Scale each residuals in residual blocks')
+	cmd:option('-ipMulc',			'false',			'Inplace option of mulConstant layer in residual block')
     cmd:option('-nextnFeat',        256,                'ResNeXt nFeat')
     cmd:option('-nextC',            32,                 'ResNeXt cardinality')
     cmd:option('-nextF',            4,                  'ResNeXt branch features')
@@ -101,6 +102,7 @@ function M.parse(arg)
     opt.subMean = opt.subMean == 'true'
     opt.divStd = opt.divStd == 'true'
     opt.trainNormLayer = opt.trainNormLayer == 'true'
+	opt.ipMulc = opt.ipMulc == 'true'
 
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
