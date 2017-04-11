@@ -7,7 +7,7 @@ cmd:text('An image packing tool for DIV2K dataset')
 cmd:text()
 cmd:text('Options:')
 cmd:option('-apath',        '/var/tmp/dataset',     'Absolute path of the DIV2K folder')
-cmd:option('-scale',        '2_3_4',            'Scales to pack')
+cmd:option('-scale',        '2_3_4',                'Scales to pack')
 cmd:option('-split',        'false',                'split or pack')
 cmd:option('-printEvery',   100,                    'print the progress # every iterations')
 
@@ -26,8 +26,8 @@ local lrDir =
 {
     'DIV2K_train_LR_bicubic',
     'DIV2K_train_LR_unknown',
-    'DIV2K_valid_LR_bicubic',
-    'DIV2K_valid_LR_unknown'
+    'DIV2K_test_LR_bicubic',
+    'DIV2K_test_LR_unknown'
 }
 
 if not paths.dirp(outputPath) then

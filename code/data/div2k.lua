@@ -1,4 +1,3 @@
-
 local paths = require 'paths'
 local transform = require 'data/transforms'
 
@@ -9,8 +8,11 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = 800
-    self.offset = self.size - self.opt.numVal
+    --self.size = 801
+    --self.offset = self.size - self.opt.numVal
+    self.size = 900
+    self.offset = 790 -- offset + 1 ~ offset + numVal images are used to validate the training
+    self.numVal = opt.numVal
     self.scale = self.opt.scale
     self.dataSize = self.opt.dataSize
 
@@ -21,10 +23,14 @@ function div2k:__init(opt, split)
     if opt.datatype == 'png' then
         apath = paths.concat(opt.datadir, 'DIV2K')
         self.ext = '.png'
-    else
+    elseif opt.datatype == 't7' then
         apath = paths.concat(opt.datadir, 'DIV2K_decoded')
         self.ext = '.t7'
+    elseif opt.datatype == 't7pack' then
+    else
+        error('unknown -datatype (png | t7(default) | t7pack)')
     end
+
 
     local tHR = 'DIV2K_train_HR'
     local tLR = 'DIV2K_train_LR_'
@@ -44,14 +50,16 @@ function div2k:__init(opt, split)
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file
             self.t7Tar = torch.load(paths.concat(self.dirTar, 'pack.t7'))
-            torch.save(paths.concat(self.dirTar, 'pack_v.t7'), {unpack(self.t7Tar, self.offset + 1)})
+            local valImgs = {table.unpack(self.t7Tar, self.offset + 1, self.offset + self.numVal)}
+            torch.save(paths.concat(self.dirTar, 'pack_v.t7'), valImgs)
             print('\tTrain set: ' .. self.dirTar .. '/pack.t7 loaded')
 
             self.t7Inp = {}
             for i = 1, #self.dirInp do
                 if self.scale[i] ~= 1 then
                     table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack.t7')))
-                    torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), {unpack(self.t7Inp[i], self.offset + 1)})
+                    local valImgs = {table.unpack(self.t7Inp[i], self.offset + 1, self.offset + self.numVal)}
+                    torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), valImgs)
                     print('\tTrain set: ' .. self.dirInp[i] .. '/pack.t7 loaded')
                 else
                     table.insert(self.t7Inp, self.t7Tar)
@@ -77,27 +85,48 @@ function div2k:__init(opt, split)
 end
 
 function div2k:get(idx, scaleIdx)
+    local idx = idx
     local scale = self.scale[scaleIdx]
     local dataSize = self.dataSize
 
-    if (self.split == 'val') and (self.opt.datatype ~= 't7pack') then
-        idx = idx + self.offset
+    if self.split == 'train' then
+        if idx > self.offset then
+            idx = idx + self.numVal
+        end
+    elseif self.split == 'val' then
+        if self.opt.datatype ~= 't7pack' then
+            idx = idx + self.offset
+        end
     end
 
     local input, target
 
+    if self.split == 'train' and idx >= 791 and idx <= 800 then
+        error('\ntrain set has val!\n')
+    elseif self.split == 'val' then
+        print(string.format('[%s](%s): %d', self.split, self.opt.datatype, idx))
+        if self.opt.datatype == 't7pack' then
+            if idx < 1 or idx > self.numVal then
+                error('val out of index! (t7pack)')
+            end
+        else
+            if idx < 791 or idx > 800 then
+                error('val out of index! (t7 or png)')
+            end
+        end
+    end
+
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[scaleIdx][idx]
         target = self.t7Tar[idx]
-    else
+    elseif self.opt.datatype == 't7' then
         local inputName, targetName = self:getFileName(idx, scale)
-        if self.ext == '.png' then
-            input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
-            target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
-        else
-            input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
-            target = torch.load(paths.concat(self.dirTar, targetName))
-        end
+        input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
+        target = torch.load(paths.concat(self.dirTar, targetName))
+    elseif self.opt.datatype == 'png' then
+        local inputName, targetName = self:getFileName(idx, scale)
+        input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
+        target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     end
 
     local _, h, w = unpack(target:size():totable())
@@ -126,7 +155,7 @@ function div2k:get(idx, scaleIdx)
         target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    if self.ext == '.png' then
+    if self.opt.datatype == 'png' then
         input:mul(self.opt.mulImg)
         target:mul(self.opt.mulImg)
     else
@@ -135,7 +164,7 @@ function div2k:get(idx, scaleIdx)
     end
 
     --Reject the patch that has small size of spatial gradient
-    if (self.split == 'train') and (self.opt.rejection ~= -1) then
+    if self.split == 'train' and self.opt.rejection ~= -1 then
         local grT, grP = nil, nil
         if self.opt.rejectionTarget == 'input' then
             grT, grP = input, inputPatch
@@ -187,9 +216,9 @@ end
 
 function div2k:__size()
     if self.split == 'train' then
-        return self.offset
+        return self.size - self.numVal
     elseif self.split == 'val' then
-        return self.opt.numVal
+        return self.numVal
     end
 end
 
