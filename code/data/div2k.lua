@@ -23,10 +23,9 @@ function div2k:__init(opt, split)
     if opt.datatype == 'png' then
         apath = paths.concat(opt.datadir, 'DIV2K')
         self.ext = '.png'
-    elseif opt.datatype == 't7' then
+    elseif opt.datatype == 't7' or opt.datatype == 't7pack' then
         apath = paths.concat(opt.datadir, 'DIV2K_decoded')
         self.ext = '.t7'
-    elseif opt.datatype == 't7pack' then
     else
         error('unknown -datatype (png | t7(default) | t7pack)')
     end
