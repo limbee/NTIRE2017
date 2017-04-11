@@ -100,22 +100,6 @@ function div2k:get(idx, scaleIdx)
     end
 
     local input, target
-
-    if self.split == 'train' and idx >= 791 and idx <= 800 then
-        error('\ntrain set has val!\n')
-    elseif self.split == 'val' then
-        print(string.format('[%s](%s): %d', self.split, self.opt.datatype, idx))
-        if self.opt.datatype == 't7pack' then
-            if idx < 1 or idx > self.numVal then
-                error('val out of index! (t7pack)')
-            end
-        else
-            if idx < 791 or idx > 800 then
-                error('val out of index! (t7 or png)')
-            end
-        end
-    end
-
     if self.opt.datatype == 't7pack' then
         input = self.t7Inp[scaleIdx][idx]
         target = self.t7Tar[idx]
