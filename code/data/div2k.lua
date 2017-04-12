@@ -115,13 +115,12 @@ function div2k:get(idx, scaleIdx)
     local _, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
     local hTarget, wTarget = scale * hInput, scale * wInput
-    if dataSize == 'big' then
-        hInput, wInput = hTarget, wTarget
-    end
     target = target[{{}, {1, hTarget}, {1, wTarget}}]
+    
     local patchSize = self.opt.patchSize
-    local targetPatch = patchSize
-    local inputPatch = (dataSize == 'big') and patchSize or (patchSize / scale)
+    local targetPatch = self.opt.multiPatch and (patchSize * scale) or patchSize
+    local inputPatch = targetPatch / scale
+
     if (wTarget < targetPatch) or (hTarget < targetPatch) then
         return nil
     end
@@ -130,10 +129,8 @@ function div2k:get(idx, scaleIdx)
     if self.split == 'train' then
         local ix = torch.random(1, wInput - inputPatch + 1)
         local iy = torch.random(1, hInput - inputPatch + 1)
-        local tx, ty = ix, iy
-        if dataSize == 'small' then
-            tx, ty = (scale * (ix - 1)) + 1, (scale * (iy - 1)) + 1
-        end
+        local tx = scale * (ix - 1) + 1
+        local ty = scale * (iy - 1) + 1
         input = input[{{}, {iy, iy + inputPatch - 1}, {ix, ix + inputPatch - 1}}]
         target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end

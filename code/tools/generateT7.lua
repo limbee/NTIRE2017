@@ -1,5 +1,6 @@
 require 'image'
 torch.setdefaulttensortype('torch.FloatTensor')
+torch.setnumthreads(4)
 
 local cmd = torch.CmdLine()
 cmd:text()
