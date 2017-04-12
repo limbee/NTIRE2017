@@ -317,7 +317,8 @@ function util:chopForward(input, model, scale, chopShave, chopSize)
     return ret
 end
 
-function util:x8Forward(img, model, scale)
+function util:x8Forward(img, model, scale, nGPU)
+    local n = 8
     local function _rot90k(_img, k)
         k = (k + 4) % 4
         local _c, _h, _w = table.unpack(_img:size():totable())
@@ -342,37 +343,52 @@ function util:x8Forward(img, model, scale)
             end
         end
     end
-    
-    local us = nn.Unsqueeze(1):cuda()
-    local output = util:chopForward(us:forward(img:cuda()), model, scale, self.opt.chopShave, self.opt.chopSize):squeeze(1)
-    for j = 0, 7 do
-        if j ~= 0 then
-            local jmod4 = j % 4
-            local augInput = img
-            if j > 3 then
-                augInput = image.hflip(augInput)
-            end
-            if jmod4 == 2 then
-                augInput = image.rotate(augInput, jmod4 * math.pi / 2)
-            elseif (jmod4 == 1) or (jmod4 == 3) then
-                augInput = _rot90k(augInput, jmod4)
-            end
-            
-            local augOutput = util:chopForward(us:forward(augInput:cuda()), model, scale, self.opt.chopShave, self.opt.chopSize):squeeze(1):float()
 
-            if jmod4 == 2 then
-                augOutput = image.rotate(augOutput, -jmod4 * math.pi / 2)
-            elseif (jmod4 == 1) or (jmod4 == 3) then
-                augOutput = _rot90k(augOutput, -jmod4)
-            end
-            if j > 3 then
-                augOutput = image.hflip(augOutput)
-            end
-            output:add(augOutput:cuda())
+    local inputTable = {}
+    local outputTable = {}
+    for i = 1, n do
+        if i == 1 then
+            inputTable[i] = img
+        elseif i == 2 then
+            inputTable[i] = image.vflip(img)
+        elseif i > 2 and i <= 4 then
+            inputTable[i] = image.hflip(inputTable[i - 2])
+        elseif i > 4 then
+            inputTable[i] = _rot90k(inputTable[i - 4], 1)
         end
     end
-    output:div(8)
+    for i = 1, n, nGPU do
+        local c, h, w = unpack(inputTable[i]:size():totable())
+        local inputBatch = torch.CudaTensor(nGPU, c, h, w)
+        for j = 1, nGPU do
+            inputBatch[j]:copy(inputTable[i + j - 1]:cuda())
+        end
+        local output = util:chopForward(inputBatch, model, scale, self.opt.chopShave, self.opt.chopSize)
+        inputBatch = nil
+        for j = 1, nGPU do
+            outputTable[i + j - 1] = output[j]:float():clone()
+        end
+        collectgarbage()
+        collectgarbage() 
+    end
+    for i = n, 1, -1 do
+        if i > 4 then
+            outputTable[i] = _rot90k(outputTable[i], -1)
+        end
+        if (i - 1) % 4 > 1 then
+            outputTable[i] = image.hflip(outputTable[i])
+        end
+        if ((i - 1) % 4) % 2 == 1 then
+            outputTable[i] = image.vflip(outputTable[i])
+        end
+    end
 
+    output = outputTable[1]
+    for i = 2, n do
+        output:add(outputTable[i])
+    end
+    output:div(n)
+    
     return output
 end
 
