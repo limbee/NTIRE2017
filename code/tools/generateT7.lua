@@ -7,8 +7,9 @@ cmd:text('An image packing tool for DIV2K dataset')
 cmd:text()
 cmd:text('Options:')
 cmd:option('-apath',        '/var/tmp/dataset',     'Absolute path of the DIV2K folder')
+cmd:option('-dataset',      'DIV2K',                'Dataset to convert: DIV2K | Flickr2K')
 cmd:option('-scale',        '2_3_4',                'Scales to pack')
-cmd:option('-split',        'false',                'split or pack')
+cmd:option('-split',        'true',                 'split or pack')
 cmd:option('-printEvery',   100,                    'print the progress # every iterations')
 
 local opt = cmd:parse(arg or {})
@@ -18,17 +19,34 @@ for i = 1, #opt.scale do
     opt.scale[i] = tonumber(opt.scale[i])
 end
 
-local targetPath = paths.concat(opt.apath, 'DIV2K')
-local outputPath = paths.concat(opt.apath, 'DIV2K_decoded')
+local targetPath, outputPath
+local hrDir, lrDir
 
-local hrDir = 'DIV2K_train_HR'
-local lrDir =
-{
-    'DIV2K_train_LR_bicubic',
-    'DIV2K_train_LR_unknown',
-    'DIV2K_test_LR_bicubic',
-    'DIV2K_test_LR_unknown'
-}
+if opt.dataset == 'DIV2K' then
+    targetPath = paths.concat(opt.apath, 'DIV2K')
+    outputPath = paths.concat(opt.apath, 'DIV2K_decoded')
+
+    hrDir = 'DIV2K_train_HR'
+    lrDir =
+    {
+        'DIV2K_train_LR_bicubic',
+        'DIV2K_train_LR_unknown',
+        'DIV2K_test_LR_bicubic',
+        'DIV2K_test_LR_unknown'
+    }
+elseif opt.dataset == 'Flickr2K' then
+    targetPath = paths.concat(opt.apath, 'Flickr2K')
+    outputPath = paths.concat(opt.apath, 'Flickr2K_decoded')
+
+    hrDir = 'Flickr2K_HR'
+    lrDir =
+    {
+        'Flickr2K_LR_bicubic'
+        -- 'Flickr2K_LR_unknown',
+    }
+else
+    error('unknown dataset type!')
+end
 
 if not paths.dirp(outputPath) then
     paths.mkdir(outputPath)
@@ -70,7 +88,7 @@ for i = 1, #convertTable do
     for j = 1, #fileList do
         if fileList[j]:find(ext) then
             local fileDir = paths.concat(convertTable[i].tDir, fileList[j])
-            local img = image.load(fileDir):mul(255):byte()
+            local img = image.load(fileDir, 3, 'byte')
             
             if opt.split then
                 local fileName = fileList[j]:split('.png')[1] .. '.t7'
