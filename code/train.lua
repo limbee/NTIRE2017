@@ -89,8 +89,10 @@ function Trainer:train(epoch, dataloader)
             --Return to original model
             self.model = tempModel
         end
-        
-        if self.currentErr < (self.retLoss * 5) then
+
+        -- If the error is larger than skipBatch * (previous error),
+        -- do not use it to update the parameters.
+        if currentErr < self.retLoss * self.opt.skipBatch then
             self.iter = self.iter + 1
             globalIter = globalIter + 1
             globalErr = globalErr + self.currentErr

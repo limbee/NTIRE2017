@@ -3,7 +3,7 @@ t7pack_test
 *.pdf
 *.swp
 *.t7
-*.sh
+run*.sh
 
 # Compiled Lua sources
 luac.out
