@@ -1,5 +1,6 @@
 require 'image'
 torch.setdefaulttensortype('torch.FloatTensor')
+torch.setnumthreads(4)
 
 local cmd = torch.CmdLine()
 cmd:text()
@@ -70,7 +71,7 @@ for i = 1, #convertTable do
     for j = 1, #fileList do
         if fileList[j]:find(ext) then
             local fileDir = paths.concat(convertTable[i].tDir, fileList[j])
-            local img = image.load(fileDir):mul(255):byte()
+            local img = image.load(fileDir, 3, 'byte')
             
             if opt.split then
                 local fileName = fileList[j]:split('.png')[1] .. '.t7'
