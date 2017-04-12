@@ -6,16 +6,17 @@ cmd:text()
 cmd:text('PSNR / Loss plot comparison tool')
 cmd:text()
 cmd:text('Options:')
-cmd:option('-plotList',     '',     'Plots to compare (Delimiter is +)')
-cmd:option('-xScale',       1e3,    'X axis scale')
-cmd:option('-legend',       'rb',   'Position of legend')
+cmd:option('-display',      'false',    'Display the plot immediately')
+cmd:option('-plotList',     '',         'Plots to compare (Delimiter is +)')
+cmd:option('-xScale',       1e3,        'X axis scale')
+cmd:option('-legend',       'rb',       'Position of legend')
 
 local opt = cmd:parse(arg or {})
+opt.display = opt.display == 'true'
 opt.plotList = opt.plotList:split('+')
 
 local lines = {}
 local first, last = nil, nil
-local fig = gnuplot.pdffigure('plots.pdf')
 
 for i = 1, #opt.plotList do
     local function findMinMax(tb)
@@ -51,6 +52,10 @@ for i = 1, #opt.plotList do
     end
 end
 
+if not opt.display then
+    local fig = gnuplot.pdffigure('plots.pdf')
+end
+
 gnuplot.plot(lines)
 if opt.legend == 'rb' then
     gnuplot.movelegend('right', 'bottom')
@@ -66,5 +71,8 @@ if opt.xScale > 1 then
 end
 
 gnuplot.xlabel(xlabel)
-gnuplot.plotflush(fig)
-gnuplot.closeall() 
+
+if not opt.display then
+    gnuplot.plotflush(fig)
+    gnuplot.closeall()
+end

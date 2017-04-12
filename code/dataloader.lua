@@ -41,6 +41,7 @@ function DataLoader:__init(dataset, opt, split)
     self.batchSize = self.opt.batchSize
     self.nChannel = self.opt.nChannel
     self.patchSize = self.opt.patchSize
+    self.multiPatch = self.opt.multiPatch
     self.dataSize = self.opt.dataSize
     self.scale = self.opt.scale
 end
@@ -55,6 +56,7 @@ function DataLoader:run()
 
     local size = self.__size
     local batchSize, nChannel, patchSize = self.batchSize, self.nChannel, self.patchSize
+    local multiPatch = self.multiPatch
     local dataSize = self.dataSize
     local perm = torch.randperm(size)
 
@@ -74,8 +76,8 @@ function DataLoader:run()
                     function(indices)
                         local scaleIdx = torch.random(1, #_G.scale)
                         local scale = _G.scale[scaleIdx]
-                        local tarSize = patchSize
-                        local inpSize = (dataSize == 'big') and patchSize or patchSize / scale
+                        local tarSize = multiPatch and (patchSize * scale) or patchSize
+                        local inpSize = (dataSize == 'big') and tarSize or tarSize / scale
 
                         local input = torch.Tensor(batchSize, nChannel, inpSize, inpSize)
                         local target = torch.Tensor(batchSize, nChannel, tarSize, tarSize)

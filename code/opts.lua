@@ -36,6 +36,7 @@ function M.parse(arg)
     cmd:option('-halfLife',         200e3,              'Half-life of learning rate: default is 200e3')
     cmd:option('-batchSize',        16,                 'Mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,                 'Training patch size')
+    cmd:option('-multiPatch',       'false',            'Enable multiple patchSizes for multiscale learning')
     cmd:option('-scale',            '2',                'Super-resolution upscale factor')
     cmd:option('-valOnly',          'false',            'Run on validation set only')
     cmd:option('-trainOnly',        'false',            'Train without validation')
@@ -104,6 +105,7 @@ function M.parse(arg)
     opt.trainNormLayer = opt.trainNormLayer == 'true'
 	opt.ipMulc = opt.ipMulc == 'true'
 
+    opt.multiPatch = opt.multiPatch == 'true'
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'

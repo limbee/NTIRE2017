@@ -259,14 +259,6 @@ function util:swapModel(model, index)
                 end
             end
         end]]
-    elseif self.opt.netType == 'moresnet_deblur' then
-        sModel
-            :add(model:get(1))
-            :add(model:get(2))
-            :add(model:get(3):get(index))
-            :add(model:get(4))
-            :add(model:get(5):get(index))
-            :add(model:get(6):get(index))
     end
 
     if self.opt.nGPU == 1 then

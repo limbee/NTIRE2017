@@ -6,27 +6,27 @@ require 'optim'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',     'val', 	        'demo type: bench | test | val')
-cmd:option('-dataset',  'DIV2K',        'test dataset')
-cmd:option('-dataSize', 'auto',         'test data size')
-cmd:option('-mulImg',   255,            'multiply constant to input image')
-cmd:option('-progress', 'true',         'show current progress')
-cmd:option('-model',    'resnet',       'model type: resnet | vdsr | bandnet')
-cmd:option('-degrade',  'bicubic',      'degrading opertor: bicubic | unknown')
-cmd:option('-scale',    2,              'scale factor: 2 | 3 | 4')
-cmd:option('-gpuid',	1,		        'GPU id for use')
-cmd:option('-datadir',	'/var/tmp',		'data directory')
-cmd:option('-fr',       'false',        'enables self ensemble with flip and rotation')
-cmd:option('-chopShave',10,             'Shave width for chopForward')
-cmd:option('-chopSize', 16e4,           'Minimum chop size for chopForward')
-cmd:option('-deps',     '',             'additional dependencies for testing')
+cmd:option('-type',         'val', 	    'demo type: bench | test | val')
+cmd:option('-dataset',      'DIV2K',    'test dataset')
+cmd:option('-dataSize',     'auto',     'test data size')
+cmd:option('-mulImg',       255,        'multiply constant to input image')
+cmd:option('-progress',     'true',     'show current progress')
+cmd:option('-model',        'resnet',   'model type: resnet | vdsr | bandnet')
+cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
+cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
+cmd:option('-scaleSwap',    -1,         'Model swap')
+cmd:option('-gpuid',	    1,		    'GPU id for use')
+cmd:option('-datadir',	    '/var/tmp', 'data directory')
+cmd:option('-fr',           'false',    'enables self ensemble with flip and rotation')
+cmd:option('-chopShave',    10,         'Shave width for chopForward')
+cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
 opt.fr = (opt.fr == 'true')
 
 local now = os.date('%Y-%m-%d_%H-%M-%S')
-local util = require '../code/utils'(nil)
+local util = require '../code/utils'(opt)
 
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
@@ -90,6 +90,17 @@ for modelFile in paths.iterfiles('model') do
         end
 
         table.sort(testList, function(a,b) return a[2] < b[2] end)
+
+        if opt.scaleSwap ~= -1 then
+            local sModel = nn.Sequential()
+            sModel
+                :add(model:get(1))
+                :add(model:get(2))
+                :add(model:get(3))
+                :add(model:get(4):get(opt.scaleSwap))
+                :add(model:get(5):get(opt.scaleSwap))
+            model = sModel:cuda()
+        end
 
         local timer = torch.Timer()
         for i = 1, #testList do
