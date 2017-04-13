@@ -173,7 +173,13 @@ function Trainer:test(epoch, dataloader)
                 modelTest = self.util:swapModel(tempModel, i)
             end
 
-            local output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
+            local output
+            if self.opt.inverse then
+                -- output = self.util:recursiveForward(input, modelTest)
+                output = modelTest:forward(input)
+            else
+                output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
+            end
 
             if isSwap then
                 --Return to original model
@@ -225,6 +231,11 @@ end
 
 function Trainer:copyInputs(input, target, mode)
     self.input = {}
+
+    if self.opt.inverse then
+        input, target = target, input
+    end
+
     if mode == 'train' then
         self.input.train = self.input.train or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
         self.input.train:resize(input:size()):copy(input)
