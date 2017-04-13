@@ -172,24 +172,23 @@ function resBlock(nFeat, addBN, actParams, scaleRes, ipMulc)
     end
 end
 
-function nextBlock(nextnFeat, nextC, nextF, actParams)
-    local nextnFeat = nextnFeat or 256
-    local nextC = nextC or 32
-    local nextF = nextF or 4
+function dropResBlock(nFeat, addBN, actParams, dropRate)
+    local nFeat = nFeat or 64
+    actParams.nFeat = nFeat
 
-    local cat = concat()
-    for i = 1, nextC do
-        cat:add(seq()
-            :add(conv(nextnFeat, nextF, 1, 1, 1, 1, 0, 0))
+    if scaleRes then 
+        return addSkip(seq()
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(act(actParams))
-            :add(conv(nextF, nextF, 3, 3, 1, 1, 1, 1))
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+            :add(mulc(scaleRes, ipMulc)))
+    else
+        return addSkip(seq()
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
             :add(act(actParams))
-            :add(conv(nextF, nextnFeat, 1, 1, 1, 1, 0, 0)))
+            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
+            :add(nn.SpatialDropout(dropRate)))
     end
-
-    return addSkip(seq()
-                    :add(cat)
-                    :add(cadd(true)))
 end
 
 function cbrcb(nFeat, addBN, actParams)
