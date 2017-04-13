@@ -1,42 +1,34 @@
-require 'torch'
-require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
 
-local cmd = torch.CmdLine()
-cmd:option('-type',         'val', 	    'demo type: bench | test | val')
-cmd:option('-dataset',      'DIV2K',    'external train dataset')
-cmd:option('-model_dir',    'downsamplers', 'unknown downsampling model directory')
-cmd:option('-degrade',      'unknown',  'degrading opertor: bicubic | unknown')
-cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
-cmd:option('-scaleSwap',    -1,         'Model swap')
-cmd:option('-gpuid',	    1,		    'GPU id for use')
-cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
-cmd:option('-dataDir',	    '/var/tmp', 'data directory')
+local modelDir = '/home/limbee/downsamplers'
+local apath = '/dataset/Flickr2K/'
+local hrDir = paths.concat(apath, 'Flickr2K_HR')
+local lrDir = paths.concat(apath, 'Flickr2K_LR_unknown')
 
-local opt = cmd:parse(arg or {})
+for sc = 2,4 do
+	print('scale: ' .. sc)
+	local modelname = 'downsampler_x' .. sc .. '.t7'
+	local model = torch.load(paths.concat(modelDir, modelname)):cuda()
 
--- imgdir
--- 
+	local save_dir = paths.concat(lrDir, 'X' .. sc)
+	if not paths.dirp(save_dir) then
+		paths.mkdir(save_dir)
+	end
 
-local modelname = 'donwsampler_x' .. scale .. '.t7'
-local model = torch.load(paths.concat(opt.model_dir, modelname))
+	for filename in paths.iterfiles(hrDir) do
+		local imgname = paths.concat(hrDir, filename)
+		print(imgname)
+		local HR = image.load(imgname, 3, 'byte'):float():cuda()
 
-local save_dir = paths.concat(opt.datadir, '../X' .. opt.scale)
-if not paths.dirp(save_dir) then
-	paths.mkdir(save_dir)
+		local LR = model:forward(HR)
+		local savename = paths.concat(save_dir, filename:split('%.')[1] .. 'x' .. sc .. '.png')
+		image.save(savename, LR:byte())
+
+		model:clearState()
+		collectgarbage()
+		collectgarbage()
+		collectgarbage()
+	end
 end
-for filename in paths.iterfiles(opt.datadir) do
-	local imgname = paths.concat(opt.datadir, filename)
-	local HR = image.load(imgname, 3, 'byte'):float():cuda()
-
-	local LR = model:forward(HR)
-	local savename = paths.concat(save_dir, filename:sub(1, -5) .. 'x' .. opt.scale)
-	image.save(savename, LR)
-
-end
-
-
-
-
