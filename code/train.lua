@@ -175,7 +175,8 @@ function Trainer:test(epoch, dataloader)
 
             local output
             if self.opt.inverse then
-                output = self.util:recursiveForward(input, modelTest)
+                -- output = self.util:recursiveForward(input, modelTest)
+                output = modelTest:forward(input)
             else
                 output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
             end
