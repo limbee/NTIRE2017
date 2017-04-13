@@ -44,5 +44,3 @@ for idxImg = 1:length(hrImgs)
         imwrite(lrImg, fullfile(lrDir, strcat('X', strsc), imgSave));
     end
 end
-
-exit()

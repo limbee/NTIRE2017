@@ -8,8 +8,8 @@ function flickr2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = 1e4 -- it would be changed
-    self.offset = 1e4 + 790
+    self.size = opt.flickr2kSize
+    self.offset = 790
     self.numVal = opt.numVal
     self.scale = self.opt.scale
 
@@ -28,14 +28,24 @@ function flickr2k:__init(opt, split)
         error('unknown -datatype (png | t7(default) | t7pack)')
     end
 
-    local tHR = 'Flickr2K_HR'
-    local tLR = 'Flickr2K_LR_'
-
-    self.dirTar = paths.concat(apath, tHR)
+    self.dirTar = paths.concat(apath, 'Flickr2K_HR')
     self.dirInp = {}
-
     for i = 1, #self.scale do
-        table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
+        table.insert(self.dirInp, paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade, 'X' .. self.scale[i]))
+    end
+
+    if opt.useDIV2K then
+        if opt.datatype == 'png' then
+            apath = paths.concat(opt.datadir, 'DIV2K')
+        elseif opt.datatype == 't7' then
+            apath = paths.concat(opt.datadir, 'DIV2K_decoded')
+        end
+        self.size = self.size + 900
+        self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
+        self.dirInp_DIV2K = {}
+        for i = 1, #self.scale do
+            table.insert(self.dirInp_DIV2K, paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i]))
+        end
     end
 
     collectgarbage()
@@ -47,22 +57,57 @@ function flickr2k:get(idx, scaleIdx)
     local scale = self.scale[scaleIdx]
     local dataSize = self.dataSize
 
-    if self.split == 'train' then
-        if idx > self.offset then
-            idx = idx + self.numVal
+    local function getImg(idx, scale, type)
+        local dirInp, dirTar, nDigit
+        if type == 'DIV2K' then
+            dirInp = self.dirInp_DIV2K[scaleIdx]
+            dirTar = self.dirTar_DIV2K
+            nDigit = 4
+        elseif type == 'Flickr2K' then
+            dirInp = self.dirInp[scaleIdx]
+            dirTar = self.dirTar
+            nDigit = 6
         end
-    elseif self.split == 'val' then
-        idx = idx + self.offset
+        local flag = 0
+        print(idx)
+        if idx > self.opt.flickr2kSize then
+            idx = idx - self.opt.flickr2kSize
+            flag = 1
+            if idx > self.offset then
+                idx = idx + self.numVal
+                flag = 2
+            end
+        end
+        local inputName, targetName = self:getFileName(idx, scale, nDigit)
+        if flag == 2 then
+            print(idx, type, inputName, targetName)
+        end
+        if self.opt.datatype == 't7' then
+            input = torch.load(paths.concat(dirInp, inputName))
+            target = torch.load(paths.concat(dirTar, targetName))
+        elseif self.opt.datatype == 'png' then
+            input = image.load(paths.concat(dirInp, inputName), self.opt.nChannel, 'float')
+            target = image.load(paths.concat(dirTar, targetName), self.opt.nChannel, 'float')
+        end
+        return input, target
     end
 
-    local inputName, targetName = self:getFileName(idx, scale)
-    if self.opt.datatype == 't7' then
-        input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
-        target = torch.load(paths.concat(self.dirTar, targetName))
-    elseif self.opt.datatype == 'png' then
-        input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
-        target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
+    if self.split == 'val' then
+        idx = idx + self.offset
+        input, target = getImg(idx, scale, 'DIV2K')
+    else
+        if not self.opt.useDIV2K then
+            input, target = getImg(idx, scale, 'Flickr2K')
+        else
+            if idx <= self.opt.flickr2kSize then
+                input, target = getImg(idx, scale, 'Flickr2K')
+            else -- then loads DIV2K
+                input, target = getImg(idx, scale, 'DIV2K')
+            end
+        end
     end
+
+
 
     local _, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
@@ -144,7 +189,11 @@ end
 
 function flickr2k:__size()
     if self.split == 'train' then
-        return self.size - self.numVal
+        if self.opt.useDIV2K then
+            return self.size - self.numVal
+        else
+            return self.size
+        end
     elseif self.split == 'val' then
         return self.numVal
     end
@@ -172,11 +221,12 @@ function flickr2k:augment()
     end
 end
 
-function flickr2k:getFileName(idx, scale)
+function flickr2k:getFileName(idx, scale, nDigit)
     --filename format: ??????x?.png
+    local nDigit = nDigit or 6
     local fileName = idx
     local digit = idx
-    while digit < 1e5 do
+    while digit < math.pow(10, nDigit - 1) do
         fileName = '0' .. fileName
         digit = digit * 10
     end

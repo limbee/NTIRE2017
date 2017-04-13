@@ -42,8 +42,8 @@ elseif opt.dataset == 'Flickr2K' then
     hrDir = 'Flickr2K_HR'
     lrDir =
     {
-        'Flickr2K_LR_bicubic'
-        -- 'Flickr2K_LR_unknown',
+        'Flickr2K_LR_bicubic',
+        'Flickr2K_LR_unknown'
     }
 else
     error('unknown dataset type!')
