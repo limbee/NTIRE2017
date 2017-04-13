@@ -9,6 +9,9 @@ function flickr2k:__init(opt, split)
     self.split = split
 
     self.size = opt.flickr2kSize
+    if opt.useDIV2K then
+        self.size = self.size + 900
+    end
     self.offset = 790
     self.numVal = opt.numVal
     self.scale = self.opt.scale
@@ -34,18 +37,15 @@ function flickr2k:__init(opt, split)
         table.insert(self.dirInp, paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade, 'X' .. self.scale[i]))
     end
 
-    if opt.useDIV2K then
-        if opt.datatype == 'png' then
-            apath = paths.concat(opt.datadir, 'DIV2K')
-        elseif opt.datatype == 't7' then
-            apath = paths.concat(opt.datadir, 'DIV2K_decoded')
-        end
-        self.size = self.size + 900
-        self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
-        self.dirInp_DIV2K = {}
-        for i = 1, #self.scale do
-            table.insert(self.dirInp_DIV2K, paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i]))
-        end
+    if opt.datatype == 'png' then
+        apath = paths.concat(opt.datadir, 'DIV2K')
+    elseif opt.datatype == 't7' then
+        apath = paths.concat(opt.datadir, 'DIV2K_decoded')
+    end
+    self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
+    self.dirInp_DIV2K = {}
+    for i = 1, #self.scale do
+        table.insert(self.dirInp_DIV2K, paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i]))
     end
 
     collectgarbage()
@@ -68,20 +68,13 @@ function flickr2k:get(idx, scaleIdx)
             dirTar = self.dirTar
             nDigit = 6
         end
-        local flag = 0
-        print(idx)
         if idx > self.opt.flickr2kSize then
             idx = idx - self.opt.flickr2kSize
-            flag = 1
             if idx > self.offset then
                 idx = idx + self.numVal
-                flag = 2
             end
         end
         local inputName, targetName = self:getFileName(idx, scale, nDigit)
-        if flag == 2 then
-            print(idx, type, inputName, targetName)
-        end
         if self.opt.datatype == 't7' then
             input = torch.load(paths.concat(dirInp, inputName))
             target = torch.load(paths.concat(dirTar, targetName))
