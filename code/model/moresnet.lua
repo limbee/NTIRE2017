@@ -21,7 +21,7 @@ local function createModel(opt)
 
     local body = seq()
     for i = 1, front do
-        body:add(resBlock(opt.nFeat, addbn, actParams))
+        body:add(resBlock(opt.nFeat, addbn, actParams, opt.scaleRes, opt.ipMulc))
     end
 
     local model = seq():add(conv(opt.nChannel, opt.nFeat, 3, 3, 1, 1, 1, 1))
@@ -43,7 +43,7 @@ local function createModel(opt)
         for i = 1, #scale do
             local bSeq = seq()
             for j = 1, back do
-                bSeq:add(resBlock(opt.nFeat, addbn, actParams))
+                bSeq:add(resBlock(opt.nFeat, addbn, actParams, opt.scaleRes, opt.ipMulc))
             end
             bSeq:add(conv(opt.nFeat, opt.nFeat, 3, 3, 1, 1, 1, 1))
             cat:add(bSeq)

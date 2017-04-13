@@ -30,8 +30,9 @@ function Trainer:__init(model, criterion, opt)
     self.target = nil
     self.params = nil
     self.gradParams = nil
+    self.currentErr = nil
 
-    self.feval = function() return self.errB, self.gradParams end
+    self.feval = function() return self.currentErr, self.gradParams end
     self.util = require 'utils'(opt)
 
     self.retLoss, self.retPSNR = 1e9, 1e9
@@ -81,7 +82,7 @@ function Trainer:train(epoch, dataloader)
         end
 
         self.model:forward(self.input.train)
-        local currentErr = self.criterion(self.model.output, self.target)
+        self.currentErr = self.criterion(self.model.output, self.target)
         self.model:backward(self.input.train, self.criterion.gradInput)
 
         if isSwap then
@@ -91,11 +92,11 @@ function Trainer:train(epoch, dataloader)
 
         -- If the error is larger than skipBatch * (previous error),
         -- do not use it to update the parameters.
-        if currentErr < self.retLoss * self.opt.skipBatch then
+        if self.currentErr < self.retLoss * self.opt.skipBatch then
             self.iter = self.iter + 1
             globalIter = globalIter + 1
-            globalErr = globalErr + currentErr
-            localErr = localErr + currentErr
+            globalErr = globalErr + self.currentErr
+            localErr = localErr + self.currentErr
 
             if self.opt.clip > 0 then
                 self.gradParams:clamp(-self.opt.clip / self.opt.lr, self.opt.clip / self.opt.lr)
@@ -104,7 +105,7 @@ function Trainer:train(epoch, dataloader)
             self:calcLR()
             self.optim(self.feval, self.params, self.optimState)
         else
-            print(('Warning: Error is too large! Skip this batch. (Err: %.6f)'):format(currentErr))
+            print(('Warning: Error is too large! Skip this batch. (Err: %.6f)'):format(self.currentErr))
         end
 
         trainTime = trainTime + trainTimer:time().real
@@ -172,7 +173,13 @@ function Trainer:test(epoch, dataloader)
                 modelTest = self.util:swapModel(tempModel, i)
             end
 
-            local output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
+            local output
+            if self.opt.inverse then
+                -- output = self.util:recursiveForward(input, modelTest)
+                output = modelTest:forward(input)
+            else
+                output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
+            end
 
             if isSwap then
                 --Return to original model
@@ -224,6 +231,11 @@ end
 
 function Trainer:copyInputs(input, target, mode)
     self.input = {}
+
+    if self.opt.inverse then
+        input, target = target, input
+    end
+
     if mode == 'train' then
         self.input.train = self.input.train or (self.opt.nGPU == 1 and torch.CudaTensor() or cutorch.createCudaHostTensor())
         self.input.train:resize(input:size()):copy(input)

@@ -1,0 +1,244 @@
+require 'nn'
+require 'cunn'
+require 'cudnn'
+require 'image'
+require '../code/model/common'
+
+local cmd = torch.CmdLine()
+cmd:option('-type',         'val', 	    'demo type: bench | test | val')
+cmd:option('-dataset',      'DIV2K',    'test dataset')
+cmd:option('-mulImg',       255,        'multiply constant to input image')
+cmd:option('-progress',     'true',     'show current progress')
+cmd:option('-model',        'resnet',   'substring of model name')
+cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
+cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
+cmd:option('-scaleSwap',    -1,         'Model swap')
+cmd:option('-gpuid',	    1,		    'GPU id for use')
+cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
+cmd:option('-dataDir',	    '/var/tmp', 'data directory')
+cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
+cmd:option('-chopShave',    10,         'Shave width for chopForward')
+cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
+
+local opt = cmd:parse(arg or {})
+opt.progress = (opt.progress == 'true')
+opt.model = opt.model:split('+')
+opt.selfEnsemble = (opt.selfEnsemble == 'true')
+
+local util = require '../code/utils'(opt)
+torch.setdefaulttensortype('torch.FloatTensor')
+cutorch.setDevice(opt.gpuid)
+
+--Prepare the dataset for demo
+print('Preparing dataset...')
+local testList = {}
+local dataDir = ''
+local Xs = 'X' .. opt.scale
+
+local function scaleSwap(model)
+    local sModel = nn.Sequential()
+    sModel
+        :add(model:get(1))
+        :add(model:get(2))
+        :add(model:get(3))
+        :add(model:get(4):get(opt.scaleSwap))
+        :add(model:get(5):get(opt.scaleSwap))
+
+    return sModel:cuda()
+end
+
+local function saveImage(info, modelName)
+    util:quantize(info.saveImg, opt.mulImg)
+    info.saveImg = info.saveImg:squeeze(1)
+    if opt.type == 'bench' or opt.type == 'val' then
+        local targetDir = paths.concat('img_target', modelName, info.setName)
+        local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
+        if not paths.dirp(targetDir) then
+            paths.mkdir(targetDir)
+        end
+        if not paths.dirp(outputDir) then
+            paths.mkdir(outputDir)
+        end
+        local target = image.load(paths.concat(dataDir, info.setName, info.fileName), 3, 'float')
+        target = target[{{}, {1, info.saveImg:size(2)}, {1, info.saveImg:size(3)}}]
+        image.save(paths.concat(targetDir, info.fileName), target)
+        image.save(paths.concat(outputDir, info.fileName), info.saveImg)
+    elseif opt.type == 'test' then
+        local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
+        if not paths.dirp(outputDir) then
+            paths.mkdir(outputDir)
+        end
+        image.save(paths.concat(outputDir, info.fileName), info.saveImg)
+    end
+
+    info.saveImg = nil
+    collectgarbage()
+end
+
+local loadTimer = torch.Timer()
+if opt.type == 'bench' or opt.type == 'val' then
+    dataDir = paths.concat(opt.dataDir, 'dataset/benchmark')
+    for benchFolder in paths.iterdirs(paths.concat(dataDir, 'small')) do
+        if opt.type == 'bench' or (opt.type == 'val' and benchFolder == 'val') then
+            local inputFolder = paths.concat(paths.concat(dataDir, 'small'), benchFolder, Xs)
+            for benchFile in paths.iterfiles(inputFolder) do
+                if benchFile:find('.png') then
+                    table.insert(testList, 
+                    {
+                        setName = benchFolder,
+                        from = inputFolder,
+                        fileName = benchFile
+                    })
+                end
+            end
+        end
+    end
+elseif opt.type == 'test' then
+    if opt.dataset == 'DIV2K' then
+        dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+        for testFile in paths.iterfiles(dataDir) do
+            if testFile:find('.png') then
+                table.insert(testList,
+                {
+                    setName = 'test',
+                    from = dataDir,
+                    fileName = testFile
+                })
+            end
+        end
+    --You can test with your own images.
+    --Please put your images in the img_input folder
+    else
+        for testFile in paths.iterfiles('img_input') do
+            if testFile:find('.png') or testFile:find('.jp') then
+                table.insert(testList,
+                {
+                    setName = 'myImages',
+                    from = 'img_input',
+                    fileName = testFile
+                })
+            end
+        end
+    end
+end
+for i = 1, #testList do
+    testList[i].inputImg = image.load(paths.concat(testList[i].from, testList[i].fileName), 3, 'float'):mul(opt.mulImg)
+end
+local loadElapsed = loadTimer:time().real
+print(('[Load time] %.3fs (average %.3fs)\n'):format(loadElapsed, loadElapsed / #testList))
+
+table.sort(testList, function(a, b) return a.fileName < b.fileName end)
+
+local ensemble = {}
+if #opt.model > 1 then
+    print('Ensemble!')
+    for i = 1, #opt.model do
+        print('\t' .. opt.model[i])
+    end
+    print('')
+end
+
+local globalTimer = torch.Timer()
+local nModel = 0
+for i = 1, #opt.model do
+    for modelFile in paths.iterfiles('model') do
+        if modelFile:find('.t7') and modelFile:find(opt.model[i]) then
+            local model = torch.load(paths.concat('model', modelFile)):cuda()
+            local modelName = modelFile:split('%.')[1]
+            print('Model: [' .. modelName .. ']')
+            if modelFile:find('multiscale') then
+                print('This is a multi-scale model! Swap the model')
+                opt.scaleSwap = (opt.scaleSwap == -1) and (opt.scale - 1) or opt.scaleSwap
+                model = scaleSwap(model)
+            end
+            model:evaluate()
+
+            if opt.nGPU > 1 and opt.selfEnsemble then
+                local gpus = torch.range(1, opt.nGPU):totable()
+                local dpt = nn.DataParallelTable(1, true, true)
+                    :add(model, gpus)
+                    :threads(function()
+                        local cudnn = require 'cudnn'
+                        cudnn.fastest, cudnn.benchmark = false, false
+                    end)
+                model = dpt:cuda()
+            end
+
+            local setTimer = torch.Timer()
+            for j = 1, #testList do
+                local localTimer = torch.Timer()
+                if opt.progress then
+                    io.write(('>> [%d/%d]\t%s\t'):format(j, #testList, testList[j].fileName))
+                    io.flush()
+                end
+
+                local input = testList[j].inputImg
+                local output = nil
+                if opt.selfEnsemble then
+                    output = util:x8Forward(input, model, opt.scale, opt.nGPU)
+                else
+                    local c, h, w = table.unpack(input:size():totable())
+                    output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale,
+                        opt.chopShave, opt.chopSize)
+                end
+
+                if #opt.model > 1 then
+                    if #ensemble < j then
+                        table.insert(ensemble, output)
+                    else
+                        ensemble[j]:add(output)
+                    end
+                else
+                    testList[j].saveImg = output:float()
+                end
+
+                input = nil
+                target = nil
+                output = nil
+                collectgarbage()
+                collectgarbage()
+
+                if opt.progress then
+                    io.write(('[time] %.3fs\n'):format(localTimer:time().real))
+                    io.flush()
+                end
+            end
+            local elapsed = setTimer:time().real
+            print(('[Forward time] %.3fs (average %.3fs)'):format(elapsed, elapsed / #testList))
+            if #opt.model == 1 then
+                local saveTimer = torch.Timer()
+                for j = 1, #testList do
+                    saveImage(testList[j], modelName)
+                end
+                local saveElapsed = saveTimer:time().real
+                print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
+                nModel = nModel + 1
+            end
+            print('')
+        end
+    end
+end
+
+if #opt.model > 1 then
+    nModel = 1
+    print('Averaging all the results...')
+    local totalModelName = {}
+    for i = 1, #opt.model do
+        table.insert(totalModelName, opt.model[i]:split('%.')[1])
+    end
+    for i = 1, #ensemble do
+        testList[i].saveImg = ensemble[i]:div(#opt.model)
+    end
+    local ensembleElapsed = globalTimer:time().real
+    print(('[Ensemble time] %.3fs (average %.3fs)'):format(ensembleElapsed, ensembleElapsed / #ensemble))
+
+    local saveTimer = torch.Timer()
+    for i = 1, #ensemble do
+        saveImage(testList[i], table.concat(totalModelName, '_'))
+    end
+    local saveElapsed = saveTimer:time().real
+    print(('[Save time] %.3fs (average %.3fs)\n'):format(saveElapsed, saveElapsed / #ensemble))
+end
+
+local totalElapsed = globalTimer:time().real
+print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / nModel))
