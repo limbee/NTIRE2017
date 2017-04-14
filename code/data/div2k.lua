@@ -146,9 +146,9 @@ function div2k:get(idx, scaleIdx)
     --Reject the patch that has small size of spatial gradient
     if self.split == 'train' and self.opt.rejection ~= -1 then
         local grT, grP = nil, nil
-        if self.opt.rejectionTarget == 'input' then
+        if self.opt.rejectionType == 'input' then
             grT, grP = input, inputPatch
-        elseif self.opt.rejectionTarget == 'target' then
+        elseif self.opt.rejectionType == 'target' then
             grT, grP = target, targetPatch
         end
 
@@ -177,12 +177,15 @@ function div2k:get(idx, scaleIdx)
             if self.gradStatistics[scaleIdx] == -1 then
                 local threshold = math.floor(self.gradSamples * self.opt.rejection / 100)
                 table.sort(self.gsTable[scaleIdx])
-                self.gradStatistics[scaleIdx] = self.gsTable[scaleIdx][threshold] / self.opt.mulImg
+                self.gradStatistics[scaleIdx] = self.gsTable[scaleIdx][threshold]
                 print('Gradient threshold for scale ' .. self.scale[scaleIdx] .. ': ' .. self.gradStatistics[scaleIdx])
                 return nil
             else
                 if gradValue <= self.gradStatistics[scaleIdx] then
+                    print('reject!')
                     return nil
+                else
+                    print('accept!')
                 end
             end
         end
