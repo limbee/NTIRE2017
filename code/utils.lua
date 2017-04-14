@@ -234,83 +234,58 @@ function util:swapModel(model, index)
             :add(model:get(3))
             :add(model:get(4):get(index))
             :add(model:get(5):get(index))
-        --[[for i = 1, model:size() do
-            local subModel = model:get(i)
-            local modelName = subModel.__typename
-            if modelName:find('ParallelTable') then
-                sModel:add(subModel:get(index))
-            elseif modelName:find('ConcatTable') then
-                local isSkip = false
-                for i = 1, subModel:size() do
-                    if subModel:get(i).__typename:find('Identity') then
-                        isSkip = true
-                        break
-                    end
-                end
-                if isSkip then
-                    sModel:add(subModel)
-                else
-                    sModel:add(subModel:get(index))
-                end
-            else
-                sModel:add(subModel)
-                if modelName:find('MultiSkipAdd') then
-                    sModel:add(nn.SelectTable(index))
-                end
-            end
-        end]]
     end
 
     if self.opt.nGPU == 1 then
         return sModel
-    --[[else
-        local gpus = torch.range(1, self.opt.nGPU):totable()
-        local fastest, benchmark = cudnn.fastest, cudnn.benchmark
-
-        local dpt = nn.DataParallelTable(1, true, true)
-            :add(sModel, gpus)
-            :threads(function()
-                local cudnn = require 'cudnn'
-                cudnn.fastest, cudnn.benchmark = fastest, benchmark
-            end)
-        dpt.gradInput = nil
-        
-        return dpt:cuda()]]
     end
 end
 
-function util:chopForward(input, model, scale, chopShave, chopSize)
+function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)
     local b, c, h, w = unpack(input:size():totable())
-    local chopShave = chopShave or 10
-    local chopSize = chopSize or 400 * 400
-    
-    if (h * w) < chopSize then
-        local output = model:forward(input):clone()
-        model:clearState()
-        collectgarbage()
-        collectgarbage()
-        return output
-    end
+    chopShave = chopShave or 10
+    chopSize = chopSize or 400 * 400
+    nGPU = nGPU and nGPU or 1
 
     local wHalf, hHalf = math.floor(w / 2), math.floor(h / 2)
-    local w1, w2 = wHalf + chopShave, wHalf - chopShave
-    local h1, h2 = hHalf + chopShave, hHalf - chopShave
-
-    local p1 = util:chopForward(input[{{}, {}, {1, h1}, {1, w1}}], model, scale, chopShave, chopSize)
-    local p2 = util:chopForward(input[{{}, {}, {1, h1}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
-    local p3 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {1, w1}}], model, scale, chopShave, chopSize)
-    local p4 = util:chopForward(input[{{}, {}, {h2 + 1, h}, {w2 + 1, w}}], model, scale, chopShave, chopSize)
+    local wc, hc = wHalf + chopShave, hHalf + chopShave
+    local bnd = {x1 = {1, wc}, x2 = {w - wc + 1, w}, y1 = {1, hc}, y2 = {h - hc + 1, h}}
+    local inputPatch = 
+    {
+        input[{{}, {}, bnd.y1, bnd.x1}],
+        input[{{}, {}, bnd.y1, bnd.x2}],
+        input[{{}, {}, bnd.y2, bnd.x1}],
+        input[{{}, {}, bnd.y2, bnd.x2}]
+    }
+    local outputPatch = torch.CudaTensor(4, c, scale * hc, scale * wc)
+    if (wc * hc) < chopSize then
+        for i = 1, 4, nGPU do
+            inputBatch = torch.CudaTensor(nGPU, c, hc, wc)
+            for j = 1, nGPU do
+                inputBatch[j]:copy(inputPatch[i + j - 1])
+            end
+            outputPatch[{{i, i + nGPU - 1}, {}, {}, {}}]:copy(model:forward(inputBatch))
+            model:clearState()
+            collectgarbage()
+            collectgarbage()
+        end
+    else
+        for i = 1, 4 do
+            outputPatch[i] = util:chopForward(inputPatch[i], model, scale, chopShave, chopSize, nGPU):squeeze(1)
+        end
+    end
     local ret = torch.CudaTensor(b, c, scale * h, scale * w)
-    w, wHalf, h, hHalf = scale * w, scale * wHalf, scale * h, scale * hHalf
-    w1, w2, h1, h2 = scale * w1, scale * w2, scale * h1, scale * h2
+
+    w, wHalf, wc = scale * w, scale * wHalf, scale * wc
+    h, hHalf, hc = scale * h, scale * hHalf, scale * hc
     chopShave = scale * chopShave
-
-    ret[{{}, {}, {1, hHalf}, {1, wHalf}}]:copy(p1[{{}, {}, {1, hHalf}, {1, wHalf}}])
-    ret[{{}, {}, {1, hHalf}, {wHalf + 1, w}}]:copy(p2[{{}, {}, {1, hHalf}, {chopShave + 1, w - w2}}])
-    ret[{{}, {}, {hHalf + 1, h}, {1, wHalf}}]:copy(p3[{{}, {}, {chopShave + 1, h - h2}, {1, wHalf}}])
-    ret[{{}, {}, {hHalf + 1, h}, {wHalf + 1, w}}]:copy(p4[{{}, {}, {chopShave + 1, h - h2}, {chopShave + 1, w - w2}}])
-
-    p1, p2, p3, p4 = nil, nil, nil, nil
+    local bndR = {x1 = {1, wHalf}, x2 = {wHalf + 1, w}, y1 = {1, hHalf}, y2 = {hHalf + 1, h}}
+    local bndO = {x2 = {wc - w + wHalf + 1, wc}, y2 = {hc - h + hHalf + 1, hc}}
+    ret[{{}, {}, bndR.y1, bndR.x1}]:copy(outputPatch[1][{{}, bndR.y1, bndR.x1}])
+    ret[{{}, {}, bndR.y1, bndR.x2}]:copy(outputPatch[2][{{}, bndR.y1, bndO.x2}])
+    ret[{{}, {}, bndR.y2, bndR.x1}]:copy(outputPatch[3][{{}, bndO.y2, bndR.x1}])
+    ret[{{}, {}, bndR.y2, bndR.x2}]:copy(outputPatch[4][{{}, bndO.y2, bndO.x2}])
+    ur, ul, dr, dl = nil
     collectgarbage()
     collectgarbage()
 
@@ -319,30 +294,6 @@ end
 
 function util:x8Forward(img, model, scale, nGPU)
     local n = 8
-    local function _rot90k(_img, k)
-        k = (k + 4) % 4
-        local _c, _h, _w = table.unpack(_img:size():totable())
-        local ml = math.max(_h, _w)
-        local buffer = torch.Tensor(_c, ml, ml)
-        local hMargin = ml - _h
-        local wMargin = ml - _w
-        buffer[{{}, {1, _h}, {1, _w}}] = _img
-        buffer = image.rotate(buffer, k * math.pi / 2)
-        
-        if _w > _h then
-            if k == 1 then
-                return buffer[{{}, {1, _w}, {1, _h}}]
-            elseif k == 3 then
-                return buffer[{{}, {1, _w}, {_w - _h + 1, _w}}]
-            end
-        else
-            if k == 1 then
-                return buffer[{{}, {_h - _w + 1, _h}, {1, _h}}]
-            elseif k == 3 then
-                return buffer[{{}, {1, _w}, {1, _h}}]
-            end
-        end
-    end
 
     local inputTable = {}
     local outputTable = {}
@@ -354,7 +305,7 @@ function util:x8Forward(img, model, scale, nGPU)
         elseif i > 2 and i <= 4 then
             inputTable[i] = image.hflip(inputTable[i - 2])
         elseif i > 4 then
-            inputTable[i] = _rot90k(inputTable[i - 4], 1)
+            inputTable[i] = inputTable[i - 4]:transpose(2, 3)
         end
     end
     for i = 1, n, nGPU do
@@ -368,12 +319,13 @@ function util:x8Forward(img, model, scale, nGPU)
         for j = 1, nGPU do
             outputTable[i + j - 1] = output[j]:float():clone()
         end
+        model:clearState()
         collectgarbage()
         collectgarbage() 
     end
     for i = n, 1, -1 do
         if i > 4 then
-            outputTable[i] = _rot90k(outputTable[i], -1)
+            outputTable[i] = outputTable[i]:transpose(2, 3)
         end
         if (i - 1) % 4 > 1 then
             outputTable[i] = image.hflip(outputTable[i])

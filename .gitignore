@@ -4,6 +4,7 @@ t7pack_test
 *.swp
 *.t7
 run*.sh
+!makeFinal.sh
 
 # Compiled Lua sources
 luac.out

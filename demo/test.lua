@@ -2,6 +2,7 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
+local threads = require 'threads'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
@@ -12,8 +13,9 @@ cmd:option('-progress',     'true',     'show current progress')
 cmd:option('-model',        'resnet',   'substring of model name')
 cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
 cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
-cmd:option('-scaleSwap',    -1,         'Model swap')
+cmd:option('-swap',         -1,         'Model swap')
 cmd:option('-gpuid',	    1,		    'GPU id for use')
+cmd:option('-nThreads',     3,          'Number of threads to save images')
 cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
 cmd:option('-dataDir',	    '/var/tmp', 'data directory')
 cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
@@ -35,14 +37,14 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
-local function scaleSwap(model)
+local function swap(model)
     local sModel = nn.Sequential()
     sModel
         :add(model:get(1))
         :add(model:get(2))
         :add(model:get(3))
-        :add(model:get(4):get(opt.scaleSwap))
-        :add(model:get(5):get(opt.scaleSwap))
+        :add(model:get(4):get(opt.swap))
+        :add(model:get(5):get(opt.swap))
 
     return sModel:cuda()
 end
@@ -138,8 +140,23 @@ if #opt.model > 1 then
     print('')
 end
 
+local pool = threads.Threads(
+    opt.nThreads,
+    function(threadid)
+        print('Starting a background thread...')
+        require 'cunn'
+        require 'image'
+    end
+)
+
 local globalTimer = torch.Timer()
 local nModel = 0
+local totalModelName = {}
+if #opt.model > 1 then
+    for i = 1, #opt.model do
+        table.insert(totalModelName, opt.model[i]:split('%.')[1])
+    end
+end
 for i = 1, #opt.model do
     for modelFile in paths.iterfiles('model') do
         if modelFile:find('.t7') and modelFile:find(opt.model[i]) then
@@ -148,21 +165,17 @@ for i = 1, #opt.model do
             print('Model: [' .. modelName .. ']')
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
-                opt.scaleSwap = (opt.scaleSwap == -1) and (opt.scale - 1) or opt.scaleSwap
-                model = scaleSwap(model)
+                opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
+                model = swap(model)
             end
-            model:evaluate()
 
-            if opt.nGPU > 1 and opt.selfEnsemble then
+            if opt.nGPU > 1 then
                 local gpus = torch.range(1, opt.nGPU):totable()
                 local dpt = nn.DataParallelTable(1, true, true)
                     :add(model, gpus)
-                    :threads(function()
-                        local cudnn = require 'cudnn'
-                        cudnn.fastest, cudnn.benchmark = false, false
-                    end)
                 model = dpt:cuda()
             end
+            model:evaluate()
 
             local setTimer = torch.Timer()
             for j = 1, #testList do
@@ -179,7 +192,7 @@ for i = 1, #opt.model do
                 else
                     local c, h, w = table.unpack(input:size():totable())
                     output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale,
-                        opt.chopShave, opt.chopSize)
+                        opt.chopShave, opt.chopSize, opt.nGPU)
                 end
 
                 if #opt.model > 1 then
@@ -191,10 +204,49 @@ for i = 1, #opt.model do
                 else
                     testList[j].saveImg = output:float()
                 end
+                if (#opt.model == 1) or ((#opt.model > 1) and (i == #opt.model)) then
+                    if #opt.model > 1 then
+                        modelName = table.concat(totalModelName, '_')
+                        testList[j].saveImg = ensemble[j]:div(#opt.model)
+                    end
+                    pool:addjob(
+                        function()
+                            testList[j].saveImg:mul(255 / opt.mulImg):add(0.5):floor():div(255)
+                            testList[j].saveImg = testList[j].saveImg:squeeze(1)
+                            if opt.type == 'bench' or opt.type == 'val' then
+                                local targetDir = paths.concat('img_target', modelName, testList[j].setName)
+                                local outputDir = paths.concat('img_output', modelName, testList[j].setName, Xs)
+                                if not paths.dirp(targetDir) then
+                                    paths.mkdir(targetDir)
+                                end
+                                if not paths.dirp(outputDir) then
+                                    paths.mkdir(outputDir)
+                                end
+                                local target = image.load(paths.concat(dataDir, testList[j].setName, testList[j].fileName), 3, 'float')
+                                target = target[{{}, {1, testList[j].saveImg:size(2)}, {1, testList[j].saveImg:size(3)}}]
+                                image.save(paths.concat(targetDir, testList[j].fileName), target)
+                                image.save(paths.concat(outputDir, testList[j].fileName), testList[j].saveImg)
+                            elseif opt.type == 'test' then
+                                local outputDir = paths.concat('img_output', modelName, testList[j].setName, Xs)
+                                if not paths.dirp(outputDir) then
+                                    paths.mkdir(outputDir)
+                                end
+                                image.save(paths.concat(outputDir, testList[j].fileName), testList[j].saveImg)
+                            end
 
+                            testList[j].saveImg = nil
+                            collectgarbage()
+                            return __threadid
+                        end,
+                        function(id)
+                            return
+                        end
+                    )
+                end
                 input = nil
                 target = nil
                 output = nil
+                model:clearState()
                 collectgarbage()
                 collectgarbage()
 
@@ -205,40 +257,16 @@ for i = 1, #opt.model do
             end
             local elapsed = setTimer:time().real
             print(('[Forward time] %.3fs (average %.3fs)'):format(elapsed, elapsed / #testList))
-            if #opt.model == 1 then
-                local saveTimer = torch.Timer()
-                for j = 1, #testList do
-                    saveImage(testList[j], modelName)
-                end
-                local saveElapsed = saveTimer:time().real
-                print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
-                nModel = nModel + 1
-            end
+            local saveTimer = torch.Timer()
+            pool:synchronize()
+            local saveElapsed = saveTimer:time().real
+            print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
+            nModel = nModel + 1
             print('')
         end
     end
 end
-
-if #opt.model > 1 then
-    nModel = 1
-    print('Averaging all the results...')
-    local totalModelName = {}
-    for i = 1, #opt.model do
-        table.insert(totalModelName, opt.model[i]:split('%.')[1])
-    end
-    for i = 1, #ensemble do
-        testList[i].saveImg = ensemble[i]:div(#opt.model)
-    end
-    local ensembleElapsed = globalTimer:time().real
-    print(('[Ensemble time] %.3fs (average %.3fs)'):format(ensembleElapsed, ensembleElapsed / #ensemble))
-
-    local saveTimer = torch.Timer()
-    for i = 1, #ensemble do
-        saveImage(testList[i], table.concat(totalModelName, '_'))
-    end
-    local saveElapsed = saveTimer:time().real
-    print(('[Save time] %.3fs (average %.3fs)\n'):format(saveElapsed, saveElapsed / #ensemble))
-end
+pool:terminate()
 
 local totalElapsed = globalTimer:time().real
-print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / nModel))
+print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / #testList))
