@@ -19,16 +19,19 @@ function M.parse(arg)
     cmd:option('-save',             now,                'Subdirectory to save/log experiments in')
     -- Data
     cmd:option('-datadir',          '/var/tmp/dataset', 'Dataset location')
-    cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | imagenet')
+    cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
+    cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
-    cmd:option('-degrade',          'bicubic',          'Degrade type: bicubic | unknwon')
+    cmd:option('-degrade',          'bicubic',          'Degrade type: bicubic | unknown')
     cmd:option('-numVal',           10,                 'Number of images for validation')
     cmd:option('-rejection',        -1,                 'Enables patch rejection which has low gradient (uninformative)')
     cmd:option('-rejectionTarget',  'input',            'Reject patches based on input | target patch gradient')
     cmd:option('-colorAug',         'false',            'Apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',          'true',             'Data pre-processing: subtract mean')
     cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
+    cmd:option('-inverse',          'false',            'If inverse is true, learn downsampling operation')
+    cmd:option('-flickr2kSize',     2650,               'Number of images in Flickr2K dataset')
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,                  'Manual epoch number for resuming the training. Default is the end')
@@ -109,6 +112,13 @@ function M.parse(arg)
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
     opt.isSwap = opt.isSwap == 'true'
+    opt.useDIV2K = opt.useDIV2K == 'true'
+
+    opt.inverse = opt.inverse == 'true'
+    if opt.inverse then
+        opt.degrade = 'unknown'
+        opt.netType = 'unknown_downnet'
+    end
 
     opt.scale = opt.scale:split('_')
     opt.psnrLabel = {}
