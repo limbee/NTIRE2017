@@ -132,9 +132,9 @@ function flickr2k:get(idx, scaleIdx)
     --Reject the patch that has small size of spatial gradient
     if self.split == 'train' and self.opt.rejection ~= -1 then
         local grT, grP = nil, nil
-        if self.opt.rejectionTarget == 'input' then
+        if self.opt.rejectionType == 'input' then
             grT, grP = input, inputPatch
-        elseif self.opt.rejectionTarget == 'target' then
+        elseif self.opt.rejectionType == 'target' then
             grT, grP = target, targetPatch
         end
 
