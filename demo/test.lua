@@ -2,6 +2,7 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
+require 'threads'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
@@ -12,7 +13,7 @@ cmd:option('-progress',     'true',     'show current progress')
 cmd:option('-model',        'resnet',   'substring of model name')
 cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
 cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
-cmd:option('-scaleSwap',    -1,         'Model swap')
+cmd:option('-swap',         -1,         'Model swap')
 cmd:option('-gpuid',	    1,		    'GPU id for use')
 cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
 cmd:option('-dataDir',	    '/var/tmp', 'data directory')
@@ -35,14 +36,14 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
-local function scaleSwap(model)
+local function swap(model)
     local sModel = nn.Sequential()
     sModel
         :add(model:get(1))
         :add(model:get(2))
         :add(model:get(3))
-        :add(model:get(4):get(opt.scaleSwap))
-        :add(model:get(5):get(opt.scaleSwap))
+        :add(model:get(4):get(opt.swap))
+        :add(model:get(5):get(opt.swap))
 
     return sModel:cuda()
 end
@@ -148,21 +149,17 @@ for i = 1, #opt.model do
             print('Model: [' .. modelName .. ']')
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
-                opt.scaleSwap = (opt.scaleSwap == -1) and (opt.scale - 1) or opt.scaleSwap
-                model = scaleSwap(model)
+                opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
+                model = swap(model)
             end
-            model:evaluate()
 
-            if opt.nGPU > 1 and opt.selfEnsemble then
+            if opt.nGPU > 1 then
                 local gpus = torch.range(1, opt.nGPU):totable()
                 local dpt = nn.DataParallelTable(1, true, true)
                     :add(model, gpus)
-                    :threads(function()
-                        local cudnn = require 'cudnn'
-                        cudnn.fastest, cudnn.benchmark = false, false
-                    end)
                 model = dpt:cuda()
             end
+            model:evaluate()
 
             local setTimer = torch.Timer()
             for j = 1, #testList do
@@ -179,7 +176,7 @@ for i = 1, #opt.model do
                 else
                     local c, h, w = table.unpack(input:size():totable())
                     output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale,
-                        opt.chopShave, opt.chopSize)
+                        opt.chopShave, opt.chopSize, opt.nGPU)
                 end
 
                 if #opt.model > 1 then
@@ -195,6 +192,7 @@ for i = 1, #opt.model do
                 input = nil
                 target = nil
                 output = nil
+                model:clearState()
                 collectgarbage()
                 collectgarbage()
 
