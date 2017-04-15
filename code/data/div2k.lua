@@ -263,7 +263,7 @@ function div2k:getFileName(idx, scale)
         if self.opt.netType == 'recurVDSR' then
             inputName = 'SRres' .. fileName .. 'x' .. scale .. self.ext
         else
-            if self.opt.augUnk then
+            if self.split == 'train' and self.opt.augUnk then
                 rot = math.random(1,8)
                 inputName = fileName .. 'x' .. scale .. '_' .. rot .. self.ext
             else
