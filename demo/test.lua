@@ -11,6 +11,8 @@ cmd:option('-dataset',      'DIV2K',    'test dataset')
 cmd:option('-mulImg',       255,        'multiply constant to input image')
 cmd:option('-progress',     'true',     'show current progress')
 cmd:option('-model',        'resnet',   'substring of model name')
+cmd:option('-save',         '.',        'Save as')
+cmd:option('-ensembleW',    '-1',        'Ensemble weight')
 cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
 cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
 cmd:option('-swap',         -1,         'Model swap')
@@ -25,11 +27,27 @@ cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
 opt.model = opt.model:split('+')
+opt.ensembleW = opt.ensembleW:split('_')
+for i = 1, #opt.ensembleW do
+    opt.ensembleW[i] = tonumber(opt.ensembleW[i])
+end
+if #opt.ensembleW > 1 then
+
+end
 opt.selfEnsemble = (opt.selfEnsemble == 'true')
 
 local util = require '../code/utils'(opt)
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
+
+local pool = threads.Threads(
+    opt.nThreads,
+    function(threadid)
+        print('Starting a background thread...')
+        require 'cunn'
+        require 'image'
+    end
+)
 
 --Prepare the dataset for demo
 print('Preparing dataset...')
@@ -50,8 +68,9 @@ local function swap(model)
 end
 
 local function saveImage(info, modelName)
-    util:quantize(info.saveImg, opt.mulImg)
+    info.saveImg:mul(255 / opt.mulImg):add(0.5):floor():div(255)
     info.saveImg = info.saveImg:squeeze(1)
+    modelName = (opt.save == '.') and modelName or opt.save
     if opt.type == 'bench' or opt.type == 'val' then
         local targetDir = paths.concat('img_target', modelName, info.setName)
         local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
@@ -61,9 +80,9 @@ local function saveImage(info, modelName)
         if not paths.dirp(outputDir) then
             paths.mkdir(outputDir)
         end
-        local target = image.load(paths.concat(dataDir, info.setName, info.fileName), 3, 'float')
-        target = target[{{}, {1, info.saveImg:size(2)}, {1, info.saveImg:size(3)}}]
-        image.save(paths.concat(targetDir, info.fileName), target)
+        local targetFrom = paths.concat(dataDir, info.setName, info.fileName)
+        local targetTo = paths.concat(targetDir, info.fileName)
+        os.execute('cp ' .. targetFrom .. ' ' .. targetTo)
         image.save(paths.concat(outputDir, info.fileName), info.saveImg)
     elseif opt.type == 'test' then
         local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
@@ -74,6 +93,7 @@ local function saveImage(info, modelName)
     end
 
     info.saveImg = nil
+    collectgarbage()
     collectgarbage()
 end
 
@@ -140,15 +160,6 @@ if #opt.model > 1 then
     print('')
 end
 
-local pool = threads.Threads(
-    opt.nThreads,
-    function(threadid)
-        print('Starting a background thread...')
-        require 'cunn'
-        require 'image'
-    end
-)
-
 local globalTimer = torch.Timer()
 local nModel = 0
 local totalModelName = {}
@@ -196,10 +207,11 @@ for i = 1, #opt.model do
                 end
 
                 if #opt.model > 1 then
+                    local ensembleWeight = (#opt.ensembleW) == 1 and 1 or opt.ensembleW[i] * #opt.model
                     if #ensemble < j then
-                        table.insert(ensemble, output)
+                        table.insert(ensemble, output:mul(ensembleWeight))
                     else
-                        ensemble[j]:add(output)
+                        ensemble[j]:add(output:mul(ensembleWeight))
                     end
                 else
                     testList[j].saveImg = output:float()
@@ -211,35 +223,10 @@ for i = 1, #opt.model do
                     end
                     pool:addjob(
                         function()
-                            testList[j].saveImg:mul(255 / opt.mulImg):add(0.5):floor():div(255)
-                            testList[j].saveImg = testList[j].saveImg:squeeze(1)
-                            if opt.type == 'bench' or opt.type == 'val' then
-                                local targetDir = paths.concat('img_target', modelName, testList[j].setName)
-                                local outputDir = paths.concat('img_output', modelName, testList[j].setName, Xs)
-                                if not paths.dirp(targetDir) then
-                                    paths.mkdir(targetDir)
-                                end
-                                if not paths.dirp(outputDir) then
-                                    paths.mkdir(outputDir)
-                                end
-                                local target = image.load(paths.concat(dataDir, testList[j].setName, testList[j].fileName), 3, 'float')
-                                target = target[{{}, {1, testList[j].saveImg:size(2)}, {1, testList[j].saveImg:size(3)}}]
-                                image.save(paths.concat(targetDir, testList[j].fileName), target)
-                                image.save(paths.concat(outputDir, testList[j].fileName), testList[j].saveImg)
-                            elseif opt.type == 'test' then
-                                local outputDir = paths.concat('img_output', modelName, testList[j].setName, Xs)
-                                if not paths.dirp(outputDir) then
-                                    paths.mkdir(outputDir)
-                                end
-                                image.save(paths.concat(outputDir, testList[j].fileName), testList[j].saveImg)
-                            end
-
-                            testList[j].saveImg = nil
-                            collectgarbage()
+                            saveImage(testList[j], modelName)
                             return __threadid
                         end,
                         function(id)
-                            return
                         end
                     )
                 end

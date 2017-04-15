@@ -203,37 +203,21 @@ end
 function util:swapModel(model, index)
     local sModel = nn.Sequential()
 
-    if self.opt.netType == 'moresnet' and self.opt.mobranch < 1 then
-        local sSeq = nn.Sequential()
-        for i = 1, model:size() do
-            local subModel = model:get(i)
-            local modelName = subModel.__typename
-            if modelName:find('Sequential') then
-                local mainSeq = subModel:get(1):get(2)
-                for j = 1, mainSeq:size() - 1 do
-                    sSeq:add(mainSeq:get(j))
-                end
-                subSeq = mainSeq:get(mainSeq:size()):get(index)
-                for j = 1, subSeq:size() do
-                    sSeq:add(subSeq:get(j))
-                end
-                sModel:add(nn.ConcatTable()
-                            :add(nn.Identity())
-                            :add(sSeq))
-                        :add(nn.CAddTable(true))
-            elseif modelName:find('ParallelTable') then
-                sModel:add(subModel:get(index))
-            elseif not modelName:find('MultiSkipAdd') then
-                sModel:add(subModel)
-            end
-        end
-    elseif self.opt.netType == 'moresnet' then
+    if self.opt.netType == 'moresnet' then
         sModel
             :add(model:get(1))
             :add(model:get(2))
             :add(model:get(3))
             :add(model:get(4):get(index))
             :add(model:get(5):get(index))
+    elseif self.opt.netType == 'moresnet_unknown' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(index))
+            :add(model:get(4))
+            :add(model:get(5):get(index))
+            :add(model:get(6):get(index))
     end
 
     if self.opt.nGPU == 1 then
