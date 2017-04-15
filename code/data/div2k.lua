@@ -8,9 +8,7 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    --self.size = 801
-    --self.offset = self.size - self.opt.numVal
-    self.size = 800
+    self.size = 900
     self.offset = 790 -- offset + 1 ~ offset + numVal images are used to validate the training
     self.numVal = opt.numVal
     self.scale = self.opt.scale
