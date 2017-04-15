@@ -20,6 +20,7 @@ function M.parse(arg)
     -- Data
     cmd:option('-datadir',          '/var/tmp/dataset', 'Dataset location')
     cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
+    cmd:option('-augUnk',           'true',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
@@ -112,7 +113,9 @@ function M.parse(arg)
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
     opt.isSwap = opt.isSwap == 'true'
+
     opt.useDIV2K = opt.useDIV2K == 'true'
+    opt.augUnk = opt.augUnk == 'true'
 
     opt.inverse = opt.inverse == 'true'
     if opt.inverse then
