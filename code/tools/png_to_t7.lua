@@ -11,11 +11,13 @@ cmd:option('-apath',        '/var/tmp/dataset',     'Absolute path of the DIV2K 
 cmd:option('-dataset',      'DIV2K',                'Dataset to convert: DIV2K | Flickr2K')
 cmd:option('-scale',        '2_3_4',                'Scales to pack')
 cmd:option('-split',        'true',                 'split or pack')
+cmd:option('-augment',      'true',                 'pre-augment dataset, useful for unknown downsampling')
 cmd:option('-printEvery',   100,                    'print the progress # every iterations')
 
 local opt = cmd:parse(arg or {})
 opt.scale = opt.scale:split('_')
 opt.split = (opt.split == 'true')
+opt.augment = (opt.augment == 'true')
 for i = 1, #opt.scale do
     opt.scale[i] = tonumber(opt.scale[i])
 end
@@ -35,6 +37,13 @@ if opt.dataset == 'DIV2K' then
         'DIV2K_test_LR_bicubic',
         'DIV2K_test_LR_unknown'
     }
+    if opt.augment then
+        -- table.insert(lrDir, 'DIV2K_train_LR_bicubic_augment')
+        -- table.insert(lrDir, 'DIV2K_test_LR_bicubic_augment')
+
+        table.insert(lrDir, 'DIV2K_train_LR_unknown_augment')
+        table.insert(lrDir, 'DIV2K_test_LR_unknown_augment')
+    end
 elseif opt.dataset == 'Flickr2K' then
     targetPath = paths.concat(opt.apath, 'Flickr2K')
     outputPath = paths.concat(opt.apath, 'Flickr2K_decoded')
@@ -45,6 +54,10 @@ elseif opt.dataset == 'Flickr2K' then
         'Flickr2K_LR_bicubic',
         'Flickr2K_LR_unknown'
     }
+    if opt.augment then
+        -- table.insert(lrDir, 'Flickr2K_LR_bicubic_augment')
+        table.insert(lrDir, 'Flickr2K_LR_unknown_augment')
+    end
 else
     error('unknown dataset type!')
 end
