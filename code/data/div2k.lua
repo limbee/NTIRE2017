@@ -48,7 +48,7 @@ function div2k:__init(opt, split)
 
     --Load single .t7 files that contains all dataset
     if opt.datatype == 't7pack' then
-        asssert(not opt.augUnk, 'Cannot use t7pack if you select -augUnk true')
+        assert(not opt.augUnk, 'Cannot use t7pack if you select -augUnk true')
         print('\tLoading t7pack:')
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file
