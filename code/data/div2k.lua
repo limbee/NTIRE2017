@@ -132,7 +132,7 @@ function div2k:get(idx, scaleIdx)
     elseif rot == 7 then
         target = (image.hflip(target)):transpose(2,3)
     elseif rot == 8 then
-        target = (image.hflip(image.vflip(taget))):transpose(2,3)
+        target = (image.hflip(image.vflip(target))):transpose(2,3)
     end
 
     local _, h, w = unpack(target:size():totable())
