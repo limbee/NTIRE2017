@@ -12,12 +12,17 @@ cmd:option('-dataset',      'DIV2K',                'Dataset to convert: DIV2K |
 cmd:option('-scale',        '2_3_4',                'Scales to pack')
 cmd:option('-split',        'true',                 'split or pack')
 cmd:option('-augment',      'true',                 'pre-augment dataset, useful for unknown downsampling')
+cmd:option('-hr',           'true',                 'Generate HR data')
+cmd:option('-lr',           'true',                 'Generate LR data')
+cmd:option('-lrAug',        'true',                 'Generate pre-augmented unknown LR data')
 cmd:option('-printEvery',   100,                    'print the progress # every iterations')
 
 local opt = cmd:parse(arg or {})
 opt.scale = opt.scale:split('_')
-opt.split = (opt.split == 'true')
-opt.augment = (opt.augment == 'true')
+opt.split = opt.split == 'true'
+opt.hr = opt.hr == 'true'
+opt.lr = opt.lr == 'true'
+opt.lrAug = opt.lrAug == 'true'
 for i = 1, #opt.scale do
     opt.scale[i] = tonumber(opt.scale[i])
 end
@@ -25,41 +30,36 @@ end
 local targetPath, outputPath
 local hrDir, lrDir
 
+local targetPath = paths.concat(opt.apath, opt.dataset)
+local outputPath = paths.concat(opt.apath, opt.dataset .. '_decoded')
+
 if opt.dataset == 'DIV2K' then
-    targetPath = paths.concat(opt.apath, 'DIV2K')
-    outputPath = paths.concat(opt.apath, 'DIV2K_decoded')
-
     hrDir = 'DIV2K_train_HR'
-    lrDir =
-    {
-        'DIV2K_train_LR_bicubic',
-        'DIV2K_train_LR_unknown',
-        'DIV2K_test_LR_bicubic',
-        'DIV2K_test_LR_unknown'
-    }
-    if opt.augment then
-        -- table.insert(lrDir, 'DIV2K_train_LR_bicubic_augment')
-        -- table.insert(lrDir, 'DIV2K_test_LR_bicubic_augment')
-
+    lrDir = {}
+    if opt.lr then
+        lrDir =  
+        {
+            'DIV2K_train_LR_bicubic',
+            'DIV2K_train_LR_unknown',
+            'DIV2K_test_LR_bicubic',
+            'DIV2K_test_LR_unknown'
+        }
+    end
+    if opt.lrAug then
         table.insert(lrDir, 'DIV2K_train_LR_unknown_augment')
-        table.insert(lrDir, 'DIV2K_test_LR_unknown_augment')
     end
 elseif opt.dataset == 'Flickr2K' then
-    targetPath = paths.concat(opt.apath, 'Flickr2K')
-    outputPath = paths.concat(opt.apath, 'Flickr2K_decoded')
-
     hrDir = 'Flickr2K_HR'
-    lrDir =
-    {
-        'Flickr2K_LR_bicubic',
-        'Flickr2K_LR_unknown'
-    }
-    if opt.augment then
-        -- table.insert(lrDir, 'Flickr2K_LR_bicubic_augment')
+    if opt.lr then
+        lrDir =
+        {
+            'Flickr2K_LR_bicubic',
+            'Flickr2K_LR_unknown'
+        }
+    end
+    if opt.lrAug then
         table.insert(lrDir, 'Flickr2K_LR_unknown_augment')
     end
-else
-    error('unknown dataset type!')
 end
 
 if not paths.dirp(outputPath) then
@@ -70,13 +70,12 @@ if not paths.dirp(paths.concat(outputPath, hrDir)) then
     paths.mkdir(paths.concat(outputPath, hrDir))
 end
 
-local convertTable = 
-    {
-        {
-            tDir = paths.concat(targetPath, hrDir), 
-            oDir = paths.concat(outputPath, hrDir)
-        }
-    }
+local convertTable = {}
+if opt.hr then
+    table.insert(convertTable,
+        {tDir = paths.concat(targetPath, hrDir), 
+        oDir = paths.concat(outputPath, hrDir)})
+end
 
 for i = 1, #lrDir do
     for j = 1, #opt.scale do
