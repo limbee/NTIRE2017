@@ -40,7 +40,7 @@ function div2k:__init(opt, split)
         if not opt.augUnk then
             table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
         else
-            table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade .. '_augmented', 'X' .. self.scale[i]))
+            table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade .. '_augment', 'X' .. self.scale[i]))
         end
         self.dirInp[i] = opt.dataSize == 'small' and self.dirInp[i] or self.dirInp[i]
         self.dirInp[i] = opt.netType ~= 'recurVDSR' and self.dirInp[i] or self.dirInp[i] .. '_SRresOutput'
@@ -126,7 +126,7 @@ function div2k:get(idx, scaleIdx)
     elseif rot == 4 then
         target = image.hflip(image.vflip(target))
     elseif rot == 5 then
-        target = target:transppose(2,3)
+        target = target:transpose(2,3)
     elseif rot == 6 then
         target = (image.vflip(target)):transpose(2,3)
     elseif rot == 7 then
