@@ -28,7 +28,7 @@ local function createModel(opt)
                 :add(act(actParams))
                 :add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))))
         end
-        branch:add(addSkip) 
+        branch:add(deblur) 
     end
     refModel:insert(branch, 3)
 

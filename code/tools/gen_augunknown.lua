@@ -1,22 +1,12 @@
 require 'cunn'
 require 'cudnn'
 require 'image'
-local threads = require 'threads'
-
-local pool = threads.Threads(
-    3,
-    function(threadid)
-        print('Starting a background thread...')
-        require 'cunn'
-        require 'image'
-    end
-)
 
 local saveAs = '.png'
 local nGPU = 2
 
 local modelDir = '../../../downsamplers'
-local apath = '/var/tmp/dataset'
+local apath = '../../../dataset'
 local hrDir = paths.concat(apath, 'DIV2K/DIV2K_train_HR')
 local lrDir = paths.concat(apath, 'DIV2K/DIV2K_train_LR_unknown_augment')
 
@@ -63,13 +53,12 @@ for sc = 2,4 do
             LR:add(0.5):floor():div(255)
             for j = 1, nBatch do
                 local savename = paths.concat(save_dir, fileName .. '_' .. i + j - 1 .. '.png')
-                image.save(savename, LR[j])
+                image.save(savename, LR[j]:clone())
             end
             model:clearState()
+            LR = nil
             collectgarbage()
             collectgarbage()
         end
 	end
 end
-pool:synchronize()
-pool:terminate()

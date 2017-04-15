@@ -53,15 +53,14 @@ function Trainer:train(epoch, dataloader)
     local pe = self.opt.printEvery
     local te = self.opt.testEvery
 
-    local isSwap = self.opt.isSwap
-    local swapTable = self:prepareSwap(isSwap)
-    local tempModel = nil
-
     cudnn.fastest = true
     cudnn.benchmark = true
 
-    self.model:clearState()
+    local isSwap = self.opt.isSwap
+    --local swapTable = self:prepareSwap(isSwap)
+    local tempModel = nil
 
+    self.model:clearState()
 
     self.model:training()
     self:getParams()
@@ -136,12 +135,12 @@ function Trainer:test(epoch, dataloader)
         table.insert(avgPSNR, 0)
     end
 
-    local isSwap = self.opt.isSwap
-    local swapTable = self:prepareSwap(isSwap)
-    local tempModel = nil
-
     cudnn.fastest = false
     cudnn.benchmark = false
+
+    local isSwap = self.opt.isSwap
+    --local swapTable = self:prepareSwap(isSwap)
+    local tempModel = nil
 
     self.model:clearState()
     local modelTest = nil
@@ -181,11 +180,6 @@ function Trainer:test(epoch, dataloader)
                 output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
             end
 
-            if isSwap then
-                --Return to original model
-                modelTest = tempModel
-            end
-
             if self.opt.selOut > 0 then
                 output = output[selOut]
             end
@@ -203,6 +197,12 @@ function Trainer:test(epoch, dataloader)
             self.input.test = nil
             self.target = nil
             output = nil
+
+            if isSwap then
+                --Return to original model
+                modelTest = tempModel
+            end
+
             collectgarbage()
             collectgarbage()
         end
@@ -287,7 +287,20 @@ function Trainer:prepareSwap(isSwap)
     local ret = {}
     if isSwap then
         for i = 1, #self.scale do
-            table.insert(ret, self.util:swapModel(self.model, i))
+            local tempModel = self.util:swapModel(self.model, i)
+            if self.opt.nGPU > 1 then
+                local gpus = torch.range(1, self.opt.nGPU):totable()
+                local fastest, benchmark = cudnn.fastest, cudnn.benchmark
+                local dpt = nn.DataParallelTable(1, true, true)
+                    :add(tempModel, gpus)
+                    :threads(function()
+                        local cudnn = require 'cudnn'
+                        cudnn.fastest, cudnn.benchmark = fastest, benchmark
+                    end)
+                dpt.gradInput = nil
+                tempModel = dpt:cuda()
+            end
+            table.insert(ret, tempModel)
         end
     end
     return ret

@@ -10,7 +10,7 @@ function div2k:__init(opt, split)
 
     --self.size = 801
     --self.offset = self.size - self.opt.numVal
-    self.size = 800
+    self.size = 900
     self.offset = 790 -- offset + 1 ~ offset + numVal images are used to validate the training
     self.numVal = opt.numVal
     self.scale = self.opt.scale
@@ -48,7 +48,6 @@ function div2k:__init(opt, split)
 
     --Load single .t7 files that contains all dataset
     if opt.datatype == 't7pack' then
-        asssert(not opt.augUnk, 'Cannot use t7pack if you select -augUnk true')
         print('\tLoading t7pack:')
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file
@@ -105,6 +104,7 @@ function div2k:get(idx, scaleIdx)
     local input, target
     local inputName, targetName, rot
     if self.opt.datatype == 't7pack' then
+        rot = 1
         input = self.t7Inp[scaleIdx][idx]
         target = self.t7Tar[idx]
     elseif self.opt.datatype == 't7' then
@@ -266,7 +266,7 @@ function div2k:getFileName(idx, scale)
             inputName = 'SRres' .. fileName .. 'x' .. scale .. self.ext
         else
             if self.opt.augUnk then
-                rot = math.random(1,8)
+                rot = torch.random(1,8)
                 inputName = fileName .. 'x' .. scale .. '_' .. rot .. self.ext
             else
                 rot = nil
