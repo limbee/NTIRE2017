@@ -21,36 +21,34 @@ Unknown X4 |  |  |
 * nccl (Optional, for faster GPU communication)
 
 ## Code
-Clone this repository into $makeReposit:
+1. Clone this repository into $makeReposit:
 ```bash
-  makeReposit = /home/LBNet/
-  mkdir -p $makeReposit/; cd $makeReposit/
-  git clone https://github.com/LimBee/NTIRE2017.git
+makeReposit = /home/LBNet/
+mkdir -p $makeReposit/; cd $makeReposit/
+git clone https://github.com/LimBee/NTIRE2017.git
 ```
 
 ## Dataset
-* Please download the dataset from below.
-  - DIV2K produced by NTIRE2017
+1. Please download the dataset from below.
+  * DIV2K produced by NTIRE2017
     ```bash
     makeData = /var/tmp/dataset/ # set absolute path as desired
     mkdir -p $makeData/; cd $makedata/
     wget https://cv.snu.ac.kr/~/DIV2K.tar
     tar -xvf DIV2K.tar
     ```
-  - Flickr2K collected by Flickr
+  * Flickr2K collected by Flickr
     ```bash
     makeData = /var/tmp/dataset/ # set absolute path as desired
     mkdir -p $makeData/; cd $makedata/
     wget https://cv.snu.ac.kr/~/Flickr2K.tar
     tar -xvf Flickr2K.tar
     ```
-
-
-* Convert downloaded dataset into .t7 files (recommended)
+2. Convert downloaded dataset into .t7 files (recommended)
   ```bash
   cd makeReposit/NTIRE2017/code/tools
   ```
-  - To train DIV2K
+  * To train DIV2K
     ```bash
     #This command generates multiple t7 files for
     #each images in DIV2K_train_HR folder
@@ -61,7 +59,7 @@ Clone this repository into $makeReposit:
     #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
     th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
     ```
-  - To train Flickr2K
+  * To train Flickr2K
     ```bash
     #This command generates multiple t7 files for
     #each images in Flickr2K_HR folder
@@ -72,7 +70,6 @@ Clone this repository into $makeReposit:
 ## Quick Start(Demo)
 
 1. Download Dataset into $makeData:
-
 
 
 3. Download pre-trained Individual and MultiScale models:
