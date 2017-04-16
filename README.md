@@ -22,11 +22,11 @@ Unknown X4 |  |  |
 
 ## Code
 1. Clone this repository into $makeReposit:
-```bash
-makeReposit = /home/LBNet/
-mkdir -p $makeReposit/; cd $makeReposit/
-git clone https://github.com/LimBee/NTIRE2017.git
-```
+   ```bash
+   makeReposit = /home/LBNet/
+   mkdir -p $makeReposit/; cd $makeReposit/
+   git clone https://github.com/LimBee/NTIRE2017.git
+   ```
 
 ## Dataset
 1. Please download the dataset from below.
@@ -45,15 +45,16 @@ git clone https://github.com/LimBee/NTIRE2017.git
     tar -xvf Flickr2K.tar
     ```
 2. Convert downloaded dataset into .t7 files (recommended)
-  ```bash
-  cd makeReposit/NTIRE2017/code/tools
-  ```
+   ```bash
+   cd makeReposit/NTIRE2017/code/tools
+   ```
   * To train DIV2K
     ```bash
     #This command generates multiple t7 files for
     #each images in DIV2K_train_HR folder
     th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
     ```
+    or
     ```bash
     #This command generates a single t7 file that contains
     #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
