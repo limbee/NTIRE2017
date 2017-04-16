@@ -3,7 +3,7 @@
 ## Introduction
 This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
 
-By [SNU-CVLAB](http://cv.snu.ac.kr/) Members, Lim Bee, Sanghyun Son, Seungjun Nah, Heewon Kim
+By [SNU-CVLAB](http://cv.snu.ac.kr/?page_id=57) Members; Seungjun Nah, Lim Beem Heewon Kim, Sanghyun Son
 
 ## Challenge Results
 Statistics | Individual Models| MultiScale Model| Leaderboard No.(IM/MSM) 
@@ -21,15 +21,21 @@ Unknown X4 |  |  |
 * nccl (Optional, for faster GPU communication)
 
 ## Code
+Clone this repository into $makeReposit:
+```bash
+  makeReposit = /home/LBNet/
+  mkdir -p $makeReposit/; cd $makeReposit/
+  git clone https://github.com/LimBee/NTIRE2017.git
+```
 
 ## Dataset
-Download Dataset
+Please download the dataset from below.
 * DIV2K produced by NTIRE2017
 ```bash
- makeData = /var/tmp/dataset/ # set absolute path as desired
- mkdir -p $makeData/; cd $makedata/
- wget https://cv.snu.ac.kr/~/DIV2K.tar
- tar -xvf DIV2K.tar
+  makeData = /var/tmp/dataset/ # set absolute path as desired
+  mkdir -p $makeData/; cd $makedata/
+  wget https://cv.snu.ac.kr/~/DIV2K.tar
+  tar -xvf DIV2K.tar
 ```
 * Flickr2K collected by Flickr
 ```bash
@@ -39,18 +45,32 @@ Download Dataset
  tar -xvf Flickr2K.tar
 ```
    
+Convert downloaded dataset into .t7 files (recommended)
+* To train DIV2K
+```bash
+  cd makeReposit/NTIRE2017/code/tools
 
+  #This command generates multiple t7 files for
+  #each images in DIV2K_train_HR folder
+  th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
+
+  #This command generates a single t7 file that contains
+  #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
+  th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
+```
+* To train Flickr2K
+```bash
+  #This command generates multiple t7 files for
+  #each images in Flickr2K_HR folder
+  th png_to_t7.lua -apath $makeData -dataset Flickr2K -split true
+```
+
+* Or, you can use just .png files
 ## Quick Start(Demo)
 
 1. Download Dataset into $makeData:
 
-2. Clone this repository into $makeReposit:
 
-   ```bash
-   makeReposit = /home/LBNet/
-   mkdir -p $makeReposit/; cd $makeReposit/
-   git clone https://github.com/LimBee/NTIRE2017.git
-   ```
 
 3. Download pre-trained Individual and MultiScale models:
 
