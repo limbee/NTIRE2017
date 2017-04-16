@@ -8,8 +8,6 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    --self.size = 801
-    --self.offset = self.size - self.opt.numVal
     self.size = 900
     self.offset = 790 -- offset + 1 ~ offset + numVal images are used to validate the training
     self.numVal = opt.numVal
@@ -48,6 +46,7 @@ function div2k:__init(opt, split)
 
     --Load single .t7 files that contains all dataset
     if opt.datatype == 't7pack' then
+        assert(not opt.augUnk, 'Cannot use t7pack if you select -augUnk true')
         print('\tLoading t7pack:')
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file

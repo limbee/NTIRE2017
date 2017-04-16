@@ -287,20 +287,16 @@ function Trainer:prepareSwap(isSwap)
     local ret = {}
     if isSwap then
         for i = 1, #self.scale do
-            local tempModel = self.util:swapModel(self.model, i)
+            local subModel = self.util:swapModel(self.model, i)
             if self.opt.nGPU > 1 then
                 local gpus = torch.range(1, self.opt.nGPU):totable()
-                local fastest, benchmark = cudnn.fastest, cudnn.benchmark
                 local dpt = nn.DataParallelTable(1, true, true)
-                    :add(tempModel, gpus)
-                    :threads(function()
-                        local cudnn = require 'cudnn'
-                        cudnn.fastest, cudnn.benchmark = fastest, benchmark
-                    end)
+                    :add(subModel, gpus)
                 dpt.gradInput = nil
-                tempModel = dpt:cuda()
+                table.insert(ret, dpt:cuda())
+            else
+                table.insert(ret, subModel)
             end
-            table.insert(ret, tempModel)
         end
     end
     return ret

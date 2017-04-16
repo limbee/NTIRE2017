@@ -146,9 +146,10 @@ function util:load()
             elseif self.opt.startEpoch > 1 and self.opt.startEpoch <= numLoss then
                 print(('Resuming the training from %d epoch'):format(self.opt.startEpoch))
                 local _loss, _psnr, _lr = {}, {}, {}
-                local lastIter = loss[#loss].key
+                --local lastIter = loss[#loss].key
+                local lastIter = loss[self.opt.startEpoch - 1].key
                 for i = 1, #loss do
-                    if loss[i].key < lastIter then
+                    if loss[i].key <= lastIter then
                         table.insert(_loss, loss[i])
                         table.insert(_lr, lr[i])
                     end
@@ -156,8 +157,8 @@ function util:load()
                 for i = 1, #self.opt.scale do
                     table.insert(_psnr, {})
                     for j = 1, #psnr do
-                        if psnr[i][j].key < lastIter then
-                            table.insert(_psnr, psnr[i][j])
+                        if psnr[i][j].key <= lastIter then
+                            table.insert(_psnr[i], psnr[i][j])
                         end
                     end
                 end
@@ -219,9 +220,14 @@ function util:swapModel(model, index)
             :add(model:get(5):get(index))
             :add(model:get(6):get(index))
     end
-
     if self.opt.nGPU == 1 then
         return sModel
+    else
+        local gpus = torch.range(1, self.opt.nGPU):totable()
+        local dpt = nn.DataParallelTable(1, true, true)
+            :add(sModel, gpus)
+        dpt.gradInput = nil
+        return dpt:cuda()
     end
 end
 

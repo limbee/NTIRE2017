@@ -116,6 +116,9 @@ function M.parse(arg)
 
     opt.useDIV2K = opt.useDIV2K == 'true'
     opt.augUnk = opt.augUnk == 'true'
+	if opt.degrade == 'bicubic' then
+		opt.augUnk = false
+	end
 
     opt.inverse = opt.inverse == 'true'
     if opt.inverse then
