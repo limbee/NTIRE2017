@@ -156,7 +156,7 @@ function util:load()
                 end
                 for i = 1, #self.opt.scale do
                     table.insert(_psnr, {})
-                    for j = 1, #psnr do
+                    for j = 1, #psnr[i] do
                         if psnr[i][j].key <= lastIter then
                             table.insert(_psnr[i], psnr[i][j])
                         end
