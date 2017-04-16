@@ -49,23 +49,21 @@ function flickr2k:__init(opt, split)
         end
     end
 
-    if opt.useDIV2K then
-        if opt.datatype == 'png' then
-            apath = paths.concat(opt.datadir, 'DIV2K')
-        elseif opt.datatype == 't7' then
-            apath = paths.concat(opt.datadir, 'DIV2K_decoded')
-        end
-        self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
-        self.dirInp_DIV2K = {}
-        for i = 1, #self.scale do
-            local orgPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i])
-            local augPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
+    if opt.datatype == 'png' then
+        apath = paths.concat(opt.datadir, 'DIV2K')
+    elseif opt.datatype == 't7' then
+        apath = paths.concat(opt.datadir, 'DIV2K_decoded')
+    end
+    self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
+    self.dirInp_DIV2K = {}
+    for i = 1, #self.scale do
+        local orgPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i])
+        local augPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
 
-            if not opt.augUnk then
-                table.insert(self.dirInp_DIV2K, orgPath)
-            else
-                table.insert(self.dirInp_DIV2K, augPath)
-            end
+        if not opt.augUnk then
+            table.insert(self.dirInp_DIV2K, orgPath)
+        else
+            table.insert(self.dirInp_DIV2K, augPath)
         end
     end
     collectgarbage()
