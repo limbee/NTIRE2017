@@ -54,11 +54,13 @@ Convert downloaded dataset into .t7 files (recommended)
   #This command generates multiple t7 files for
   #each images in DIV2K_train_HR folder
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
-
+  ```
+  ```bash
   #This command generates a single t7 file that contains
   #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
   ```
+  
 * To train Flickr2K
   ```bash
   #This command generates multiple t7 files for
