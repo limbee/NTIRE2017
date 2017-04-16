@@ -34,20 +34,40 @@ function flickr2k:__init(opt, split)
     self.dirTar = paths.concat(apath, 'Flickr2K_HR')
     self.dirInp = {}
     for i = 1, #self.scale do
-        table.insert(self.dirInp, paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade, 'X' .. self.scale[i]))
+        local orgPath = paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade, 'X' .. self.scale[i])
+        local augPath = paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
+        
+        if (not paths.dirp(augPath)) and opt.augUnk then
+            print('Augmented unknown dataset is not exist.')
+            opt.augUnk = false
+        end
+
+        if not opt.augUnk then
+            table.insert(self.dirInp, orgPath)
+        else
+            table.insert(self.dirInp, augPath)
+        end
     end
 
-    if opt.datatype == 'png' then
-        apath = paths.concat(opt.datadir, 'DIV2K')
-    elseif opt.datatype == 't7' then
-        apath = paths.concat(opt.datadir, 'DIV2K_decoded')
-    end
-    self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
-    self.dirInp_DIV2K = {}
-    for i = 1, #self.scale do
-        table.insert(self.dirInp_DIV2K, paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i]))
-    end
+    if opt.useDIV2K then
+        if opt.datatype == 'png' then
+            apath = paths.concat(opt.datadir, 'DIV2K')
+        elseif opt.datatype == 't7' then
+            apath = paths.concat(opt.datadir, 'DIV2K_decoded')
+        end
+        self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
+        self.dirInp_DIV2K = {}
+        for i = 1, #self.scale do
+            local orgPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i])
+            local augPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
 
+            if not opt.augUnk then
+                table.insert(self.dirInp_DIV2K, orgPath)
+            else
+                table.insert(self.dirInp_DIV2K, augPath)
+            end
+        end
+    end
     collectgarbage()
     collectgarbage()
 end
@@ -74,7 +94,7 @@ function flickr2k:get(idx, scaleIdx)
                 idx = idx + self.numVal
             end
         end
-        local inputName, targetName = self:getFileName(idx, scale, nDigit)
+        local inputName, targetName, rot = self:getFileName(idx, scale, nDigit)
         if self.opt.datatype == 't7' then
             input = torch.load(paths.concat(dirInp, inputName))
             target = torch.load(paths.concat(dirTar, targetName))
@@ -100,7 +120,23 @@ function flickr2k:get(idx, scaleIdx)
         end
     end
 
-
+    if rot == 1 then
+        target = target
+    elseif rot == 2 then
+        target = image.vflip(target)
+    elseif rot == 3 then
+        target = image.hflip(target)
+    elseif rot == 4 then
+        target = image.hflip(image.vflip(target))
+    elseif rot == 5 then
+        target = target:transpose(2,3)
+    elseif rot == 6 then
+        target = (image.vflip(target)):transpose(2,3)
+    elseif rot == 7 then
+        target = (image.hflip(target)):transpose(2,3)
+    elseif rot == 8 then
+        target = (image.hflip(image.vflip(target))):transpose(2,3)
+    end
 
     local _, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
@@ -224,10 +260,19 @@ function flickr2k:getFileName(idx, scale, nDigit)
         digit = digit * 10
     end
 
-    local inputName = fileName .. 'x' .. scale .. self.ext
     local targetName = fileName .. self.ext
+    local inputName = nil
 
-    return inputName, targetName
+    local rot
+    if self.split == 'train' and self.opt.augUnk then
+        rot = math.random(1,8)
+        inputName = fileName .. 'x' .. scale .. '_' .. rot .. self.ext
+    else
+        rot = nil
+        inputName = fileName .. 'x' .. scale .. self.ext
+    end
+
+    return inputName, targetName, rot
 end
 
 return M.flickr2k

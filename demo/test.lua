@@ -80,7 +80,14 @@ local function saveImage(info, modelName)
         if not paths.dirp(outputDir) then
             paths.mkdir(outputDir)
         end
-        local targetFrom = paths.concat(dataDir, info.setName, info.fileName)
+        local targetFrom = nil
+        if opt.type == 'bench' then
+            targetFrom = paths.concat(dataDir, info.setName, info.fileName)
+        elseif opt.type == 'val' then
+            local targetName = info.fileName:split('x')[1] .. '.png'
+            info.fileName = targetName
+            targetFrom = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_HR', targetName)
+        end
         local targetTo = paths.concat(targetDir, info.fileName)
         os.execute('cp ' .. targetFrom .. ' ' .. targetTo)
         image.save(paths.concat(outputDir, info.fileName), info.saveImg)
@@ -98,26 +105,34 @@ local function saveImage(info, modelName)
 end
 
 local loadTimer = torch.Timer()
-if opt.type == 'bench' or opt.type == 'val' then
+if opt.type == 'bench' then
     dataDir = paths.concat(opt.dataDir, 'dataset/benchmark')
     for benchFolder in paths.iterdirs(paths.concat(dataDir, 'small')) do
-        if opt.type == 'bench' or (opt.type == 'val' and benchFolder == 'val') then
-            local inputFolder = paths.concat(paths.concat(dataDir, 'small'), benchFolder, Xs)
-            for benchFile in paths.iterfiles(inputFolder) do
-                if benchFile:find('.png') then
-                    table.insert(testList, 
-                    {
-                        setName = benchFolder,
-                        from = inputFolder,
-                        fileName = benchFile
-                    })
-                end
+        local inputFolder = paths.concat(dataDir, 'small', benchFolder, Xs)
+        for benchFile in paths.iterfiles(inputFolder) do
+            if benchFile:find('.png') then
+                table.insert(testList, 
+                {
+                    setName = benchFolder,
+                    from = inputFolder,
+                    fileName = benchFile
+                })
             end
         end
     end
+elseif opt.type == 'val' then
+    dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_LR_' .. opt.degrade, Xs)
+    for i = 791, 800 do
+        table.insert(testList,
+        {
+            setName = 'val',
+            from = dataDir,
+            fileName = '0' .. i .. 'x' .. opt.scale ..  '.png'
+        })
+    end
 elseif opt.type == 'test' then
     if opt.dataset == 'DIV2K' then
-        dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_valid_LR_' .. opt.degrade, Xs)
+        dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_test_LR_' .. opt.degrade, Xs)
         for testFile in paths.iterfiles(dataDir) do
             if testFile:find('.png') then
                 table.insert(testList,

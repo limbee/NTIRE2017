@@ -39,6 +39,7 @@ for iModel = 1:length(totalDir)
             if scaleName(1) == '.'
                 continue;
             end
+            scale = str2num(scaleName(2:length(scaleName)));
             scaleFull = fullfile(setFull, scaleName);
             scaleDir = dir(scaleFull);
             meanPSNR = 0;
@@ -55,7 +56,6 @@ for iModel = 1:length(totalDir)
                     if targetDim == 2
                         targetImg = cat(3, targetImg, targetImg, targetImg);
                     end
-                    scale = 2;
                     shave = scale + 6;
                     [h, w, ~] = size(inputImg);
                     targetImg = targetImg(1:h, 1:w, :);
