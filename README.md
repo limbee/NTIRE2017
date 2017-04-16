@@ -1,7 +1,7 @@
 # NTIRE2017
 
 ## Introduction
-This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [FaceBook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
+This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
 
 By [SNU-CVLAB](http://cv.snu.ac.kr/) Members, Lim Bee, Sanghyun Son, Seungjun Nah, Heewon Kim
 
@@ -40,8 +40,7 @@ Download Dataset
 ```
    
 
-## Quick Start
-To run pretrained DeepMask/SharpMask models to generate object proposals, follow these steps:
+## Quick Start(Demo)
 
 1. Download Dataset into $makeData:
 
@@ -61,18 +60,37 @@ To run pretrained DeepMask/SharpMask models to generate object proposals, follow
    wget https://cv.snu.ac.kr/~/multiScale_model.t7
    ```
 
-3. Run `computeProposals.lua` with a given model and optional target image (specified via the `-img` option):
+4. Run `test.lua` with a given model for selected validation image:
 
    ```bash
-   # apply to a default sample image (data/testImage.jpg)
-   cd $DEEPMASK
-   th computeProposals.lua $DEEPMASK/pretrained/deepmask # run DeepMask
-   th computeProposals.lua $DEEPMASK/pretrained/sharpmask # run SharpMask
-   th computeProposals.lua $DEEPMASK/pretrained/sharpmask -img /path/to/image.jpg
+   cd $makeReposit/NTIRE2017/demo/
+   # for individual bicubic x2
+   th test.lua -type test -model bicubic_x2.t7 -degrade bicubic -scale 2 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
+   
+   # for multiscale model
+   th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 20e4 -dataDir ../../
+   th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
+   th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
    ```
 
 ## Training
 
+1. To train default setting:
+
+   ```bash
+   th main.lua
+   ```
+
+2. To train fanal setting for individual bicubic x2:
+
+   ```bash
+   th main.lua 
+   ```
+
+3. To train fanal setting for multiScale model:
+
+   ```bash
+   th main.lua 
+   ```
 
 
-## Demo
