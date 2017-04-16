@@ -41,7 +41,7 @@ opt.selfEnsemble = (opt.selfEnsemble == 'true')
 local util = require '../code/utils'(opt)
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
-
+--[[
 local pool = threads.Threads(
     opt.nThreads,
     function(threadid)
@@ -50,7 +50,7 @@ local pool = threads.Threads(
         require 'image'
     end
 )
-
+]]
 --Prepare the dataset for demo
 print('Preparing dataset...')
 local testList = {}
@@ -70,8 +70,8 @@ local function swap(model)
 end
 
 local function saveImage(info, modelName)
+    info.saveImg = info.saveImg:float()
     info.saveImg:mul(255 / opt.mulImg):add(0.5):floor():div(255)
-    info.saveImg = info.saveImg:squeeze(1)
     modelName = (opt.save == '.') and modelName or opt.save
     if opt.type == 'bench' or opt.type == 'val' then
         local targetDir = paths.concat('img_target', modelName, info.setName)
@@ -92,15 +92,14 @@ local function saveImage(info, modelName)
         end
         local targetTo = paths.concat(targetDir, info.fileName)
         os.execute('cp ' .. targetFrom .. ' ' .. targetTo)
-        image.save(paths.concat(outputDir, info.fileName), info.saveImg)
+        image.save(paths.concat(outputDir, info.fileName), info.saveImg:squeeze(1))
     elseif opt.type == 'test' then
         local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
         if not paths.dirp(outputDir) then
             paths.mkdir(outputDir)
         end
-        image.save(paths.concat(outputDir, info.fileName), info.saveImg)
+        image.save(paths.concat(outputDir, info.fileName), info.saveImg:squeeze(1))
     end
-
     info.saveImg = nil
     collectgarbage()
     collectgarbage()
@@ -269,33 +268,36 @@ for i = 1, #opt.model do
                 if #opt.model > 1 then
                     local ensembleWeight = (#opt.ensembleW) == 1 and 1 or opt.ensembleW[i] * #opt.model
                     if #ensemble < j then
-                        table.insert(ensemble, output:mul(ensembleWeight))
+                        table.insert(ensemble, output:clone():mul(ensembleWeight))
                     else
-                        ensemble[j]:add(output:mul(ensembleWeight))
+                        ensemble[j]:add(output:clone():mul(ensembleWeight))
                     end
                 else
-                    testList[j].saveImg = output:float()
+                    testList[j].saveImg = output:clone()
                 end
-                if (#opt.model == 1) or ((#opt.model > 1) and (i == #opt.model)) then
-                    if #opt.model > 1 then
-                        modelName = table.concat(totalModelName, '_')
-                        testList[j].saveImg = ensemble[j]:div(#opt.model)
-                    end
-                    pool:addjob(
-                        function()
-                            saveImage(testList[j], modelName)
-                            return __threadid
-                        end,
-                        function(id)
-                        end
-                    )
-                end
+                
                 input = nil
                 target = nil
                 output = nil
                 model:clearState()
                 collectgarbage()
                 collectgarbage()
+
+                if (#opt.model == 1) or ((#opt.model > 1) and (i == #opt.model)) then
+                    if #opt.model > 1 then
+                        modelName = table.concat(totalModelName, '_')
+                        testList[j].saveImg = ensemble[j]:div(#opt.model)
+                    end
+                    saveImage(testList[j], modelName)
+                    --[[pool:addjob(
+                        function()
+                            saveImage(testList[j], modelName)
+                            return __threadid
+                        end,
+                        function(id)
+                        end
+                    )]]
+                end
 
                 if opt.progress then
                     io.write(('[time] %.3fs\n'):format(localTimer:time().real))
@@ -305,7 +307,7 @@ for i = 1, #opt.model do
             local elapsed = setTimer:time().real
             print(('[Forward time] %.3fs (average %.3fs)'):format(elapsed, elapsed / #testList))
             local saveTimer = torch.Timer()
-            pool:synchronize()
+            --pool:synchronize()
             local saveElapsed = saveTimer:time().real
             print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
             nModel = nModel + 1
@@ -313,7 +315,7 @@ for i = 1, #opt.model do
         end
     end
 end
-pool:terminate()
+--pool:terminate()
 
 local totalElapsed = globalTimer:time().real
 print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / #testList))
