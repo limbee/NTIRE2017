@@ -1,9 +1,9 @@
-# NTIRE2017
+# NTIRE2017: SNU-CVLAB
 
-## Introduction
+# Introduction
 This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
 
-By [SNU-CVLAB](http://cv.snu.ac.kr/?page_id=57) Members; Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son
+by [SNU-CVLAB Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son**
 ## Model
 This is our baseline model for scale 2. We only changed upsampler for different scale model.
 
@@ -15,16 +15,32 @@ Multiscale model has three upsamplers for different scale inputs.
 
 ![model_multiscale](/document/model_multiscale.png)
 
-## Challenge Results
-Statistics | Individual Models| Multiscale Model| Leaderboard No.(IM/MSM) 
--- | -- | -- | --
-Bicubic X2 |  |  | 
-Bicubic X3 |  |  | 
-Bicubic X4 |  |  | 
-Unknown X2 |  |  | 
-Unknown X3 |  |  | 
-Unknown X4 |  |  | 
+Every convolution layer uses 3x3 convolution with stride = 1, pad =  1
 
+## Challenge Results
+Model / PSNR (dB) | Expert Models| Multiscale Model| Ranking (Expert / Multiscale)
+-- | -- | -- | --
+Bicubic scale 2 |  |  | 
+Bicubic scale 3 |  |  | 
+Bicubic scale 4 |  |  | 
+Unknown scale 2 |  |  | 
+Unknown scale 3 |  |  | 
+Unknown scale 4 |  |  | 
+
+## Qualitative Results
+* Bicubic scale 2:
+
+* Bicubic scale 3:
+
+* Bicubic scale 4:
+
+* Unknown scale 2:
+
+* Unknown scale 3:
+
+* Unknown scale 4:
+
+# About our code
 ## Dependencies
 * torch7
 * cudnn
@@ -42,14 +58,14 @@ Clone this repository into $makeReposit:
 Please download the dataset from below.
 * DIV2K produced by NTIRE2017
   ```bash
-  makeData = /var/tmp/dataset/ # set absolute path as desired
+  makeData = /var/tmp/dataset/ # Please set the absolute path as desired
   mkdir -p $makeData/; cd $makedata/
   wget https://cv.snu.ac.kr/~/DIV2K.tar
   tar -xvf DIV2K.tar
   ```
 * Flickr2K collected by Flickr
   ```bash
-  makeData = /var/tmp/dataset/ # set absolute path as desired
+  makeData = /var/tmp/dataset/ # Please set the absolute path as desired
   mkdir -p $makeData/; cd $makedata/
   wget https://cv.snu.ac.kr/~/Flickr2K.tar
   tar -xvf Flickr2K.tar
@@ -64,58 +80,154 @@ Please convert the downloaded dataset into .t7 files (Recommended.)
   #each images in DIV2K_train_HR folder
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
 
-  #This command generates a single t7 file that contains
-  #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
+  # This command generates a single t7 file that contains
+  # every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
   ```
 * To train Flickr2K
   ```bash
   cd makeReposit/NTIRE2017/code/tools
 
-  #This command generates multiple t7 files for
-  #each images in Flickr2K_HR folder
+  # This command generates multiple t7 files for
+  # each images in Flickr2K_HR folder
   th png_to_t7.lua -apath $makeData -dataset Flickr2K -split true
   ```
 
 Or, you can use just .png files. (Not recommended.) Details are described below
 ## Quick Start(Demo)
-You can download our pre-trained models for each scale / degrader, and super-resolve your own image with our code.
-1. Download pre-trained Individual and MultiScale models:
-  ```bash
-  cd $makeReposit/NTIRE2017/demo/model/
-  wget https://cv.snu.ac.kr/~/bicubic_x2.t7
-  wget https://cv.snu.ac.kr/~/bicubic_x3.t7
-  wget https://cv.snu.ac.kr/~/bicubic_x4.t7
-  wget https://cv.snu.ac.kr/~/unknown_x2.t7
-  wget https://cv.snu.ac.kr/~/unknown_x3.t7
-  wget https://cv.snu.ac.kr/~/unknown_x4.t7
-  wget https://cv.snu.ac.kr/~/bicubic_mutiscale.t7
-  ```
+You can download our pre-trained models and super-resolve your own image with our code.
+1. Download pre-trained **expert** and **multiscale** models:
+    ```bash
+    cd $makeReposit/NTIRE2017/demo/model/
+
+    # Bicubic scale 2
+    wget https://cv.snu.ac.kr/~/bicubic_x2.t7
+    
+    # Bicubic scale 3
+    wget https://cv.snu.ac.kr/~/bicubic_x3.t7
+    
+    #Bicubic scale 4
+    wget https://cv.snu.ac.kr/~/bicubic_x4.t7
+    
+    # Unknown scale 2
+    wget https://cv.snu.ac.kr/~/unknown_x2.t7
+    
+    # Unknown scale 3
+    wget https://cv.snu.ac.kr/~/unknown_x3.t7
+    
+    # Unknown scale 4
+    wget https://cv.snu.ac.kr/~/unknown_x4.t7
+    
+    # Bicubic multiscale
+    wget https://cv.snu.ac.kr/~/bicubic_mutiscale.t7
+    ```
 2. Run `test.lua` with a given model for selected validation image:
-  ```bash
-  cd $makeReposit/NTIRE2017/demo/
-  # for bicubic x2
-  th test.lua -type test -model bicubic_x2.t7 -scale 2 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
-  
-  # for multiscale model
-  th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 20e4 -dataDir ../../
-  th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
-  th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
-  ```
+    * Here are some optional arguments
+      ```bash
+      -nGPU     [n]   # You can test our model with multiple GPU. (n <= 4)
+
+      -dataDir  [$makeData]           #Please specify this directory. Default is /var/tmp/dataset
+      -type     [bench | test | val]
+      -dataset  [DIV2K | myData]
+      -save     [Folder name]
+
+      -selfEnsemble [true | false]    # Do not use this option for unknown downsampling.
+      
+      -chopSize [S]   # Please reduce the chopSize when test fails due to GPU memory.
+                      # The optimal size of S can be vary depend on your maximum GPU memory.
+
+      -progress [true | false]
+      ```
+    You can reproduce our final results with below command.
+    ```bash
+    cd $makeReposit/NTIRE2017/demo/
+
+    # Bicubic scale 2
+    th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true
+
+    # Bicubic scale 3
+    th test.lua -type test -model bicubic_x3.t7 -scale 3 -selfEnsemble true
+
+    # Bicubic scale 4
+    th test.lua -type test -model bicubic_x4.t7 -scale 4 -selfEnsemble true
+
+    # Unknown scale 2
+    th test.lua -type test -model unknown_x2.t7 -scale 2 -degrade unknown
+
+    # Unknown scale 3
+    th test.lua -type test -model unknown_x3.t7 -scale 3 -degrade unknown
+
+    # Unknown scale 4
+    th test.lua -type test -model unknown_x4.t7 -scale 4 -degrade unknown
+
+    # Bicubic multiscale (Note that scale 2, 3, 4 share the same model!)
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -selfEnsemble true
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -selfEnsemble true
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -selfEnsemble true
+    ```
+    Or, you can test with your own model and images.
+    ```bash
+    th test.lua -type test -dataset myData -model yourModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+    ```
+    This code generates high-resolution images for some famous SR benchmark set.
+    ```bash
+    th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
+    ```
+    We used 0791.png to 0800.png in DIV2K train set for validation, and you can test any model with validation set.
+    ```bash
+    th test.lua -type val -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+    ```
 
 ## Training
 
 1. To train default setting:
-  ```bash
-  th main.lua
-  ```
+    ```bash
+    th main.lua
+    ```
+    * Here are some optional arguments. Please specify them as you wish. (Recommended)
+      ```bash
+      -nGPU     [n] # You can train expert model with multiple GPU. (Not multiscale model.)
+      -nThreads [n] # Number of threads for data loading.
 
-2. To train fanal setting for individual bicubic x2:
-  ```bash
-  th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
-  ```
+      -datadir [$makeData]  # Please specify this directory. Default is /var/tmp/dataset
 
-3. To train fanal setting for multiScale model:
-  ```bash
-  th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
-  ```
+      -save [Folder name]   # You can generate experiment folder with given name.
+      -load [Folder name]   # You can resume your experiment from the last checkpoint.
+                            # Please do not set -save and -load at the same time.
+
+      -nEpochs    [n]                   # Number of epochs to run
+      -testEvery  [n]                   # Iterations per one epoch
+      -datatype   [png | t7 | t7pack]   # png < t7 < t7pack - requires larger memory
+                                        # png > t7 > t7pack - requires faster CPU & Storage
+
+      -chopSize   [S]   # Please reduce the chopSize when test fails due to GPU memory.
+                        # The optimal size of S can be vary depend on your maximum GPU memory.
+      ```
+2. To train bicubic model:
+    ```bash
+    # scale 2
+    th main.lua -scale 2 -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
+
+    # scale 3
+    th main.lua -scale 3 -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1
+
+    # scale 4
+    th main.lua -scale 4 -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1
+    ```
+
+3. To train unknown model:
+    ```bash
+    # scale 2
+    th main.lua -scale 2 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
+
+    # scale 3
+    th main.lua -scale 3 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1
+
+    # scale 4
+    th main.lua -scale 4 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1
+    ```
+
+3. To train multiscale model:
+    ```bash
+    th main.lua -scale 2_3_4 -netType moresnet -nResBlock 80 -patchSize 64 -multiPatch true -skipBatch 3
+    ```
