@@ -32,14 +32,13 @@ function div2k:__init(opt, split)
     local tLR = 'DIV2K_train_LR_'
 
     self.dirTar = paths.concat(apath, tHR)
-    self.dirInp = {}
+    self.dirInp, self.dirInp_aug = {}, {}
 
     for i = 1, #self.scale do
-        if not opt.augUnk then
-            table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
-        else
-            table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade .. '_augment', 'X' .. self.scale[i]))
-        end
+		table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
+		if opt.augUnk then
+            table.insert(self.dirInp_aug, paths.concat(apath, tLR .. opt.degrade .. '_augment', 'X' .. self.scale[i]))
+		end
         self.dirInp[i] = opt.dataSize == 'small' and self.dirInp[i] or self.dirInp[i]
         self.dirInp[i] = opt.netType ~= 'recurVDSR' and self.dirInp[i] or self.dirInp[i] .. '_SRresOutput'
     end
@@ -107,11 +106,20 @@ function div2k:get(idx, scaleIdx)
         target = self.t7Tar[idx]
     elseif self.opt.datatype == 't7' then
         inputName, targetName, rot = self:getFileName(idx, scale)
-        input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
+		if self.split == 'train' and self.opt.augUnk then
+			input = torch.load(paths.concat(self.dirInp_aug[scaleIdx], inputName))
+		else
+			input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
+		end
+
         target = torch.load(paths.concat(self.dirTar, targetName))
     elseif self.opt.datatype == 'png' then
         inputName, targetName, rot = self:getFileName(idx, scale)
-        input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
+		if self.split == 'train' and self.opt.augUnk then
+			input = image.load(paths.concat(self.dirInp_aug[scaleIdx], inputName), self.opt.nChannel, 'float')
+		else
+			input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
+		end
         target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')
     end
 
