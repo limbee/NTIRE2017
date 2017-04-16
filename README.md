@@ -31,23 +31,23 @@ Clone this repository into $makeReposit:
 ## Dataset
 Please download the dataset from below.
 * DIV2K produced by NTIRE2017
-```bash
+  ```bash
   makeData = /var/tmp/dataset/ # set absolute path as desired
   mkdir -p $makeData/; cd $makedata/
   wget https://cv.snu.ac.kr/~/DIV2K.tar
   tar -xvf DIV2K.tar
-```
+  ```
 * Flickr2K collected by Flickr
-```bash
- makeData = /var/tmp/dataset/ # set absolute path as desired
- mkdir -p $makeData/; cd $makedata/
- wget https://cv.snu.ac.kr/~/Flickr2K.tar
- tar -xvf Flickr2K.tar
-```
+  ```bash
+  makeData = /var/tmp/dataset/ # set absolute path as desired
+  mkdir -p $makeData/; cd $makedata/
+  wget https://cv.snu.ac.kr/~/Flickr2K.tar
+  tar -xvf Flickr2K.tar
+  ```
    
 Convert downloaded dataset into .t7 files (recommended)
 * To train DIV2K
-```bash
+  ```bash
   cd makeReposit/NTIRE2017/code/tools
 
   #This command generates multiple t7 files for
@@ -57,13 +57,13 @@ Convert downloaded dataset into .t7 files (recommended)
   #This command generates a single t7 file that contains
   #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
-```
+  ```
 * To train Flickr2K
-```bash
+  ```bash
   #This command generates multiple t7 files for
   #each images in Flickr2K_HR folder
   th png_to_t7.lua -apath $makeData -dataset Flickr2K -split true
-```
+  ```
 
 * Or, you can use just .png files
 ## Quick Start(Demo)
