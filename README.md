@@ -46,10 +46,11 @@ Please download the dataset from below.
   ```
    
 Convert downloaded dataset into .t7 files (recommended)
-* To train DIV2K
   ```bash
   cd makeReposit/NTIRE2017/code/tools
-
+  ```
+* To train DIV2K
+  ```bash
   #This command generates multiple t7 files for
   #each images in DIV2K_train_HR folder
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
