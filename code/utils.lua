@@ -261,7 +261,7 @@ function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)
         end
     else
         for i = 1, 4 do
-            outputPatch[i] = util:chopForward(inputPatch[i], model, scale, chopShave, chopSize, nGPU):squeeze(1)
+            outputPatch[{{i, i}, {}, {}, {}}]:copy(util:chopForward(inputPatch[i], model, scale, chopShave, chopSize, nGPU))
         end
     end
     local ret = torch.CudaTensor(b, c, scale * h, scale * w)
@@ -275,7 +275,7 @@ function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)
     ret[{{}, {}, bndR.y1, bndR.x2}]:copy(outputPatch[2][{{}, bndR.y1, bndO.x2}])
     ret[{{}, {}, bndR.y2, bndR.x1}]:copy(outputPatch[3][{{}, bndO.y2, bndR.x1}])
     ret[{{}, {}, bndR.y2, bndR.x2}]:copy(outputPatch[4][{{}, bndO.y2, bndO.x2}])
-    ur, ul, dr, dl = nil
+    outputPatch = nil
     collectgarbage()
     collectgarbage()
 
@@ -321,6 +321,8 @@ function util:x8Forward(img, model, scale, nGPU)
     output = outputTable[1]
     for i = 2, n do
         output:add(outputTable[i])
+        outputTable[i] = nil
+        collectgarbage()
     end
     output:div(n)
     
