@@ -80,17 +80,14 @@ Download Dataset
    ```bash
    th main.lua
    ```
-
+   
 2. To train fanal setting for individual bicubic x2:
 
    ```bash
-   th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
+   th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
    ```
-
 3. To train fanal setting for multiScale model:
 
    ```bash
-   th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
+   th main.lua -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
    ```
-
-
