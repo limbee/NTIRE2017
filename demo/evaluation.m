@@ -2,7 +2,8 @@ clear;
 outputDir = 'img_output';
 %outputDir = 'img_input';
 targetDir = 'img_target';
-setException = {'Set5', 'Set14', 'B100', 'Urban100'};
+%setException = {'Set5', 'Set14', 'B100', 'Urban100'};
+setException = {};
 psnrOnly = true;
 
 tableRow = {};
@@ -74,8 +75,12 @@ for iModel = 1:length(totalDir)
             if (numImages > 0)
                 meanPSNR = meanPSNR / numImages;
                 meanSSIM = meanSSIM / numImages;
-                if ix == 3
+                if iSet == 3
                     modelNameF = sprintf('%-25s', modelName);
+                    setNameF = sprintf('%-10s', setName);
+                    scaleF = sprintf('%-5d', scale);
+                elseif ix == 3
+                    modelNameF = sprintf('%-25s', '');
                     setNameF = sprintf('%-10s', setName);
                     scaleF = sprintf('%-5d', scale);
                 else

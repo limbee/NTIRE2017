@@ -220,15 +220,8 @@ function util:swapModel(model, index)
             :add(model:get(5):get(index))
             :add(model:get(6):get(index))
     end
-    if self.opt.nGPU == 1 then
-        return sModel
-    else
-        local gpus = torch.range(1, self.opt.nGPU):totable()
-        local dpt = nn.DataParallelTable(1, true, true)
-            :add(sModel, gpus)
-        dpt.gradInput = nil
-        return dpt:cuda()
-    end
+    
+    return sModel
 end
 
 function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)
