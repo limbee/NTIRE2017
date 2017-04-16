@@ -30,14 +30,14 @@ Unknown X4 |  |  |
 
 ## Dataset
 1. Please download the dataset from below.
-  * DIV2K produced by NTIRE2017
+   * DIV2K produced by NTIRE2017
     ```bash
     makeData = /var/tmp/dataset/ # set absolute path as desired
     mkdir -p $makeData/; cd $makedata/
     wget https://cv.snu.ac.kr/~/DIV2K.tar
     tar -xvf DIV2K.tar
     ```
-  * Flickr2K collected by Flickr
+   * Flickr2K collected by Flickr
     ```bash
     makeData = /var/tmp/dataset/ # set absolute path as desired
     mkdir -p $makeData/; cd $makedata/
@@ -48,19 +48,19 @@ Unknown X4 |  |  |
    ```bash
    cd makeReposit/NTIRE2017/code/tools
    ```
-  * To train DIV2K
+   * To train DIV2K
     ```bash
     #This command generates multiple t7 files for
     #each images in DIV2K_train_HR folder
     th png_to_t7.lua -apath $makeData -dataset DIV2K -split true
     ```
-    or
+      or
     ```bash
     #This command generates a single t7 file that contains
     #every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
     th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
     ```
-  * To train Flickr2K
+   * To train Flickr2K
     ```bash
     #This command generates multiple t7 files for
     #each images in Flickr2K_HR folder
