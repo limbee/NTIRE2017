@@ -32,9 +32,9 @@
 #th test.lua -type test -model Ux4_L1.t7+Ux4_G1.t7 -degrade unknown -scale 4 -nGPU 2 -selfEnsemble false -chopShave 10 -chopSize 16e4
 
 #For multiscale
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
-th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 24e4
-th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4
-th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4
+th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
+th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 32e4 -dataDir ../../
+th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 32e4 -dataDir ../../
+#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 24e4
+#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4
+#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4

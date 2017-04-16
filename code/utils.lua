@@ -298,17 +298,10 @@ function util:x8Forward(img, model, scale, nGPU)
             inputTable[i] = inputTable[i - 4]:transpose(2, 3)
         end
     end
-    for i = 1, n, nGPU do
-        local c, h, w = unpack(inputTable[i]:size():totable())
-        local inputBatch = torch.CudaTensor(nGPU, c, h, w)
-        for j = 1, nGPU do
-            inputBatch[j]:copy(inputTable[i + j - 1]:cuda())
-        end
-        local output = util:chopForward(inputBatch, model, scale, self.opt.chopShave, self.opt.chopSize)
-        inputBatch = nil
-        for j = 1, nGPU do
-            outputTable[i + j - 1] = output[j]:float():clone()
-        end
+    for i = 1, n do
+        inputTable[i] = nn.Unsqueeze(1):forward(inputTable[i])
+        outputTable[i] = util:chopForward(inputTable[i], model, scale, self.opt.chopShave, self.opt.chopSize, nGPU)
+        outputTable[i] = outputTable[i]:float():squeeze()
         model:clearState()
         collectgarbage()
         collectgarbage() 

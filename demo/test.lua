@@ -129,6 +129,21 @@ local function makeinplace(model)
 
 end
 
+local function makeHardInplace(model)
+    local seq = model:get(3):get(1):get(1)
+    for i = 1, (seq:size() - 1) do
+        local block = seq:get(i):get(1):get(1)
+        if block:size() == 4 then
+            local lastConv = block:get(3)
+            local mulConst = block:get(4).constant_scalar
+            lastConv.weight:mul(mulConst)
+            lastConv.bias:mul(mulConst)
+            block:remove()
+        end
+    end
+    return model
+end
+
 local loadTimer = torch.Timer()
 if opt.type == 'bench' then
     dataDir = paths.concat(opt.dataDir, 'dataset/benchmark')
