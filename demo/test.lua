@@ -23,6 +23,7 @@ cmd:option('-dataDir',	    '/var/tmp', 'data directory')
 cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
 cmd:option('-chopShave',    10,         'Shave width for chopForward')
 cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
+cmd:option('-inplace',      'false',    'inplace operation')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
@@ -95,6 +96,29 @@ local function saveImage(info, modelName)
     info.saveImg = nil
     collectgarbage()
     collectgarbage()
+end
+
+local function makeinplace(model)
+
+    if model.modules then
+        for i = 1, #model.modules do
+            if model:get(i).inplace == false then
+                -- print(model:get(i).inplace)
+                model:get(i).inplace = true
+                -- print(model:get(i))
+                -- print(model:get(i).inplace)
+            end
+
+            if model:get(i).modules then
+                makeinplace(model:get(i))
+            end
+        end
+    end
+
+    -- require 'trepl'()
+
+    return model
+
 end
 
 local loadTimer = torch.Timer()
@@ -171,7 +195,9 @@ end
 for i = 1, #opt.model do
     for modelFile in paths.iterfiles('model') do
         if modelFile:find('.t7') and modelFile:find(opt.model[i]) then
-            local model = torch.load(paths.concat('model', modelFile)):cuda()
+            local model = torch.load(paths.concat('model', modelFile))
+            model = makeinplace(model):cuda()
+            
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
             if modelFile:find('multiscale') then
