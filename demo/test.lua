@@ -27,6 +27,7 @@ cmd:option('-inplace',      'false',    'inplace operation')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
+opt.inplace = opt.inplace == 'true'
 opt.model = opt.model:split('+')
 opt.ensembleW = opt.ensembleW:split('_')
 for i = 1, #opt.ensembleW do
@@ -211,8 +212,11 @@ for i = 1, #opt.model do
     for modelFile in paths.iterfiles('model') do
         if modelFile:find('.t7') and modelFile:find(opt.model[i]) then
             local model = torch.load(paths.concat('model', modelFile))
-            model = makeinplace(model):cuda()
-            
+            if opt.inplace then
+                model = makeinplace(model):cuda()
+            else
+                model = model:cuda()
+            end
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
             if modelFile:find('multiscale') then
