@@ -17,7 +17,7 @@ local function getModel(opt)
         end
     elseif opt.preTrained ~= '.' then
         print('Loading pre-trained model from: ' .. opt.preTrained)
-        if (opt.netType == 'resnet_cu') or (opt.netType == 'moresnet_unknown') then
+        if (opt.netType == 'resnet_cu') or (opt.netType == 'multiscale_unknown') then
             model = require('model/' .. opt.netType)(opt)
         else
             model = torch.load(opt.preTrained)
@@ -49,7 +49,7 @@ local function getModel(opt)
             end
 
             model:insert(subMean, 1)
-            if opt.netType:find('moresnet') then
+            if opt.netType:find('multiscale') then
                 local pt = nn.ParallelTable()
                 for i = 1, #opt.scale do
                     pt:add(addMean:clone())

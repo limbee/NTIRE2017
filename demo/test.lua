@@ -2,7 +2,6 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
---local threads = require 'threads'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
@@ -39,18 +38,6 @@ local util = require '../code/utils'(opt)
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
 
---Multithreading is unstable
---[[
-local pool = threads.Threads(
-    opt.nThreads,
-    function(threadid)
-        print('Starting a background thread...')
-        require 'cunn'
-        require 'image'
-    end
-)
-]]
---Prepare the dataset for demo
 print('Preparing dataset...')
 local testList = {}
 local dataDir = ''
@@ -66,7 +53,7 @@ local function swap(model, modelType)
             :add(model:get(3))
             :add(model:get(4):get(opt.swap))
             :add(model:get(5):get(opt.swap))
-    elseif modelType == 'unknown_multiscale' then
+    elseif modelType == 'multiscale_unknown' then
         sModel
             :add(model:get(1))
             :add(model:get(2))
@@ -225,7 +212,7 @@ for i = 1, #opt.model do
             end
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
-            
+
             --For multiscale model, we need quick model swap
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
@@ -289,14 +276,6 @@ for i = 1, #opt.model do
                         testList[j].saveImg = ensemble[j]:div(#opt.model)
                     end
                     saveImage(testList[j], modelName)
-                    --[[pool:addjob(
-                        function()
-                            saveImage(testList[j], modelName)
-                            return __threadid
-                        end,
-                        function(id)
-                        end
-                    )]]
                 end
 
                 if opt.progress then
@@ -306,16 +285,11 @@ for i = 1, #opt.model do
             end
             local elapsed = setTimer:time().real
             print(('[Forward time] %.3fs (average %.3fs)'):format(elapsed, elapsed / #testList))
-            local saveTimer = torch.Timer()
-            --pool:synchronize()
-            local saveElapsed = saveTimer:time().real
-            print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
             nModel = nModel + 1
             print('')
         end
     end
 end
---pool:terminate()
 
 local totalElapsed = globalTimer:time().real
 print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / #testList))

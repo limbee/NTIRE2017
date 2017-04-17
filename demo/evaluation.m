@@ -2,22 +2,22 @@ clear;
 outputDir = 'img_output';
 %outputDir = 'img_input';
 targetDir = 'img_target';
-%setException = {'Set5', 'Set14', 'B100', 'Urban100'};
+setException = {};
 psnrOnly = true;
 
 tableRow = {};
 tableCol = {};
 tableData = [];
-disp('--------------------------------------------------------------------------------')
-disp('----------------------NTIRE2017: SNU-CVLAB evaluation tool----------------------')
-disp('--------------------------------------------------------------------------------')
+disp(repmat('-', 1, 80))
+disp([repmat('-', 1, 22), 'NTIRE2017: SNU-CVLAB evaluation tool', repmat('-', 1, 22)])
+disp(repmat('-', 1, 80))
 disp(' ')
 disp([sprintf('%-25s', 'Model Name'), ' | ', ...
 sprintf('%-10s', 'Set Name'), ' | ', ...
 sprintf('%-5s', 'Scale'), ...
 ' | PSNR / SSIM'])
 
-disp('--------------------------------------------------------------------------------')
+disp(repmat('-', 1, 80))
 totalDir = dir(fullfile(outputDir));
 for iModel = 1:length(totalDir)
     modelName = totalDir(iModel).name;
@@ -26,7 +26,7 @@ for iModel = 1:length(totalDir)
     end
     modelFull = fullfile(outputDir, modelName);
     modelDir = dir(modelFull);
-    row = 1;
+    isModelPrint = false;
     for iSet = 1:length(modelDir)
         setName = modelDir(iSet).name;
         if (setName(1) == '.') || (any(strcmp(setException, setName)) == true)
@@ -34,6 +34,7 @@ for iModel = 1:length(totalDir)
         end
         setFull = fullfile(modelFull, setName);
         setDir = dir(setFull);
+        isSetPrint = false;
         for ix = 1:length(setDir)
             scaleName = setDir(ix).name;
             if scaleName(1) == '.'
@@ -74,13 +75,21 @@ for iModel = 1:length(totalDir)
             if (numImages > 0)
                 meanPSNR = meanPSNR / numImages;
                 meanSSIM = meanSSIM / numImages;
-                if ix == 3
+                if isModelPrint == false
                     modelNameF = sprintf('%-25s', modelName);
                     setNameF = sprintf('%-10s', setName);
                     scaleF = sprintf('%-5d', scale);
+                    isModelPrint = true;
+                    isSetPrint = true;
+                elseif isSetPrint == false
+                    disp([repmat(' ', 1, 26), repmat('-', 1, 54)]);
+                    modelNameF = repmat(' ', 1, 25);
+                    setNameF = sprintf('%-10s', setName);
+                    scaleF = sprintf('%-5d', scale);
+		            isSetPrint = true;
                 else
-                    modelNameF = sprintf('%-25s', '');
-                    setNameF = sprintf('%-10s', '');
+                    modelNameF = repmat(' ', 1, 25);
+                    setNameF = repmat(' ', 1, 10);
                     scaleF = sprintf('%-5d', scale);
                 end
                 disp([modelNameF, ' | ', ...
@@ -88,13 +97,13 @@ for iModel = 1:length(totalDir)
                 scaleF, ...
                 ' | PSNR: ', num2str(meanPSNR, '%.3fdB')])
                 if psnrOnly == false
-                    disp([sprintf('%-25s', ''), ' | ', ...
-                    sprintf('%-10s', ''), ' | ', ...
-                    sprintf('%-5d', ''), ...
+                    disp([repmat(' ', 1, 25), ' | ', ...
+                    repmat(' ', 1, 10), ' | ', ...
+                    repmat(' ', 1, 5), ...
                     ' | SSIM: ', num2str(meanSSIM, '%.3f')])
                 end
             end
         end
-        disp('--------------------------------------------------------------------------------')
     end
+    disp(repmat('-', 1, 80))
 end
