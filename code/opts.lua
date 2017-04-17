@@ -21,7 +21,7 @@ function M.parse(arg)
     cmd:option('-datadir',          '/var/tmp/dataset', 'Dataset location')
     cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
     cmd:option('-augUnkDIV2K',      'true',             'Use x8 augmented unknown DVI2K LR train set')
-    cmd:option('-augUnkFlickr2K',   'false',             'Use x8 augmented unknown DVI2K LR train set')
+    cmd:option('-augUnkFlickr2K',   'true',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
@@ -114,6 +114,7 @@ function M.parse(arg)
 
     opt.useDIV2K = opt.useDIV2K == 'true'
     opt.augUnkDIV2K = opt.augUnkDIV2K == 'true'
+    opt.augUnkFlickr2K = opt.augUnkFlickr2K == 'true'
 	if opt.degrade == 'bicubic' then
 		opt.augUnkDIV2K = false
         opt.augUnkFlickr2K = false
