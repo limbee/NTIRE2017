@@ -50,6 +50,7 @@ if opt.dataset == 'DIV2K' then
     end
 elseif opt.dataset == 'Flickr2K' then
     hrDir = 'Flickr2K_HR'
+    lrDir = {}
     if opt.lr then
         lrDir =
         {
