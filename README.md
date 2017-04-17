@@ -107,19 +107,15 @@ You can download our pre-trained models and super-resolve your own image with ou
 
     # Bicubic scale 2
     wget https://cv.snu.ac.kr/~/bicubic_x2.t7
-    
     # Bicubic scale 3
     wget https://cv.snu.ac.kr/~/bicubic_x3.t7
-    
     #Bicubic scale 4
     wget https://cv.snu.ac.kr/~/bicubic_x4.t7
     
     # Unknown scale 2
     wget https://cv.snu.ac.kr/~/unknown_x2.t7
-    
     # Unknown scale 3
     wget https://cv.snu.ac.kr/~/unknown_x3.t7
-    
     # Unknown scale 4
     wget https://cv.snu.ac.kr/~/unknown_x4.t7
     
