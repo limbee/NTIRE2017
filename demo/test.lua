@@ -57,14 +57,25 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
-local function swap(model)
+--Multiscale model needs
+local function swap(model, modelType)
     local sModel = nn.Sequential()
-    sModel
-        :add(model:get(1))
-        :add(model:get(2))
-        :add(model:get(3))
-        :add(model:get(4):get(opt.swap))
-        :add(model:get(5):get(opt.swap))
+    if modelType == 'multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3))
+            :add(model:get(4):get(opt.swap))
+            :add(model:get(5):get(opt.swap))
+    elseif modelType == 'unknown_multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(opt.swap))
+            :add(model:get(4))
+            :add(model:get(5):get(opt.swap))
+            :add(model:get(6):get(opt.swap))
+    end
 
     return sModel:cuda()
 end
@@ -233,10 +244,15 @@ for i = 1, #opt.model do
             end
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
+            --For multiscale model, we need quick model swap
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
                 opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
-                model = swap(model)
+                if not modelFile:find('unknown') then
+                    model = swap(model, 'multiscale')
+                else
+                    model = swap(model, 'unknown_multiscale')
+                end
             end
 
             if opt.nGPU > 1 then
