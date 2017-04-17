@@ -34,16 +34,7 @@ local function getLoss(opt)
         local gradLoss = nn.KernelCriterion(opt, kernel)
         criterion:add(gradLoss, opt.grad)
     end
-    if opt.grad2 > 0 then
-        local kernel2 = torch.CudaTensor{{{0, 0, 0}, {1, -2, 1}, {0, 0, 0}}, {{0, 1, 0}, {0, -2, 0}, {0, 1, 0}}}
-        local grad2Loss = nn.KernelCriterion(opt, kernel2)
-        criterion:add(grad2Loss, opt.grad2)
-    end
-    if opt.gradPrior > 0 then
-        local gradPriorLoss = nn.GradPriorCriterion(opt)
-        criterion:add(gradPriorLoss, opt.gradPrior)
-    end
-
+    
     if (opt.nOut > 1) and (opt.isSwap == false) then 
         local pCri = nn.ParallelCriterion()
         for i = 1, opt.nOut do
