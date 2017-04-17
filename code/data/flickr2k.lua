@@ -52,20 +52,15 @@ function flickr2k:__init(opt, split)
         apath = paths.concat(opt.datadir, 'DIV2K_decoded')
     end
     self.dirTar_DIV2K = paths.concat(apath, 'DIV2K_train_HR')
-    self.dirInp_DIV2K = {}
+    self.dirInp_DIV2K_org = {}
+    self.dirInp_DIV2K_aug = {}
+
     for i = 1, #self.scale do
         local orgPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i])
         local augPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
 
-        if opt.augUnkDIV2K and not paths.dirp(augPath)then
-            error('Augmented Flickr2K LR unknown dataset does not exist.')
-        end
-
-        if not opt.augUnkDIV2K then
-            table.insert(self.dirInp_DIV2K, orgPath)
-        else
-            table.insert(self.dirInp_DIV2K, augPath)
-        end
+        table.insert(self.dirInp_DIV2K_org, orgPath)
+        table.insert(self.dirInp_DIV2K_aug, augPath)
     end
     collectgarbage()
     collectgarbage()
@@ -79,7 +74,11 @@ function flickr2k:get(idx, scaleIdx)
     local function getImg(idx, scale, type)
         local dirInp, dirTar, nDigit
         if type == 'DIV2K' then
-            dirInp = self.dirInp_DIV2K[scaleIdx]
+            if self.split == 'train' and self.opt.augUnkDIV2K then
+                dirInp = self.dirInp_DIV2K_aug[scaleIdx]
+            else
+                dirInp = self.dirInp_DIV2K_org[scaleIdx]
+            end
             dirTar = self.dirTar_DIV2K
             nDigit = 4
         elseif type == 'Flickr2K' then
@@ -87,12 +86,14 @@ function flickr2k:get(idx, scaleIdx)
             dirTar = self.dirTar_Flickr2K
             nDigit = 6
         end
+
         if idx > self.opt.flickr2kSize then
             idx = idx - self.opt.flickr2kSize
             if idx > self.offset then
                 idx = idx + self.numVal
             end
         end
+
         local inputName, targetName, rot = self:getFileName(idx, scale, nDigit, type)
         if self.opt.datatype == 't7' then
             input = torch.load(paths.concat(dirInp, inputName))
