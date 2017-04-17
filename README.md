@@ -1,9 +1,9 @@
-# NTIRE2017: SNU-CVLAB
+# NTIRE2017: SNU_CVLab
 
 # Introduction
 This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
 
-by [SNU-CVLAB Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son**
+by [SNU_CVLab Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son**
 ## Model
 This is our **baseline** model for scale 2. We only changed upsampler for different scale model.
 
@@ -68,7 +68,7 @@ Please download the dataset from below.
   wget https://cv.snu.ac.kr/~/DIV2K.tar
   tar -xvf DIV2K.tar
   ```
-* **Flickr2K** collected by **SNU-CVLAB** with Flickr API
+* **Flickr2K** collected by **SNU_CVLab** with Flickr API
   ```bash
   makeData = /var/tmp/dataset/ # Please set the absolute path as desired
   mkdir -p $makeData/; cd $makedata/
