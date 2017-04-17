@@ -127,7 +127,32 @@ You can download our pre-trained models and super-resolve your own image with ou
     wget https://cv.snu.ac.kr/~/bicubic_mutiscale.t7
     ```
 2. Run `test.lua` with given models and images:
-    * Here are some optional arguments
+    You can reproduce our final results with command below.
+    ```bash
+    cd $makeReposit/NTIRE2017/demo/
+
+    # Bicubic scale 2
+    th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true
+    # Bicubic scale 3
+    th test.lua -type test -model bicubic_x3.t7 -scale 3 -selfEnsemble true
+    # Bicubic scale 4
+    th test.lua -type test -model bicubic_x4.t7 -scale 4 -selfEnsemble true
+
+    # Unknown scale 2
+    th test.lua -type test -model unknown_x2.t7 -scale 2 -degrade unknown
+    # Unknown scale 3
+    th test.lua -type test -model unknown_x3.t7 -scale 3 -degrade unknown
+    # Unknown scale 4
+    th test.lua -type test -model unknown_x4.t7 -scale 4 -degrade unknown
+
+    # Bicubic multiscale (Note that scale 2, 3, 4 share the same model!)
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -selfEnsemble true
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -selfEnsemble true
+    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -selfEnsemble true
+    ```
+        
+    <!---  
+        * Here are some optional arguments
       ```bash
       -nGPU     [n]   # You can test our model with multiple GPU. (n <= 4)
 
@@ -143,33 +168,6 @@ You can download our pre-trained models and super-resolve your own image with ou
 
       -progress [true | false]
       ```
-    You can reproduce our final results with command below.
-    ```bash
-    cd $makeReposit/NTIRE2017/demo/
-
-    # Bicubic scale 2
-    th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true
-
-    # Bicubic scale 3
-    th test.lua -type test -model bicubic_x3.t7 -scale 3 -selfEnsemble true
-
-    # Bicubic scale 4
-    th test.lua -type test -model bicubic_x4.t7 -scale 4 -selfEnsemble true
-
-    # Unknown scale 2
-    th test.lua -type test -model unknown_x2.t7 -scale 2 -degrade unknown
-
-    # Unknown scale 3
-    th test.lua -type test -model unknown_x3.t7 -scale 3 -degrade unknown
-
-    # Unknown scale 4
-    th test.lua -type test -model unknown_x4.t7 -scale 4 -degrade unknown
-
-    # Bicubic multiscale (Note that scale 2, 3, 4 share the same model!)
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -selfEnsemble true
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -selfEnsemble true
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -selfEnsemble true
-    ```
     Or, you can test with your own model and images.
     ```bash
     th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
@@ -186,13 +184,15 @@ You can download our pre-trained models and super-resolve your own image with ou
     ```bash
     matlab -nodisplay <evaluation.m
     ```
+    --->
 ## Training
 
-1. To train baseline model:
+* To train baseline model:
     ```bash
     th main.lua
     ```
-    * Here are some optional arguments. Please specify them as you wish. (Recommended)
+ <!---
+  * Here are some optional arguments. Please specify them as you wish. (Recommended)
       ```bash
       -nGPU     [n] # You can train expert model with multiple GPU. (Not multiscale model.)
       -nThreads [n] # Number of threads for data loading.
@@ -211,30 +211,28 @@ You can download our pre-trained models and super-resolve your own image with ou
       -chopSize   [S]   # Please reduce the chopSize when test fails due to GPU memory.
                         # The optimal size of S can be vary depend on your maximum GPU memory.
       ```
-2. To train bicubic model from scratch:
+      --->
+* To train bicubic model :
     ```bash
-    # Bicubic scale 2
+    # Bicubic scale 2 from scratch
     th main.lua -scale 2 -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
-
-    # Bicubic scale 3
-    th main.lua -scale 3 -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1
-
-    # Bicubic scale 4
-    th main.lua -scale 4 -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1
+    # Bicubic scale 3 from pretrained bicubic scale 2 model
+    th main.lua -scale 3 -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1 -preTrained [Bicubic scale 2]
+    # Bicubic scale 4 from pretrained bicubic scale 2 model
+    th main.lua -scale 4 -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1 -preTrained [Bicubic scale 2]
     ```
 
-3. To train unknown model from scratch:
+* To train unknown model from scratch:
     ```bash
-    # Unknown scale 2
-    th main.lua -scale 2 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1
-
-    # Unknown scale 3
-    th main.lua -scale 3 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1
-
-    # Unknown scale 4
-    th main.lua -scale 4 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1
+    # Unknown scale 2 from pretrained bicubic scale 2 model
+    th main.lua -scale 2 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1 -preTrained [Bicubic scale 2]
+    # Unknown scale 3 from pretrained bicubic scale 2 model
+    th main.lua -scale 3 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1 -preTrained [Bicubic scale 2]
+    # Unknown scale 4 from pretrained bicubic scale 2 model
+    th main.lua -scale 4 -degrade unknown -nFeat 256 -nResBlock 36 -patchSize 192 -scaleRes 0.1 -preTrained [Bicubic scale 2]
     ```
-4. We used bicubic scale 2 pre-trained model to train the other models. To use pre-trained model, use -preTrained option.
+<!---
+* We used bicubic scale 2 pre-trained model to train the other models. To use pre-trained model, use -preTrained option.
     ```bash
     # Bicubic scale 3 using Bicubic scale 2 pre-trained model
     th main.lua -scale 3 -degrade bicubic -nFeat 256 -nResBlock 36
@@ -244,12 +242,13 @@ You can download our pre-trained models and super-resolve your own image with ou
     th main.lua -scale 3 -degrade unknown -nFeat 256 -nResBlock 36
     -patchSize 144 -scaleRes 0.1 -preTrained [Bicubic scale 2 directory]
     ```
-5. To train bicubic multiscale model:
+    --->
+* To train bicubic multiscale model:
     ```bash
     th main.lua -scale 2_3_4 -netType multiscale -nResBlock 80
     -patchSize 64 -multiPatch true -skipBatch 3
     ```
-6. We used bicubic multiscale pre-trained model to train the unknown multiscale model.
+* We used bicubic multiscale pre-trained model to train the unknown multiscale model.
     ```bash
     th main.lua -scale 2_3_4 -netType multiscale_unknown -degrade unknown
     -preTrained [Bicubic multiscale directory] -multiPatch true -skipBatch 3
