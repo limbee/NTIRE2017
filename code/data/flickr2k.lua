@@ -9,9 +9,7 @@ function flickr2k:__init(opt, split)
     self.split = split
 
     self.size = opt.flickr2kSize
-    if opt.useDIV2K then
-        self.size = self.size + 900
-    end
+    self.nDIV2K = 900
     self.offset = 790
     self.numVal = opt.numVal
     self.scale = self.opt.scale
@@ -31,21 +29,20 @@ function flickr2k:__init(opt, split)
         error('unknown -datatype (png | t7(default) | t7pack)')
     end
 
-    self.dirTar = paths.concat(apath, 'Flickr2K_HR')
-    self.dirInp = {}
+    self.dirTar_Flickr2K = paths.concat(apath, 'Flickr2K_HR')
+    self.dirInp_Flickr2K = {}
     for i = 1, #self.scale do
         local orgPath = paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade, 'X' .. self.scale[i])
         local augPath = paths.concat(apath, 'Flickr2K_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
         
-        if (not paths.dirp(augPath)) and opt.augUnk then
-            print('Augmented unknown dataset is not exist.')
-            opt.augUnk = false
+        if opt.augUnkFlick2K and not paths.dirp(augPath)then
+            error('Augmented DIV2K LR unknown dataset does not exist.')
         end
 
-        if not opt.augUnk then
-            table.insert(self.dirInp, orgPath)
+        if not opt.augUnkFlickr2K then
+            table.insert(self.dirInp_Flickr2K, orgPath)
         else
-            table.insert(self.dirInp, augPath)
+            table.insert(self.dirInp_Flickr2K, augPath)
         end
     end
 
@@ -60,7 +57,11 @@ function flickr2k:__init(opt, split)
         local orgPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade, 'X' .. self.scale[i])
         local augPath = paths.concat(apath, 'DIV2K_train_LR_' .. opt.degrade .. '_augment', 'X' .. self.scale[i])
 
-        if not opt.augUnk then
+        if opt.augUnkDIV2K and not paths.dirp(augPath)then
+            error('Augmented Flickr2K LR unknown dataset does not exist.')
+        end
+
+        if not opt.augUnkDIV2K then
             table.insert(self.dirInp_DIV2K, orgPath)
         else
             table.insert(self.dirInp_DIV2K, augPath)
@@ -82,8 +83,8 @@ function flickr2k:get(idx, scaleIdx)
             dirTar = self.dirTar_DIV2K
             nDigit = 4
         elseif type == 'Flickr2K' then
-            dirInp = self.dirInp[scaleIdx]
-            dirTar = self.dirTar
+            dirInp = self.dirInp_Flickr2K[scaleIdx]
+            dirTar = self.dirTar_Flickr2K
             nDigit = 6
         end
         if idx > self.opt.flickr2kSize then
@@ -92,7 +93,7 @@ function flickr2k:get(idx, scaleIdx)
                 idx = idx + self.numVal
             end
         end
-        local inputName, targetName, rot = self:getFileName(idx, scale, nDigit)
+        local inputName, targetName, rot = self:getFileName(idx, scale, nDigit, type)
         if self.opt.datatype == 't7' then
             input = torch.load(paths.concat(dirInp, inputName))
             target = torch.load(paths.concat(dirTar, targetName))
@@ -100,8 +101,10 @@ function flickr2k:get(idx, scaleIdx)
             input = image.load(paths.concat(dirInp, inputName), self.opt.nChannel, 'float')
             target = image.load(paths.concat(dirTar, targetName), self.opt.nChannel, 'float')
         end
-        return input, target
+        return input, target, rot
     end
+
+    local rot = 1
 
     if self.split == 'val' then
         idx = idx + self.offset
@@ -111,9 +114,9 @@ function flickr2k:get(idx, scaleIdx)
             input, target = getImg(idx, scale, 'Flickr2K')
         else
             if idx <= self.opt.flickr2kSize then
-                input, target = getImg(idx, scale, 'Flickr2K')
+                input, target, rot = getImg(idx, scale, 'Flickr2K')
             else -- then loads DIV2K
-                input, target = getImg(idx, scale, 'DIV2K')
+                input, target, rot = getImg(idx, scale, 'DIV2K')
             end
         end
     end
@@ -179,7 +182,7 @@ function flickr2k:get(idx, scaleIdx)
         local gradValue = dsqrt:view(-1):mean()
         
         if self.gradStatistics == nil then
-            self.gradSamples = 10000
+            self.gradSamples = self.opt.nGradStat
             self.gsTable = {}
             self.gradStatistics = {}
             for i = 1, #self.scale do
@@ -217,7 +220,7 @@ end
 function flickr2k:__size()
     if self.split == 'train' then
         if self.opt.useDIV2K then
-            return self.size - self.numVal
+            return self.size + self.nDIV2K - self.numVal
         else
             return self.size
         end
@@ -248,7 +251,7 @@ function flickr2k:augment()
     end
 end
 
-function flickr2k:getFileName(idx, scale, nDigit)
+function flickr2k:getFileName(idx, scale, nDigit, type)
     --filename format: ??????x?.png
     local nDigit = nDigit or 6
     local fileName = idx
@@ -262,11 +265,11 @@ function flickr2k:getFileName(idx, scale, nDigit)
     local inputName = nil
 
     local rot
-    if self.split == 'train' and self.opt.augUnk then
+    if self.split == 'train' and ((type == 'DIV2K' and self.opt.augUnkDIV2K) or (type == 'Flickr2K' and self.opt.augUnkFlickr2K)) then
         rot = math.random(1,8)
         inputName = fileName .. 'x' .. scale .. '_' .. rot .. self.ext
     else
-        rot = nil
+        rot = 1
         inputName = fileName .. 'x' .. scale .. self.ext
     end
 

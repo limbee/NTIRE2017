@@ -2,7 +2,6 @@ require 'nn'
 require 'cunn'
 
 require('loss/KernelCriterion')
-require('loss/GradPriorCriterion')
 
 local function getLoss(opt)
     local criterion = nn.MultiCriterion()
