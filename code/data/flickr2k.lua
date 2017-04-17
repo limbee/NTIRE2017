@@ -182,7 +182,7 @@ function flickr2k:get(idx, scaleIdx)
         local gradValue = dsqrt:view(-1):mean()
         
         if self.gradStatistics == nil then
-            self.gradSamples = 10000
+            self.gradSamples = self.opt.nGradStat
             self.gsTable = {}
             self.gradStatistics = {}
             for i = 1, #self.scale do
