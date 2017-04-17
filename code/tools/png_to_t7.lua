@@ -11,7 +11,6 @@ cmd:option('-apath',        '/var/tmp/dataset',     'Absolute path of the DIV2K 
 cmd:option('-dataset',      'DIV2K',                'Dataset to convert: DIV2K | Flickr2K')
 cmd:option('-scale',        '2_3_4',                'Scales to pack')
 cmd:option('-split',        'true',                 'split or pack')
-cmd:option('-augment',      'true',                 'pre-augment dataset, useful for unknown downsampling')
 cmd:option('-hr',           'true',                 'Generate HR data')
 cmd:option('-lr',           'true',                 'Generate LR data')
 cmd:option('-lrAug',        'true',                 'Generate pre-augmented unknown LR data')

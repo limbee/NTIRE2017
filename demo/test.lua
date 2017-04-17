@@ -2,7 +2,7 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
-local threads = require 'threads'
+--local threads = require 'threads'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
@@ -27,20 +27,19 @@ cmd:option('-inplace',      'false',    'inplace operation')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
-opt.inplace = opt.inplace == 'true'
+opt.inplace = (opt.inplace == 'true')
 opt.model = opt.model:split('+')
 opt.ensembleW = opt.ensembleW:split('_')
 for i = 1, #opt.ensembleW do
     opt.ensembleW[i] = tonumber(opt.ensembleW[i])
-end
-if #opt.ensembleW > 1 then
-
 end
 opt.selfEnsemble = (opt.selfEnsemble == 'true')
 
 local util = require '../code/utils'(opt)
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
+
+--Multithreading is unstable
 --[[
 local pool = threads.Threads(
     opt.nThreads,
@@ -57,14 +56,25 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
-local function swap(model)
+--Multiscale model needs
+local function swap(model, modelType)
     local sModel = nn.Sequential()
-    sModel
-        :add(model:get(1))
-        :add(model:get(2))
-        :add(model:get(3))
-        :add(model:get(4):get(opt.swap))
-        :add(model:get(5):get(opt.swap))
+    if modelType == 'multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3))
+            :add(model:get(4):get(opt.swap))
+            :add(model:get(5):get(opt.swap))
+    elseif modelType == 'unknown_multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(opt.swap))
+            :add(model:get(4))
+            :add(model:get(5):get(opt.swap))
+            :add(model:get(6):get(opt.swap))
+    end
 
     return sModel:cuda()
 end
@@ -110,10 +120,7 @@ local function makeinplace(model)
     if model.modules then
         for i = 1, #model.modules do
             if model:get(i).inplace == false then
-                -- print(model:get(i).inplace)
                 model:get(i).inplace = true
-                -- print(model:get(i))
-                -- print(model:get(i).inplace)
             end
 
             if model:get(i).modules then
@@ -122,24 +129,6 @@ local function makeinplace(model)
         end
     end
 
-    -- require 'trepl'()
-
-    return model
-
-end
-
-local function makeHardInplace(model)
-    local seq = model:get(3):get(1):get(1)
-    for i = 1, (seq:size() - 1) do
-        local block = seq:get(i):get(1):get(1)
-        if block:size() == 4 then
-            local lastConv = block:get(3)
-            local mulConst = block:get(4).constant_scalar
-            lastConv.weight:mul(mulConst)
-            lastConv.bias:mul(mulConst)
-            block:remove()
-        end
-    end
     return model
 end
 
@@ -197,14 +186,16 @@ elseif opt.type == 'test' then
         end
     end
 end
+
+--Load images to test
 for i = 1, #testList do
     testList[i].inputImg = image.load(paths.concat(testList[i].from, testList[i].fileName), 3, 'float'):mul(opt.mulImg)
 end
 local loadElapsed = loadTimer:time().real
 print(('[Load time] %.3fs (average %.3fs)\n'):format(loadElapsed, loadElapsed / #testList))
-
 table.sort(testList, function(a, b) return a.fileName < b.fileName end)
 
+--We can ensemble different models
 local ensemble = {}
 if #opt.model > 1 then
     print('Ensemble!')
@@ -222,6 +213,7 @@ if #opt.model > 1 then
         table.insert(totalModelName, opt.model[i]:split('%.')[1])
     end
 end
+
 for i = 1, #opt.model do
     for modelFile in paths.iterfiles('model') do
         if modelFile:find('.t7') and modelFile:find(opt.model[i]) then
@@ -233,12 +225,19 @@ for i = 1, #opt.model do
             end
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
+            
+            --For multiscale model, we need quick model swap
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
                 opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
-                model = swap(model)
+                if not modelFile:find('unknown') then
+                    model = swap(model, 'multiscale')
+                else
+                    model = swap(model, 'multiscale_unknown')
+                end
             end
 
+            --test.lua supports multi-gpu
             if opt.nGPU > 1 then
                 local gpus = torch.range(1, opt.nGPU):totable()
                 local dpt = nn.DataParallelTable(1, true, true)
@@ -266,6 +265,7 @@ for i = 1, #opt.model do
                 end
 
                 if #opt.model > 1 then
+                    --You can combine different models with different weights
                     local ensembleWeight = (#opt.ensembleW) == 1 and 1 or opt.ensembleW[i] * #opt.model
                     if #ensemble < j then
                         table.insert(ensemble, output:clone():mul(ensembleWeight))

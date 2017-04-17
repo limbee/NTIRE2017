@@ -3,10 +3,10 @@ require 'cudnn'
 require 'image'
 
 local saveAs = '.png'
-local nGPU = 2
+local nGPU = 1
 
 local modelDir = '../../../downsamplers'
-local apath = '../../../dataset'
+local apath = '/var/tmp/dataset'
 local hrDir = paths.concat(apath, 'DIV2K/DIV2K_train_HR')
 local lrDir = paths.concat(apath, 'DIV2K/DIV2K_train_LR_unknown_augment')
 
@@ -25,7 +25,7 @@ for sc = 2,4 do
 	if not paths.dirp(save_dir) then
 		paths.mkdir(save_dir)
 	end
-    nBatch = nGPU * 2
+    nBatch = nGPU * 4
 	for filename in paths.iterfiles(hrDir) do
         local imgname = paths.concat(hrDir, filename)
         print(imgname)
