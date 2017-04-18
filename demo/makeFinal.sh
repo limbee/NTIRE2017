@@ -1,40 +1,45 @@
-#Before starting, please place these files in the demo/model folder
-#Bx2_L1.t7
-#Bx2_G1.t7
-#Bx3_L1.t7
-#Bx3_L1.t7
-#Bx4_G1.t7
-#Bx4_G1.t7
-#Ux2_L1.t7
-#Ux2_G1.t7
-#Ux3_L1.t7
-#Ux3_L1.t7
-#Ux4_G1.t7
-#Ux4_G1.t7
-#multiscale.t7
+# Bicubic scale 2
+#th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true
 
-#For bicubic x2
-#th test.lua -type test -model Bx2_L1.t7+Bx2_G1.t7 -degrade bicubic -scale 2 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
+# Bicubic scale 3
+#th test.lua -type test -model bicubic_x3.t7 -scale 3 -selfEnsemble true
 
-#For bicubic x3
-#th test.lua -type test -model Bx3_L1.t7+Bx3_G1.t7 -degrade bicubic -scale 3 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
+# Bicubic scale 4
+#th test.lua -type test -model bicubic_x4.t7 -scale 4 -selfEnsemble true
 
-#For bicubic x4
-#th test.lua -type test -model Bx4_L1.t7+Bx4_G1.t7 -degrade bicubic -scale 4 -nGPU 2 -selfEnsemble true -chopShave 10 -chopSize 16e4
 
-#For unknown x2
-#th test.lua -type test -model Ux2_L1.t7+Ux2_G1.t7 -degrade unknown -scale 2 -nGPU 2 -selfEnsemble false -chopShave 10 -chopSize 16e4
 
-#For unknown x3
-#th test.lua -type test -model Ux3_L1.t7+Ux3_G1.t7 -degrade unknown -scale 3 -nGPU 2 -selfEnsemble false -chopShave 10 -chopSize 16e4
+# Unknown scale 2
+#th test.lua -type test -model unknown_x2_1.t7+unknown_x2_2.t7 -scale 2 -degrade unknown
 
-#For unknown x4
-#th test.lua -type test -model Ux4_L1.t7+Ux4_G1.t7 -degrade unknown -scale 4 -nGPU 2 -selfEnsemble false -chopShave 10 -chopSize 16e4
+# Unknown scale 3
+#th test.lua -type test -model unknown_x3_1.t7+unknown_x3_2.t7 -scale 3 -degrade unknown
 
-#For multiscale
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 20e4 -dataDir ../../
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
-#th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 2 -selfEnsemble true -chopShave 20 -chopSize 24e4 -dataDir ../../
-#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 2 -swap 1 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 24e4
-#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 3 -swap 2 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4
-#th test.lua -type val -model multiscale.t7 -degrade bicubic -scale 4 -swap 3 -nGPU 1 -selfEnsemble true -chopShave 10 -chopSize 36e4
+# Unknown scale 4
+#th test.lua -type test -model unknown_x4_1.t7+unknown_x4_2.t7 -scale 4 -degrade unknown
+
+
+
+# Bicubic multiscale (Note that scale 2, 3, 4 share the same model!)
+
+# For scale 2
+#th test.lua -type test -model bicubic_multiscale -scale 2 -selfEnsemble true
+
+# For scale 3
+#th test.lua -type test -model bicubic_multiscale -scale 3 -selfEnsemble true
+
+# For scale 4
+#th test.lua -type test -model bicubic_multiscale -scale 4 -selfEnsemble true
+
+
+
+# Unknown multiscale (Note that scale 2, 3, 4 share the same model!)
+
+# For scale 2
+#th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 2 -degrade unknown
+
+# For scale 3
+#th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 3 -degrade unknown
+
+# For scale 4
+#th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 4 -degrade unknown

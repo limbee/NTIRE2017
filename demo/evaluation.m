@@ -2,9 +2,8 @@ clear;
 outputDir = 'img_output';
 %outputDir = 'img_input';
 targetDir = 'img_target';
-%setException = {'Set5', 'Set14', 'B100', 'Urban100'};
 setException = {};
-psnrOnly = true;
+psnrOnly = false;
 
 tableRow = {};
 tableCol = {};
