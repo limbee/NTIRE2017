@@ -1,11 +1,12 @@
-# NTIRE2017: SNU_CVLab
+# NTIRE2017 Super-resolution Challenge: SNU_CVLab
 
 # Introduction
-This repository is implemented for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
+This repository is for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
 
 by [SNU_CVLab Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son**
+
 ## Model
-This is our **baseline** model for scale 2. We only changed upsampler for different scale model.
+This is our **single scale** model for scale 2. We only changed upsampler for different scale models.
 
 ![model_baseline](/document/figs/baseline.png)
 
@@ -24,29 +25,6 @@ Each pre-processing module has two residual blocks with convolution kernel **5x5
 ## Challenge Results
 
 To be announced
-
-<!--
-Model / PSNR (dB) | Expert | Multiscale | Ranking (Expert / Multiscale)
--- | -- | -- | --
-Bicubic scale 2 |  |  | 
-Bicubic scale 3 |  |  | 
-Bicubic scale 4 |  |  | 
-Unknown scale 2 |  |  | 
-Unknown scale 3 |  |  | 
-Unknown scale 4 |  |  | -->
-
-<!--## Qualitative Results
-Model | Input(bicubic interpolated) | Expert | Multiscale | Ground truth
--- | -- | -- | -- | --
-Bicubic scale 2 |
-Bicubic scale 3 |
-Bicubic scale 4 |
-Unknown scale 2 |
-Unknown scale 3 |
-Unknown scale 4 |-->
-
-  <!--* We did not used above image (0791.png ~ 0800.png from **DIV2K** dataset) for training-->
-<!--## Benchmark Results-->
 
 # About our code
 ## Dependencies
@@ -71,15 +49,13 @@ Please download the dataset from below. If you download the dataset in the other
     # Please download the dataset from [CodaLab](https://competitions.codalab.org/competitions/16303)
     tar -xvf DIV2K.tar
     ```
-    After untar, high-resolution ground truth images for training is saved as
+    After untar, you will have the following directory structure:
 
     **/var/tmp/dataset/DIV2K/DIV2K_train_HR/0???.png**
 
-    Low-resolution input images for training is saved as
+    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???.png**
 
-    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???x?.png**
-
-    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???x?.png**
+    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???.png**
 
 * **Flickr2K** collected by **SNU_CVLab** with Flickr API
     ```bash
@@ -92,12 +68,10 @@ Please download the dataset from below. If you download the dataset in the other
     tar -xvf Flickr2K.tar
     ```
 
-    After untar, high-resolution ground truth images for training is saved as
+    After untar, you will have the following directory structure:
 
     **/var/tmp/dataset/Flickr2K/Flickr2K_HR/00????.png** 
     
-    Low-resolution input images for training is saved as
-
     **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_bicubic/X?/00????x?.png**
 
     **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_unknown/X?/00????x?.png**
@@ -130,11 +104,14 @@ You can download our pre-trained models and super-resolve your own image.
 
 1. Download our models ([google drive link](https://drive.google.com/open?id=0B3AjYlPQo4LLR1FQOXdWTUhlSm8)) into $makeReposit/NTIRE2017/demo/model/
 
-    A. Single scale-expert model
-
+    **A. Single scale-expert model**
+    
+    **Track 1**
     * bicubic_x2.t7
     * bicubic_x3.t7
     * bicubic_x4.t7
+    
+    **Track 2**
     * unknown_x2_1.t7
     * unknown_x2_2.t7
     * unknown_x3_1.t7
@@ -146,8 +123,12 @@ You can download our pre-trained models and super-resolve your own image.
     * unknown_x3_3.t7
     * unknown_x3_4.t7 
     
-    B. Multi-scale model
+    **B. Multi-scale model**
+    
+    **Track 1**
     * bicubic_multiscale.t7
+    
+    **Track 2**
     * unknown_multiscale_1.t7
     * unknown_multiscale_2.t7
 
@@ -173,7 +154,8 @@ You can download our pre-trained models and super-resolve your own image.
         -dataset  [DIV2K | myData]
         -save     [Folder name]
 
-        -selfEnsemble [true | false]    # Do not use this option for unknown downsampling.
+        -selfEnsemble [true | false]        # Generates 8 output images using single model.
+                                            # Do not use this option for unknown downsampling.
 
         -chopSize [S]   # Please reduce the chopSize when test fails due to GPU memory.
                         # The optimal size of S can be vary depend on your maximum GPU memory.
@@ -198,7 +180,7 @@ You can download our pre-trained models and super-resolve your own image.
     ```
 
     Soon, we will support some famous super-resolution benchmark sets like **Set5, Set14, Unban100, BSD100**.
-     <!---
+    <!---
     This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
     ```bash
     th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
@@ -220,7 +202,7 @@ You can download our pre-trained models and super-resolve your own image.
     th main.lua         # This model is not our final model!
     ```
 
-    * Here are some optional arguments you can adjust. If you have any problem in running above examples, please refer following line.
+    * Here are some optional arguments you can adjust. If you have any problem in running above examples, please refer following line. For more information about arguments, please refer to **NTIRE2017/code/opts.lua** file.
         ```bash
         -nGPU     [n]   # You can train expert model with multiple GPU. (Not multiscale model.)
         -nThreads [n]   # Number of threads for data loading.
@@ -231,8 +213,6 @@ You can download our pre-trained models and super-resolve your own image.
         -load [Folder name]     # You can resume your experiment from the last checkpoint.
                                 # Please do not set -save and -load at the same time.
 
-        -nEpochs    [n]                     # Number of epochs to run
-        -testEvery  [n]                     # Iterations per one epoch
         -datatype   [png | t7 | t7pack]     # png < t7 < t7pack - requires larger memory
                                             # png > t7 > t7pack - requires faster CPU & Storage
 
@@ -249,5 +229,3 @@ You can download our pre-trained models and super-resolve your own image.
 
     sh training.sh
     ```
-
-## Experiment

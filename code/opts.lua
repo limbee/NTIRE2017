@@ -57,8 +57,6 @@ function M.parse(arg)
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',             'Optimization method')
     cmd:option('-lr',               1e-4,               'Initial learning rate')
-    cmd:option('-lrLow',            1,                  'Relative learning rate of low frequency components')
-    cmd:option('-lrHigh',           1,                  'Relative learning rate of high frequency components')
     cmd:option('-momentum',         0.9,                'SGD momentum')
     cmd:option('-beta1',            0.9,                'ADAM beta1')
     cmd:option('-beta2',            0.999,              'ADAM beta2')
