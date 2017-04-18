@@ -8,17 +8,21 @@ function DataLoader.create(opt)
     print('loading data...')
     local loaders = {}
     for i, split in ipairs{'train', 'val'} do
-        local dataset = require('data/' .. opt.dataset)(opt,split)
         print('\tInitializing data loader for ' .. split .. ' set...')
+        local dataset = require('data/' .. opt.dataset)(opt, split)
         loaders[i] = M.DataLoader(dataset, opt, split)
     end
-    return table.unpack(loaders)
+    return unpack(loaders)
 end
 
 function DataLoader:__init(dataset, opt, split)
-    local manualSeed = opt.manualSeed
+    self.opt = opt
+    self.split = split
+
+    local manualSeed = self.opt.manualSeed
     local function init()
         require('data/' .. opt.dataset)
+        torch.setdefaulttensortype('torch.FloatTensor')
     end
     local function main(idx)
         if manualSeed ~= 0 then
@@ -26,16 +30,20 @@ function DataLoader:__init(dataset, opt, split)
         end
         _G.dataset = dataset
         _G.augment = dataset:augment()
+        _G.scale = opt.scale
         return dataset:__size()
     end
 
-    local threads, sizes = Threads(opt.nThreads,init,main)
+    local threads, sizes = Threads(self.opt.nThreads, init, main)
     self.threads = threads
     self.__size = sizes[1][1]
-    self.batchSize = opt.batchSize
-    self.split = split
-    self.opt = opt
-    self.area = dataset.area
+
+    self.batchSize = self.opt.batchSize
+    self.nChannel = self.opt.nChannel
+    self.patchSize = self.opt.patchSize
+    self.multiPatch = self.opt.multiPatch
+    self.dataSize = self.opt.dataSize
+    self.scale = self.opt.scale
 end
 
 function DataLoader:size()
@@ -45,53 +53,64 @@ end
 function DataLoader:run()
     local threads = self.threads
     threads:synchronize()
-    local size, batchSize = self.__size, self.batchSize
-    local perm = torch.randperm(size)
-    local netType = self.opt.netType
-    local patchSize,scale = self.opt.patchSize,self.opt.scale
-    local nChannel = self.opt.nChannel
 
-    local idx, sample = 1, nil
+    local size = self.__size
+    local batchSize, nChannel, patchSize = self.batchSize, self.nChannel, self.patchSize
+    local multiPatch = self.multiPatch
+    local dataSize = self.dataSize
+    local perm = torch.randperm(size)
+
+    local idx, batch = 1, nil
+
     local function enqueue()
         if self.split == 'train' then
             while threads:acceptsjob() do
-                local indices
-                if batchSize > size-idx+1 then
+                --Shuffle the indices
+                if batchSize > (size - idx + 1) then
                     idx = 1
                     perm = torch.randperm(size)
                 end
-                indices = perm:narrow(1, idx, batchSize)
+                local indices = perm:narrow(1, idx, batchSize)
+
                 threads:addjob(
                     function(indices)
-                        --local batchSize = indices:size(1)
-                        local tarSize = patchSize
-                        local inpSize = netType=='VDSR' and patchSize or patchSize/scale
-                        local input_batch = torch.Tensor(batchSize,nChannel,inpSize,inpSize):zero()
-                        local target_batch = torch.Tensor(batchSize,nChannel,tarSize,tarSize):zero()
+                        local scaleIdx = torch.random(1, #_G.scale)
+                        local scale = _G.scale[scaleIdx]
+                        local tarSize = multiPatch and (patchSize * scale) or patchSize
+                        local inpSize = (dataSize == 'big') and tarSize or tarSize / scale
 
-                        for i,index in ipairs(indices:totable()) do
-                            local idx_ = index
-                            ::redo::
-                            local sample = _G.dataset:get(idx_)
-                            if not sample then 
-                                idx_ = torch.random(size)
-                                goto redo
-                            end
+                        local input = torch.Tensor(batchSize, nChannel, inpSize, inpSize)
+                        local target = torch.Tensor(batchSize, nChannel, tarSize, tarSize)
+
+                        for i = 1, batchSize do
+                            local sample = nil
+                            repeat
+                                --Code for multiscale learning
+                                sample = _G.dataset:get(indices[i], scaleIdx)
+                                indices[i] = torch.random(size)
+                            until sample
 
                             sample = _G.augment(sample)
-
-                            input_batch[i]:copy(sample.input)
-                            target_batch[i]:copy(sample.target)
+                            input[i]:copy(sample.input)
+                            target[i]:copy(sample.target)
+                            sample = nil
                         end
                         collectgarbage()
+                        collectgarbage()
+
                         return {
-                            input = input_batch,
-                            target = target_batch,
-                        }
+                            input = input,
+                            target = target,
+                            scaleIdx = scaleIdx 
+                        }    
                     end,
-                    function (_sample_)
-                        sample = _sample_
-                        return sample
+                    function (_batch_)
+                        batch = _batch_
+                        _batch_ = nil
+                        collectgarbage()
+                        collectgarbage()
+
+                        return batch
                     end,
                     indices
                 )
@@ -101,15 +120,27 @@ function DataLoader:run()
             while idx <= size and threads:acceptsjob() do
                 threads:addjob(
                     function(idx)
-                        local sample = _G.dataset:get(idx)
+                        local _inputVal, _targetVal = {}, {}
+                        for i = 1, #_G.scale do
+                            local sample = _G.dataset:get(idx, i)
+                            table.insert(_inputVal, sample.input)
+                            table.insert(_targetVal, sample.target)
+                        end
+                        collectgarbage()
+                        collectgarbage()
+
                         return {
-                            input = sample.input,
-                            target = sample.target
+                            input = _inputVal,
+                            target = _targetVal
                         }
                     end,
-                    function (_sample_)
-                        sample = _sample_
-                        return sample
+                    function (_batch_)
+                        batch = _batch_
+                        _batch_ = nil
+                        collectgarbage()
+                        collectgarbage()
+
+                        return batch
                     end,
                     idx
                 )        
@@ -130,7 +161,8 @@ function DataLoader:run()
         end
         enqueue()
         n = n + 1
-        return n, sample
+
+        return n, batch
     end
 
     return loop

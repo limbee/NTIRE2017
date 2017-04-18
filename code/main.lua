@@ -10,7 +10,7 @@ local opts = require 'opts'
 local opt = opts.parse(arg)
 
 local util = require 'utils'(opt)
-local load, loss, psnr = util:load()
+local load, loss, psnr, lr = util:load()
 
 local DataLoader = require 'dataloader'
 local Trainer = require 'train'
@@ -23,14 +23,23 @@ print('Creating data loader...')
 local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
-print('Train start')
-local startEpoch = load and #loss+1 or opt.epochNumber
-for epoch = startEpoch, opt.nEpochs do
-    loss[#loss+1] = trainer:train(epoch, trainLoader)
-    psnr[#psnr+1] = trainer:test(epoch, valLoader)
+if opt.valOnly then
+    print('Validate the model (at epoch ' .. opt.startEpoch - 1 .. ') with ' .. opt.numVal .. ' val images')
+    trainer:test(opt.startEpoch - 1, valLoader)
+else
+    print('Train start')
 
-    util:plot(loss,'loss')
-    util:plot(psnr,'PSNR')
-
-    util:checkpoint(model,criterion,loss,psnr)
+    for epoch = opt.startEpoch, opt.nEpochs do
+        trainer:train(epoch, trainLoader)
+        util:plot(trainer:updateLoss(loss), 'Loss')
+        util:plot(trainer:updateLR(lr), 'Learning Rate')
+        
+        --Skip validation
+        if not opt.trainOnly then
+            trainer:test(epoch, valLoader)
+            util:plot(trainer:updatePSNR(psnr), 'PSNR', opt.psnrLabel)
+        end
+        
+        util:checkpoint(model, criterion, loss, psnr, lr)
+    end
 end

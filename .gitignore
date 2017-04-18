@@ -1,7 +1,10 @@
+t7pack_test
 .vscode
+*.pdf
 *.swp
 *.t7
-*.sh
+run*.sh
+!makeFinal.sh
 
 # Compiled Lua sources
 luac.out
@@ -43,4 +46,3 @@ luac.out
 *.i*86
 *.x86_64
 *.hex
-
