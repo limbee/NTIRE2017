@@ -22,6 +22,10 @@ Every convolution layer execpt pre-processing modules in **Unknown multiscale** 
 Each pre-processing module has two residual blocks with convolution kernel **5x5, stride = 1, pad = 1**.
 
 ## Challenge Results
+
+To be announced
+
+<!--
 Model / PSNR (dB) | Expert | Multiscale | Ranking (Expert / Multiscale)
 -- | -- | -- | --
 Bicubic scale 2 |  |  | 
@@ -29,9 +33,9 @@ Bicubic scale 3 |  |  |
 Bicubic scale 4 |  |  | 
 Unknown scale 2 |  |  | 
 Unknown scale 3 |  |  | 
-Unknown scale 4 |  |  | 
+Unknown scale 4 |  |  | -->
 
-## Qualitative Results
+<!--## Qualitative Results
 Model | Input(bicubic interpolated) | Expert | Multiscale | Ground truth
 -- | -- | -- | -- | --
 Bicubic scale 2 |
@@ -39,11 +43,10 @@ Bicubic scale 3 |
 Bicubic scale 4 |
 Unknown scale 2 |
 Unknown scale 3 |
-Unknown scale 4 |
+Unknown scale 4 |-->
 
-  * We did not used above image (0791.png ~ 0800.png from **DIV2K** dataset) for training
-## Benchmark Results
-
+  <!--* We did not used above image (0791.png ~ 0800.png from **DIV2K** dataset) for training-->
+<!--## Benchmark Results-->
 
 # About our code
 ## Dependencies
@@ -54,30 +57,33 @@ Unknown scale 4 |
 ## Code
 Clone this repository into $makeReposit:
   ```bash
-  makeReposit = /home/LBNet/
+  makeReposit = [/the/directory/as/you/wish]
   mkdir -p $makeReposit/; cd $makeReposit/
   git clone https://github.com/LimBee/NTIRE2017.git
   ```
 
 ## Dataset
 Please download the dataset from below.
-* **DIV2K** produced by **NTIRE2017**
+* **DIV2K** provided by **NTIRE2017**
   ```bash
   makeData = /var/tmp/dataset/ # Please set the absolute path as desired
   mkdir -p $makeData/; cd $makedata/
-  wget https://cv.snu.ac.kr/~/DIV2K.tar
+  # Please download the dataset from [CodaLab](https://competitions.codalab.org/competitions/16303)
   tar -xvf DIV2K.tar
   ```
 * **Flickr2K** collected by **SNU_CVLab** with Flickr API
   ```bash
-  makeData = /var/tmp/dataset/ # Please set the absolute path as desired
+  makeData = /var/tmp/dataset/
   mkdir -p $makeData/; cd $makedata/
+  # Not prepared yet on the server cv.snu.ac.kr. (in April 18, 2017)
+  # In a few days, we will release the code used to collect the images of Flickr2K. 
   wget https://cv.snu.ac.kr/~/Flickr2K.tar
   tar -xvf Flickr2K.tar
   ```
+If you want to download the dataset into other location, please refer to the optional argument -dataset in opt.lua
 
-Please convert the downloaded dataset into .t7 files (Recommended.)
-* To train **DIV2K**
+To enable faster data loading, please convert the downloaded dataset into .t7 files
+* To train with **DIV2K**
   ```bash
   cd $makeReposit/NTIRE2017/code/tools
 
@@ -89,41 +95,69 @@ Please convert the downloaded dataset into .t7 files (Recommended.)
   # every image in DIV2K_train_HR folder (Requires ~16GB RAM for training)
   th png_to_t7.lua -apath $makeData -dataset DIV2K -split false
   ```
-* To train **Flickr2K**
+* To train with **Flickr2K**
   ```bash
-  cd makeReposit/NTIRE2017/code/tools
+  cd $makeReposit/NTIRE2017/code/tools
 
   # This command generates multiple t7 files for
   # each images in Flickr2K_HR folder
   th png_to_t7.lua -apath $makeData -dataset Flickr2K -split true
   ```
+You can choose to use .png filesm too. Details are described below.
 
-Or, you can use just .png files. (Not recommended.) Details are described below.
 ## Quick Start (Demo)
-You can download our pre-trained models and super-resolve your own image with our code.
-1. Download pre-trained **expert** and **multiscale** models:
+You can download our pre-trained models and super-resolve your own image.
+
+1. Download our models ([google drive link](https://drive.google.com/open?id=0B3AjYlPQo4LLR1FQOXdWTUhlSm8)) into $makeReposit/NTIRE2017/demo/model/
+
+    A. Single scale-expert model
+
+    * bicubic_x2.t7
+    * bicubic_x3.t7
+    * bicubic_x4.t7
+    * unknown_x2_1.t7
+    * unknown_x2_2.t7
+    * unknown_x3_1.t7
+    * unknown_x3_2.t7 
+    * unknown_x4_1.t7
+    * unknown_x4_2.t7
+
+    (Below are the models that have been cut off at the deadline of the NTIRE2017 SR Challange and failed to upload. These perform slightly better than the model above.)
+    * unknown_x3_3.t7
+    * unknown_x3_4.t7 
+    
+    B. Multi-scale model
+    * bicubic_multiscale.t7
+    * unknown_multiscale_1.t7
+    * unknown_multiscale_2.t7
+
+<!--1. Download pre-trained **single-scale** and **multi-scale** models:
     ```bash
     cd $makeReposit/NTIRE2017/demo/model/
 
-    # Bicubic scale 2
-    wget https://cv.snu.ac.kr/~/bicubic_x2.t7
-    # Bicubic scale 3
-    wget https://cv.snu.ac.kr/~/bicubic_x3.t7
-    #Bicubic scale 4
-    wget https://cv.snu.ac.kr/~/bicubic_x4.t7
+    # Bicubic single-scale 2
+    wget https://cv.snu.ac.kr/NTIRE2017/model/bicubic_x2.t7
+    # Bicubic single-scale 3
+    wget https://cv.snu.ac.kr/NTIRE2017/model/bicubic_x3.t7
+    # Bicubic single-scale 4
+    wget https://cv.snu.ac.kr/NTIRE2017/model/bicubic_x4.t7
     
-    # Unknown scale 2
-    wget https://cv.snu.ac.kr/~/unknown_x2.t7
-    # Unknown scale 3
-    wget https://cv.snu.ac.kr/~/unknown_x3.t7
-    # Unknown scale 4
-    wget https://cv.snu.ac.kr/~/unknown_x4.t7
+    # Unknown single-scale 2
+    wget https://cv.snu.ac.kr/NTIRE2017/model/unknown_x2.t7
+    # Unknown single-scale 3
+    wget https://cv.snu.ac.kr/NTIRE2017/model/unknown_x3.t7
+    # Unknown single-scale 4
+    wget https://cv.snu.ac.kr/NTIRE2017/model/unknown_x4.t7
     
-    # Bicubic multiscale
-    wget https://cv.snu.ac.kr/~/bicubic_mutiscale.t7
-    ```
+    # Bicubic multi-scale
+    wget https://cv.snu.ac.kr/~/bicubic_multi.t7
+    # Unknown multi-scale
+    wget https://cv.snu.ac.kr/~/bicubic_multi.t7
+    ```-->
+
 2. Run `test.lua` with given models and images:
     You can reproduce our final results with command below.
+
     ```bash
     cd $makeReposit/NTIRE2017/demo/
 
@@ -135,22 +169,26 @@ You can download our pre-trained models and super-resolve your own image with ou
     th test.lua -type test -model bicubic_x4.t7 -scale 4 -selfEnsemble true
 
     # Unknown scale 2
-    th test.lua -type test -model unknown_x2.t7 -scale 2 -degrade unknown
+    th test.lua -type test -model unknown_x2_1.t7+unknown_x2_2.t7 -scale 2 -degrade unknown -selfEnsemble false
     # Unknown scale 3
-    th test.lua -type test -model unknown_x3.t7 -scale 3 -degrade unknown
+    th test.lua -type test -model unknown_x3_1.t7+unknown_x3_2.t7 -scale 3 -degrade unknown -selfEnsemble false
     # Unknown scale 4
-    th test.lua -type test -model unknown_x4.t7 -scale 4 -degrade unknown
+    th test.lua -type test -model unknown_x4_1.t7+unknown+x4_2.t7 -scale 4 -degrade unknown -selfEnsemble false
 
     # Bicubic multiscale (Note that scale 2, 3, 4 share the same model!)
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 2 -selfEnsemble true
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 3 -selfEnsemble true
-    th test.lua -type test -model multiscale.t7 -degrade bicubic -scale 4 -selfEnsemble true
+    th test.lua -type test -model bicubic_multiscale.t7 -degrade bicubic -scale 2 -selfEnsemble true
+    th test.lua -type test -model bicubic_multiscale.t7 -degrade bicubic -scale 3 -selfEnsemble true
+    th test.lua -type test -model bicubic_multiscale.t7 -degrade bicubic -scale 4 -selfEnsemble true
+
+    # Unknown multiscale (Note that scale 2, 3, 4 share the same model!)
+    th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -degrade unknown -scale 2 -selfEnsemble false
+    th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -degrade unknown -scale 3 -selfEnsemble false
+    th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -degrade unknown -scale 4 -selfEnsemble false
     ```
         
-    <!---  
-        * Here are some optional arguments
+    * Here are some optional arguments
       ```bash
-      -nGPU     [n]   # You can test our model with multiple GPU. (n <= 4)
+      -nGPU     [n]   # You can test our model with multiple GPU. (n = 1, 2, 4)
 
       -dataDir  [$makeData]           #Please specify this directory. Default is /var/tmp/dataset
       -type     [bench | test | val]
@@ -168,7 +206,7 @@ You can download our pre-trained models and super-resolve your own image with ou
     ```bash
     th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
     ```
-    This code generates high-resolution images for some famous SR benchmark set.
+    This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
     ```bash
     th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
     ```
@@ -180,7 +218,7 @@ You can download our pre-trained models and super-resolve your own image with ou
     ```bash
     matlab -nodisplay <evaluation.m
     ```
-    --->
+
 ## Training
 
 * To train baseline model:
