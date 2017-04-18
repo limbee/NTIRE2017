@@ -22,7 +22,7 @@ cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
 cmd:option('-dataDir',	    '/var/tmp', 'data directory')
 cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
 cmd:option('-chopShave',    10,         'Shave width for chopForward')
-cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
+cmd:option('-chopSize',     4e4,       'Minimum chop size for chopForward')
 cmd:option('-inplace',      'false',    'inplace operation')
 
 local opt = cmd:parse(arg or {})
