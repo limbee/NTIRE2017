@@ -8,9 +8,9 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = opt.DIV2K_nTrain
-	self.offset = opt.DIV2K_offset -- (offset + 1) ~ (offset + numVal) images are used to validate the training
-    self.numVal = opt.numVal
+    self.nTrain = opt.nTrain_DIV2K
+    self.nVal = opt.nVal
+	self.offset = opt.valOffset -- (offset + 1) ~ (offset + nVal) images are used to validate the training
     self.scale = self.opt.scale
     self.dataSize = self.opt.dataSize
 
@@ -50,7 +50,7 @@ function div2k:__init(opt, split)
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file
             self.t7Tar = torch.load(paths.concat(self.dirTar, 'pack.t7'))
-            local valImgs = {table.unpack(self.t7Tar, self.offset + 1, self.offset + self.numVal)}
+            local valImgs = {table.unpack(self.t7Tar, self.offset + 1, self.offset + self.nVal)}
             torch.save(paths.concat(self.dirTar, 'pack_v.t7'), valImgs)
             print('\tTrain set: ' .. self.dirTar .. '/pack.t7 loaded')
 
@@ -58,7 +58,7 @@ function div2k:__init(opt, split)
             for i = 1, #self.dirInp do
                 if self.scale[i] ~= 1 then
                     table.insert(self.t7Inp, torch.load(paths.concat(self.dirInp[i], 'pack.t7')))
-                    local valImgs = {table.unpack(self.t7Inp[i], self.offset + 1, self.offset + self.numVal)}
+                    local valImgs = {table.unpack(self.t7Inp[i], self.offset + 1, self.offset + self.nVal)}
                     torch.save(paths.concat(self.dirInp[i], 'pack_v.t7'), valImgs)
                     print('\tTrain set: ' .. self.dirInp[i] .. '/pack.t7 loaded')
                 else
@@ -91,7 +91,7 @@ function div2k:get(idx, scaleIdx)
 
     if self.split == 'train' then
         if idx > self.offset then
-            idx = idx + self.numVal
+            idx = idx + self.nVal
         end
     elseif self.split == 'val' then
         if self.opt.datatype ~= 't7pack' then
@@ -236,9 +236,9 @@ end
 
 function div2k:__size()
     if self.split == 'train' then
-        return self.size - self.numVal
+        return self.nTrain
     elseif self.split == 'val' then
-        return self.numVal
+        return self.nVal
     end
 end
 
