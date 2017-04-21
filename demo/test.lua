@@ -2,28 +2,30 @@ require 'nn'
 require 'cunn'
 require 'cudnn'
 require 'image'
-local threads = require 'threads'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',         'val', 	    'demo type: bench | test | val')
-cmd:option('-dataset',      'DIV2K',    'test dataset')
-cmd:option('-mulImg',       255,        'multiply constant to input image')
-cmd:option('-progress',     'true',     'show current progress')
-cmd:option('-model',        'resnet',   'substring of model name')
-cmd:option('-save',         '.',        'Save as')
-cmd:option('-ensembleW',    '-1',        'Ensemble weight')
-cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
-cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
-cmd:option('-swap',         -1,         'Model swap')
-cmd:option('-gpuid',	    1,		    'GPU id for use')
-cmd:option('-nThreads',     3,          'Number of threads to save images')
-cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
-cmd:option('-dataDir',	    '/var/tmp', 'data directory')
-cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
-cmd:option('-chopShave',    10,         'Shave width for chopForward')
-cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
-cmd:option('-inplace',      'false',    'inplace operation')
+cmd:option('-nGPU',         1,              'Number of GPUs to use by default')
+cmd:option('-gpuid',	    1,		        'GPU id for use')
+
+cmd:option('-dataDir',	    '/var/tmp',     'data directory')
+cmd:option('-dataset',      'DIV2K',        'test dataset')
+cmd:option('-type',         'test', 	    'demo type: bench | test | val')
+cmd:option('-save',         '.',            'Save as')
+
+cmd:option('-mulImg',       255,            'multiply constant to input image')
+
+cmd:option('-model',        'bicubic_x2',   'substring of model name')
+cmd:option('-swap',         -1,             'Model swap')
+cmd:option('-ensembleW',    '-1',           'Ensemble weight')
+cmd:option('-scale',        2,              'scale factor: 2 | 3 | 4')
+cmd:option('-degrade',      'bicubic',      'degrading opertor: bicubic | unknown')
+
+cmd:option('-chopShave',    10,             'Shave width for chopForward')
+cmd:option('-chopSize',     4e4,            'Minimum chop size for chopForward')
+cmd:option('-selfEnsemble', 'false',        'enables self ensemble with flip and rotation')
+cmd:option('-inplace',      'false',        'inplace operation')
+cmd:option('-progress',     'true',         'show current progress')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
@@ -41,30 +43,32 @@ opt.selfEnsemble = (opt.selfEnsemble == 'true')
 local util = require '../code/utils'(opt)
 torch.setdefaulttensortype('torch.FloatTensor')
 cutorch.setDevice(opt.gpuid)
---[[
-local pool = threads.Threads(
-    opt.nThreads,
-    function(threadid)
-        print('Starting a background thread...')
-        require 'cunn'
-        require 'image'
-    end
-)
-]]
+
 --Prepare the dataset for demo
 print('Preparing dataset...')
 local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
-local function swap(model)
+--Multiscale model needs quick swap
+local function swap(model, modelType)
     local sModel = nn.Sequential()
-    sModel
-        :add(model:get(1))
-        :add(model:get(2))
-        :add(model:get(3))
-        :add(model:get(4):get(opt.swap))
-        :add(model:get(5):get(opt.swap))
+    if modelType == 'multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3))
+            :add(model:get(4):get(opt.swap))
+            :add(model:get(5):get(opt.swap))
+    elseif modelType == 'unknown_multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(opt.swap))
+            :add(model:get(4))
+            :add(model:get(5):get(opt.swap))
+            :add(model:get(6):get(opt.swap))
+    end
 
     return sModel:cuda()
 end
@@ -110,10 +114,7 @@ local function makeinplace(model)
     if model.modules then
         for i = 1, #model.modules do
             if model:get(i).inplace == false then
-                -- print(model:get(i).inplace)
                 model:get(i).inplace = true
-                -- print(model:get(i))
-                -- print(model:get(i).inplace)
             end
 
             if model:get(i).modules then
@@ -121,8 +122,6 @@ local function makeinplace(model)
             end
         end
     end
-
-    -- require 'trepl'()
 
     return model
 
@@ -233,10 +232,15 @@ for i = 1, #opt.model do
             end
             local modelName = modelFile:split('%.')[1]
             print('Model: [' .. modelName .. ']')
+            --For multiscale model, we need quick model swap
             if modelFile:find('multiscale') then
                 print('This is a multi-scale model! Swap the model')
                 opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
-                model = swap(model)
+                if not modelFile:find('unknown') then
+                    model = swap(model, 'multiscale')
+                else
+                    model = swap(model, 'unknown_multiscale')
+                end
             end
 
             if opt.nGPU > 1 then
@@ -289,14 +293,6 @@ for i = 1, #opt.model do
                         testList[j].saveImg = ensemble[j]:div(#opt.model)
                     end
                     saveImage(testList[j], modelName)
-                    --[[pool:addjob(
-                        function()
-                            saveImage(testList[j], modelName)
-                            return __threadid
-                        end,
-                        function(id)
-                        end
-                    )]]
                 end
 
                 if opt.progress then
@@ -306,16 +302,11 @@ for i = 1, #opt.model do
             end
             local elapsed = setTimer:time().real
             print(('[Forward time] %.3fs (average %.3fs)'):format(elapsed, elapsed / #testList))
-            local saveTimer = torch.Timer()
-            --pool:synchronize()
-            local saveElapsed = saveTimer:time().real
-            print(('[Save time] %.3fs (average %.3fs)'):format(saveElapsed, saveElapsed / #testList))
             nModel = nModel + 1
             print('')
         end
     end
 end
---pool:terminate()
 
 local totalElapsed = globalTimer:time().real
 print(('[Total time] %.3fs (average %.3fs)'):format(totalElapsed, totalElapsed / #testList))

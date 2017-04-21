@@ -8,8 +8,8 @@ function div2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = 800
-    self.offset = 790 -- offset + 1 ~ offset + numVal images are used to validate the training
+    self.size = opt.DIV2K_nTrain
+	self.offset = opt.DIV2K_offset -- (offset + 1) ~ (offset + numVal) images are used to validate the training
     self.numVal = opt.numVal
     self.scale = self.opt.scale
     self.dataSize = self.opt.dataSize
@@ -36,7 +36,7 @@ function div2k:__init(opt, split)
 
     for i = 1, #self.scale do
 		table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
-		if opt.augUnk then
+		if opt.augUnkDIV2K then
             table.insert(self.dirInp_aug, paths.concat(apath, tLR .. opt.degrade .. '_augment', 'X' .. self.scale[i]))
 		end
         self.dirInp[i] = opt.dataSize == 'small' and self.dirInp[i] or self.dirInp[i]
@@ -45,7 +45,7 @@ function div2k:__init(opt, split)
 
     --Load single .t7 files that contains all dataset
     if opt.datatype == 't7pack' then
-        assert(not opt.augUnk, 'Cannot use t7pack if you select -augUnk true')
+        assert(not opt.augUnkDIV2K, 'Cannot use t7pack if you select -augUnkDIV2K true')
         print('\tLoading t7pack:')
         if split == 'train' then
             --Here, we will split the validation sets and save them as *v.t7 file
@@ -107,7 +107,7 @@ function div2k:get(idx, scaleIdx)
         target = self.t7Tar[idx]
     elseif self.opt.datatype == 't7' then
         inputName, targetName, rot = self:getFileName(idx, scale)
-		if self.split == 'train' and self.opt.augUnk then
+		if self.split == 'train' and self.opt.augUnkDIV2K then
 			input = torch.load(paths.concat(self.dirInp_aug[scaleIdx], inputName))
 		else
 			input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
@@ -116,7 +116,7 @@ function div2k:get(idx, scaleIdx)
         target = torch.load(paths.concat(self.dirTar, targetName))
     elseif self.opt.datatype == 'png' then
         inputName, targetName, rot = self:getFileName(idx, scale)
-		if self.split == 'train' and self.opt.augUnk then
+		if self.split == 'train' and self.opt.augUnkDIV2K then
 			input = image.load(paths.concat(self.dirInp_aug[scaleIdx], inputName), self.opt.nChannel, 'float')
 		else
 			input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
@@ -199,7 +199,7 @@ function div2k:get(idx, scaleIdx)
         local gradValue = dsqrt:view(-1):mean()
         
         if self.gradStatistics == nil then
-            self.gradSamples = 10000
+            self.gradSamples = self.opt.nGradStat
             self.gsTable = {}
             self.gradStatistics = {}
             for i = 1, #self.scale do
@@ -282,7 +282,7 @@ function div2k:getFileName(idx, scale)
         if self.opt.netType == 'recurVDSR' then
             inputName = 'SRres' .. fileName .. 'x' .. scale .. self.ext
         else
-            if self.split == 'train' and self.opt.augUnk then
+            if self.split == 'train' and self.opt.augUnkDIV2K then
                 rot = math.random(1,8)
                 inputName = fileName .. 'x' .. scale .. '_' .. rot .. self.ext
             else

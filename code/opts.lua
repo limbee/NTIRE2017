@@ -20,11 +20,15 @@ function M.parse(arg)
     -- Data
     cmd:option('-datadir',          '/var/tmp/dataset', 'Dataset location')
     cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
-    cmd:option('-augUnk',           'true',             'Use x8 augmented unknown DVI2K LR train set')
+    cmd:option('-augUnkDIV2K',      'true',             'Use x8 augmented unknown DVI2K LR train set')
+    cmd:option('-augUnkFlickr2K',   'true',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
     cmd:option('-degrade',          'bicubic',          'Degrade type: bicubic | unknown')
+	cmd:option('-DIV2K_nTrain',		800,				'Number of images used for DIV2K training')
+	cmd:option('-DIV2K_offset',		790,				'(offset + 1) ~ (offset + numVal) images are used for validation')
+	cmd:option('-Flickr2K_nTrain', 	2650,				'Number of images used for Flickr2K training')
     cmd:option('-numVal',           10,                 'Number of images for validation')
     cmd:option('-rejection',        -1,                 'Enables patch rejection which has low gradient (uninformative)')
     cmd:option('-rejectionType',    'input',            'Reject patches based on input | target patch gradient')
@@ -33,10 +37,11 @@ function M.parse(arg)
     cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
     cmd:option('-inverse',          'false',            'If inverse is true, learn downsampling operation')
     cmd:option('-flickr2kSize',     2650,               'Number of images in Flickr2K dataset')
+    cmd:option('-nGradStat',        1e4,                'Number of patches used for calulating gradient statistics')
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
     cmd:option('-startEpoch',       0,                  'Manual epoch number for resuming the training. Default is the end')
-    cmd:option('-lrDecay',          'step',             'Learning rate decaying method: step | exp | inv')
+    cmd:option('-lrDecay',          'step',             'Learning rate decaying method: step | exp | inv | schedule')
     cmd:option('-halfLife',         200e3,              'Half-life of learning rate: default is 200e3')
     cmd:option('-batchSize',        16,                 'Mini-batch size (1 = pure stochastic)')
     cmd:option('-patchSize',        96,                 'Training patch size')
@@ -55,8 +60,6 @@ function M.parse(arg)
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',             'Optimization method')
     cmd:option('-lr',               1e-4,               'Initial learning rate')
-    cmd:option('-lrLow',            1,                  'Relative learning rate of low frequency components')
-    cmd:option('-lrHigh',           1,                  'Relative learning rate of high frequency components')
     cmd:option('-momentum',         0.9,                'SGD momentum')
     cmd:option('-beta1',            0.9,                'ADAM beta1')
     cmd:option('-beta2',            0.999,              'ADAM beta2')
@@ -83,7 +86,6 @@ function M.parse(arg)
     cmd:option('-alpha',            1,                  'Parameter alpha for ELU')
     cmd:option('-negval',           1/100,              'Parameter negval for Leaky ReLU')
     cmd:option('-isSwap',           'false',            'Fast-swap for the models that generate multiple outputs')
-    cmd:option('-mobranch',         1,                  'Position of the branch in MOResnet')
     cmd:option('-scaleRes',         1,                  'Scale each residuals in residual blocks')
 	cmd:option('-ipMulc',			'false',			'Inplace option of mulConstant layer in residual block')
     cmd:option('-dropout',          0.5,                'Dropout rate')
@@ -92,10 +94,7 @@ function M.parse(arg)
     cmd:option('-smoothL1',         0,                  'Smooth L1 loss weight')
     cmd:option('-mse',              0,                  'MSE loss weight')
     cmd:option('-grad',             0,                  'Gradient loss weight')
-    cmd:option('-grad2',            0,                  '2nd order Gradient loss weight')
     cmd:option('-gradDist',         'mse',              'Distance of gradient loss abs | mse')
-    cmd:option('-gradPrior',        0,                  'Gradient prior weight')
-    cmd:option('-gradPower',        0.8,                'Gradient prior power')
     cmd:text()
 
     local opt = cmd:parse(arg or {})
@@ -115,9 +114,11 @@ function M.parse(arg)
     opt.isSwap = opt.isSwap == 'true'
 
     opt.useDIV2K = opt.useDIV2K == 'true'
-    opt.augUnk = opt.augUnk == 'true'
+    opt.augUnkDIV2K = opt.augUnkDIV2K == 'true'
+    opt.augUnkFlickr2K = opt.augUnkFlickr2K == 'true'
 	if opt.degrade == 'bicubic' then
-		opt.augUnk = false
+		opt.augUnkDIV2K = false
+        opt.augUnkFlickr2K = false
 	end
 
     opt.inverse = opt.inverse == 'true'

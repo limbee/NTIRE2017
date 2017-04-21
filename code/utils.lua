@@ -156,7 +156,7 @@ function util:load()
                 end
                 for i = 1, #self.opt.scale do
                     table.insert(_psnr, {})
-                    for j = 1, #psnr do
+                    for j = 1, #psnr[i] do
                         if psnr[i][j].key <= lastIter then
                             table.insert(_psnr[i], psnr[i][j])
                         end
@@ -204,14 +204,14 @@ end
 function util:swapModel(model, index)
     local sModel = nn.Sequential()
 
-    if self.opt.netType == 'moresnet' then
+    if self.opt.netType == 'multiscale' then
         sModel
             :add(model:get(1))
             :add(model:get(2))
             :add(model:get(3))
             :add(model:get(4):get(index))
             :add(model:get(5):get(index))
-    elseif self.opt.netType == 'moresnet_unknown' then
+    elseif self.opt.netType == 'multiscale_unknown' then
         sModel
             :add(model:get(1))
             :add(model:get(2))
@@ -220,15 +220,8 @@ function util:swapModel(model, index)
             :add(model:get(5):get(index))
             :add(model:get(6):get(index))
     end
-    if self.opt.nGPU == 1 then
-        return sModel
-    else
-        local gpus = torch.range(1, self.opt.nGPU):totable()
-        local dpt = nn.DataParallelTable(1, true, true)
-            :add(sModel, gpus)
-        dpt.gradInput = nil
-        return dpt:cuda()
-    end
+    
+    return sModel
 end
 
 function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)

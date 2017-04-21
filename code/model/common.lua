@@ -172,25 +172,6 @@ function resBlock(nFeat, addBN, actParams, scaleRes, ipMulc)
     end
 end
 
-function dropResBlock(nFeat, addBN, actParams, dropRate)
-    local nFeat = nFeat or 64
-    actParams.nFeat = nFeat
-
-    if scaleRes then 
-        return addSkip(seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(act(actParams))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(mulc(scaleRes, ipMulc)))
-    else
-        return addSkip(seq()
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(act(actParams))
-            :add(conv(nFeat,nFeat, 3,3, 1,1, 1,1))
-            :add(nn.SpatialDropout(dropRate)))
-    end
-end
-
 function cbrcb(nFeat, addBN, actParams)
     local nFeat = nFeat or 64
     actParams.nFeat = nFeat
@@ -233,7 +214,6 @@ end
 --This function takes the input like {Skip, {Output1, Output2, ...}}
 --and returns {Output1 + Skip, Output2 + Skip, ...}
 --It also supports in-place calculation
-
 function MultiSkipAdd:updateOutput(input)
     self.output = {}
 
@@ -271,49 +251,3 @@ function MultiSkipAdd:updateGradInput(input, gradOutput)
 
     return self.gradInput
 end
-
---this is a test code for nn.MultiSkipAdd
---[[
-local conv = nn.SpatialConvolution(1, 1, 3, 3)
---local conv = nn.Identity()
-local ref = nn.Sequential()
-local cat = nn.ConcatTable()
-local b1 = nn.Sequential()
-    :add(nn.NarrowTable(1, 2))
-    :add(nn.CAddTable(false))
-    :add(conv:clone())
-local b2 = nn.Sequential()
-    :add(nn.ConcatTable()
-        :add(nn.SelectTable(1))
-        :add(nn.SelectTable(3)))
-    :add(nn.CAddTable(false))
-    :add(conv:clone())
-ref
-    :add(nn.FlattenTable())
-    :add(cat
-        :add(b1)
-        :add(b2))
-
-local comp = nn.Sequential()
-    :add(nn.MultiSkipAdd(true))
-    :add(nn.ParallelTable()
-        :add(conv:clone())
-        :add(conv:clone()))
-
-local input1 = {torch.randn(1, 1, 6, 6), {torch.randn(1, 1, 6, 6), torch.randn(1, 1, 6, 6)}}
-local input2 = {input1[1]:clone(), {input1[2][1]:clone(), input1[2][2]:clone()}}
-
-print(input1)
-print(table.unpack(ref:forward(input1)))
-print(table.unpack(comp:forward(input2)))
-
-local go1 = {torch.randn(1, 1, 4, 4), torch.randn(1, 1, 4, 4)}
-local go2 = {go1[1]:clone(), go1[2]:clone()}
-
-gi1 = ref:updateGradInput(input1, go1)
-gi2 = comp:updateGradInput(input2, go2)
-print(gi1[1])
-print(table.unpack(gi1[2]))
-print(gi2[1])
-print(table.unpack(gi2[2]))
-]]
