@@ -31,6 +31,7 @@ local function createModel(opt)
             :add(upsample_wo_act(scale[i], opt.upsample, opt.nFeat))
             :add(conv(opt.nFeat, opt.nChannel, 3, 3, 1, 1, 1, 1)))
     end
+	model:add(cat)
 
     return model
 end

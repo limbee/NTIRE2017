@@ -5,24 +5,27 @@ require 'image'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
-cmd:option('-type',         'val', 	    'demo type: bench | test | val')
-cmd:option('-dataset',      'DIV2K',    'test dataset')
-cmd:option('-mulImg',       255,        'multiply constant to input image')
-cmd:option('-progress',     'true',     'show current progress')
-cmd:option('-model',        'resnet',   'substring of model name')
-cmd:option('-save',         '.',        'Save as')
-cmd:option('-ensembleW',    '-1',        'Ensemble weight')
-cmd:option('-degrade',      'bicubic',  'degrading opertor: bicubic | unknown')
-cmd:option('-scale',        2,          'scale factor: 2 | 3 | 4')
-cmd:option('-swap',         -1,         'Model swap')
-cmd:option('-gpuid',	    1,		    'GPU id for use')
-cmd:option('-nThreads',     3,          'Number of threads to save images')
-cmd:option('-nGPU',         1,          'Number of GPUs to use by default')
-cmd:option('-dataDir',	    '/var/tmp', 'data directory')
-cmd:option('-selfEnsemble', 'false',    'enables self ensemble with flip and rotation')
-cmd:option('-chopShave',    10,         'Shave width for chopForward')
-cmd:option('-chopSize',     16e4,       'Minimum chop size for chopForward')
-cmd:option('-inplace',      'false',    'inplace operation')
+cmd:option('-nGPU',         1,              'Number of GPUs to use by default')
+cmd:option('-gpuid',	    1,		        'GPU id for use')
+
+cmd:option('-dataDir',	    '/var/tmp',     'data directory')
+cmd:option('-dataset',      'DIV2K',        'test dataset')
+cmd:option('-type',         'test', 	    'demo type: bench | test | val')
+cmd:option('-save',         '.',            'Save as')
+
+cmd:option('-mulImg',       255,            'multiply constant to input image')
+
+cmd:option('-model',        'bicubic_x2',   'substring of model name')
+cmd:option('-swap',         -1,             'Model swap')
+cmd:option('-ensembleW',    '-1',           'Ensemble weight')
+cmd:option('-scale',        2,              'scale factor: 2 | 3 | 4')
+cmd:option('-degrade',      'bicubic',      'degrading opertor: bicubic | unknown')
+
+cmd:option('-chopShave',    10,             'Shave width for chopForward')
+cmd:option('-chopSize',     4e4,            'Minimum chop size for chopForward')
+cmd:option('-selfEnsemble', 'false',        'enables self ensemble with flip and rotation')
+cmd:option('-inplace',      'false',        'inplace operation')
+cmd:option('-progress',     'true',         'show current progress')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
@@ -43,7 +46,7 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
---Multiscale model needs
+--Multiscale model needs quick swap
 local function swap(model, modelType)
     local sModel = nn.Sequential()
     if modelType == 'multiscale' then
