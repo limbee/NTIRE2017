@@ -8,9 +8,9 @@ function flickr2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = opt.flickr2kSize
-    self.nDIV2K = 900
-    self.offset = 790
+    self.size = opt.Flickr2K_nTrain
+    self.nDIV2K = opt.DIV2K_nTrain
+    self.offset = opt.DIV2K_offset
     self.numVal = opt.numVal
     self.scale = self.opt.scale
 
