@@ -8,10 +8,10 @@ function flickr2k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.size = opt.flickr2kSize
-    self.nDIV2K = 900
-    self.offset = 790
-    self.numVal = opt.numVal
+    self.size = opt.nTrain_Flickr2K
+    self.nDIV2K = opt.nTrain_DIV2K
+    self.offset = opt.valOffset
+    self.nVal = opt.nVal
     self.scale = self.opt.scale
 
     local apath = nil
@@ -90,7 +90,7 @@ function flickr2k:get(idx, scaleIdx)
         if idx > self.opt.flickr2kSize then
             idx = idx - self.opt.flickr2kSize
             if idx > self.offset then
-                idx = idx + self.numVal
+                idx = idx + self.nVal
             end
         end
 
@@ -221,12 +221,12 @@ end
 function flickr2k:__size()
     if self.split == 'train' then
         if self.opt.useDIV2K then
-            return self.size + self.nDIV2K - self.numVal
+            return self.size + self.nDIV2K - self.nVal
         else
             return self.size
         end
     elseif self.split == 'val' then
-        return self.numVal
+        return self.nVal
     end
 end
 

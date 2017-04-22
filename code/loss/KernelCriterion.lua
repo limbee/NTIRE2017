@@ -33,13 +33,8 @@ local KernelCriterion, parent = torch.class('nn.KernelCriterion', 'nn.Criterion'
 function KernelCriterion:__init(opt, kernel)
     parent.__init(self)
     
-    self.inputGrad = nn.Sequential()
-    self.inputGrad:add(nn.View(opt.batchSize * opt.nChannel, 1, opt.patchSize, opt.patchSize))
-    self.inputGrad:add(nn.SpatialConstConvolution(kernel))
-    self.targetGrad = nn.Sequential()
-    self.targetGrad:add(nn.View(opt.batchSize * opt.nChannel, 1, opt.patchSize, opt.patchSize))
-    self.targetGrad:add(nn.SpatialConstConvolution(kernel))
-
+    self.inputGrad = nn.SpatialConstConvolution(kernel)
+    self.targetGrad = nn.SpatialConstConvolution(kernel)
     self.gradDist = nil
     if opt.gradDist == 'mse' then
         self.gradDist = nn.MSECriterion(true)
@@ -52,15 +47,21 @@ function KernelCriterion:__init(opt, kernel)
 end
 
 function KernelCriterion:updateOutput(input, target)
-    self.ig = self.inputGrad:forward(input)
-    self.tg = self.targetGrad:forward(target)
+    local b, c, h, w = unpack(input:size():totable())
+
+    self.ig = self.inputGrad:forward(input:view(b * c, 1, h, w))
+    self.tg = self.targetGrad:forward(target:view(b * c, 1, h, w))
     self.output = self.gradDist:forward(self.ig, self.tg)
     return self.output
 end
 
 function KernelCriterion:updateGradInput(input, target)
+    local b, c, h, w = unpack(input:size():totable())
+    
     self.dodg =  self.gradDist:updateGradInput(self.ig, self.tg)
-    self.gradInput = self.inputGrad:updateGradInput(input, self.dodg)
+    self.gradInput = self.inputGrad:updateGradInput(input:view(b * c, 1, h, w), self.dodg)
+    self.gradInput  = self.gradInput:view(b, c, h, w)
+    
     return self.gradInput
 end
 --------------------------------------------------------------------------------

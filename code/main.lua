@@ -24,7 +24,7 @@ local trainLoader, valLoader = DataLoader.create(opt)
 local trainer = Trainer(model, criterion, opt)
 
 if opt.valOnly then
-    print('Validate the model (at epoch ' .. opt.startEpoch - 1 .. ') with ' .. opt.numVal .. ' val images')
+    print('Validate the model (at epoch ' .. opt.startEpoch - 1 .. ') with ' .. opt.nVal .. ' val images')
     trainer:test(opt.startEpoch - 1, valLoader)
 else
     print('Train start')

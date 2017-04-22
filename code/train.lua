@@ -57,7 +57,6 @@ function Trainer:train(epoch, dataloader)
     cudnn.benchmark = true
 
     local isSwap = self.opt.isSwap
-    --local swapTable = self:prepareSwap(isSwap)
     local tempModel = nil
 
     self.model:clearState()
@@ -76,7 +75,6 @@ function Trainer:train(epoch, dataloader)
         if isSwap then
             --Fast model swap
             tempModel = self.model
-            --self.model = swapTable[scaleIdx]
             self.model = self.util:swapModel(self.model, scaleIdx)
         end
 
@@ -105,6 +103,7 @@ function Trainer:train(epoch, dataloader)
             self.optim(self.feval, self.params, self.optimState)
         else
             print(('Warning: Error is too large! Skip this batch. (Err: %.6f)'):format(self.currentErr))
+            torch.save('../../skipBatch.t7', {self.input.train, self.target})
         end
 
         trainTime = trainTime + trainTimer:time().real
@@ -139,7 +138,6 @@ function Trainer:test(epoch, dataloader)
     cudnn.benchmark = false
 
     local isSwap = self.opt.isSwap
-    --local swapTable = self:prepareSwap(isSwap)
     local tempModel = nil
 
     self.model:clearState()
@@ -168,13 +166,11 @@ function Trainer:test(epoch, dataloader)
             if isSwap then    
                 --Fast model swap
                 tempModel = modelTest
-                --modelTest = swapTable[i]
                 modelTest = self.util:swapModel(tempModel, i)
             end
 
             local output
             if self.opt.inverse then
-                -- output = self.util:recursiveForward(input, modelTest)
                 output = modelTest:forward(input)
             else
                 output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
