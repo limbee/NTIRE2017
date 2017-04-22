@@ -49,6 +49,7 @@ function Trainer:train(epoch, dataloader)
     local dataTimer = torch.Timer()
     local trainTime, dataTime = 0, 0
     local globalIter, globalErr, localErr = 0, 0, 0
+	local splitBatch = self.opt.splitBatch
 
     local pe = self.opt.printEvery
     local te = self.opt.testEvery
@@ -59,34 +60,41 @@ function Trainer:train(epoch, dataloader)
     local isSwap = self.opt.isSwap
     local tempModel = nil
 
-    self.model:clearState()
-
     self.model:training()
+    self.model:clearState()
     self:getParams()
     collectgarbage()
     collectgarbage()
 
     for n, batch in dataloader:run() do
-        dataTime = dataTime + dataTimer:time().real
-        self:copyInputs(batch.input, batch.target, 'train')
-        local scaleIdx = batch.scaleIdx
-
+		dataTime = dataTime + dataTimer:time().real
+        
+		local scaleIdx = batch.scaleIdx
+		self:copyInputs(batch.input, batch.target, 'train')
         self.model:zeroGradParameters()
+
         if isSwap then
             --Fast model swap
             tempModel = self.model
             self.model = self.util:swapModel(self.model, scaleIdx)
         end
 
-        self.model:forward(self.input.train)
-        self.currentErr = self.criterion(self.model.output, self.target)
-        self.model:backward(self.input.train, self.criterion.gradInput)
+        self.currentErr = 0
+		local sBatchSize = self.opt.batchSize / splitBatch
+		for i = 1, splitBatch do
+			local splitInput = self.input.train:narrow(1, ((i - 1) * sBatchSize) + 1, sBatchSize)
+			local splitTarget = self.target:narrow(1, ((i - 1) * sBatchSize) + 1, sBatchSize)
+			self.model:forward(splitInput)
+			self.currentErr = self.currentErr + self.criterion(self.model.output, splitTarget)
+			self.model:backward(splitInput, self.criterion.gradInput)
+		end
+		self.currentErr = self.currentErr / splitBatch
 
         if isSwap then
             --Return to original model
             self.model = tempModel
         end
-
+		
         -- If the error is larger than skipBatch * (previous error),
         -- do not use it to update the parameters.
         if self.currentErr < self.retLoss * self.opt.skipBatch then
@@ -100,6 +108,7 @@ function Trainer:train(epoch, dataloader)
             end
 
             self:calcLR()
+			self.gradParams:div(splitBatch)
             self.optim(self.feval, self.params, self.optimState)
         else
             print(('Warning: Error is too large! Skip this batch. (Err: %.6f)'):format(self.currentErr))
@@ -176,6 +185,11 @@ function Trainer:test(epoch, dataloader)
                 output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
             end
 
+            if isSwap then
+                --Return to original model
+				modelTest = tempModel
+            end
+
             if self.opt.selOut > 0 then
                 output = output[selOut]
             end
@@ -193,11 +207,6 @@ function Trainer:test(epoch, dataloader)
             self.input.test = nil
             self.target = nil
             output = nil
-
-            if isSwap then
-                --Return to original model
-                modelTest = tempModel
-            end
 
             collectgarbage()
             collectgarbage()
