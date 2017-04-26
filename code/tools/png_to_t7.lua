@@ -61,6 +61,19 @@ elseif opt.dataset == 'Flickr2K' then
     if opt.lrAug then
         table.insert(lrDir, 'Flickr2K_LR_unknown_augment')
     end
+elseif opt.dataset == 'IMAGENET' then
+    hrDir = 'IMAGENET_HR'
+    lrDir = {}
+    if opt.lr then
+        lrDir =
+        {
+            'IMAGENET_LR_bicubic',
+            --'IMAGENET_LR_unknown'
+        }
+    end
+    if opt.lrAug then
+        table.insert(lrDir, 'IMAGENET_LR_unknown_augment')
+    end
 end
 
 if not paths.dirp(outputPath) then
