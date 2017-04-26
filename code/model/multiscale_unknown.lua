@@ -16,21 +16,39 @@ local function createModel(opt)
     actParams.alpha = opt.alpha
     actParams.negval = opt.negval
 
-    print('\t Load pre-trained Multiscale model and add deblur module')
-    assert(opt.preTrained ~= '.', 'Please specify -preTrained option')
-    local refModel = torch.load(opt.preTrained)
+    local refModel = nil 
+	if opt.preTrained == '.' then
+		refModel = require('model/multiscale')(opt)
+	else
+		refModel = torch.load(opt.preTrained)
+	end
+
     local branch = nn.ParallelTable()
-    for i = 1, #scale do
+    local scaleRes = (opt.scaleRes and opt.scaleRes ~= 1) and opt.scaleRes or false
+
+	for i = 1, #scale do
         local deblur = seq()
         for j = 1, 2 do
-            deblur:add(addSkip(seq()
-                :add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))
-                :add(act(actParams))
-                :add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))))
+			if scaleRes then
+				deblur:add(addSkip(seq()
+					:add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))
+					:add(act(actParams))
+					:add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))
+					:add(mulc(scaleRes, false))))
+			else
+				deblur:add(addSkip(seq()
+					:add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))
+					:add(act(actParams))
+					:add(conv(opt.nFeat, opt.nFeat, 5, 5, 1, 1, 2, 2))))
+			end
         end
         branch:add(deblur) 
     end
-    refModel:insert(branch, 3)
+	if opt.preTrained == '.' then
+		refModel:insert(branch, 2)
+	else
+    	refModel:insert(branch, 3)
+	end
 
     return refModel
 end
