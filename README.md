@@ -8,15 +8,15 @@ by [SNU_CVLab Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim
 ## Model
 This is our **single scale** model for scale 2. We only changed upsampler for different scale models.
 
-![model_baseline](/document/figs/baseline.png)
+![model_baseline](/figs/baseline.png)
 
 **Bicubic multiscale** model has three upsamplers to generate different scale output images.
 
-![model_bicubic_multiscale](/document/figs/multiscale_bicubic.png)
+![model_bicubic_multiscale](/figs/multiscale_bicubic.png)
 
 **Unknown multiscale** model has three additional pre-processing modules for different scale inputs.
 
-![model_unknown_multiscale](/document/figs/multiscale_unknown.png)
+![model_unknown_multiscale](/figs/multiscale_unknown.png)
 
 Every convolution layer execpt pre-processing modules in **Unknown multiscale** model uses **3x3** convolution kernel with **stride = 1, pad =  1**.
 
