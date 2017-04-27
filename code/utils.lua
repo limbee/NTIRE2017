@@ -187,16 +187,15 @@ function util:load()
 end
 
 function util:calcPSNR(output, target, scale)
-    local diff = nil
+    local _, h, w = table.unpack(output:size():totable())
+	local diff = nil
     if self.opt.dataset ~= 'imagenet50k' then
         diff = (output - target):squeeze()
     else
-        local outputY, targetY = nil, nil
-        image.rgb2yuv(outputY, output:squeeze())
-        image.rgb2yuv(targetY, target:squeeze())
-        diff = (outputY[1] - targetY[1])
+        local outputY = image.rgb2yuv(output:squeeze())[1]
+        local targetY = image.rgb2yuv(target:squeeze())[1]
+        diff = (outputY - targetY):view(1, h, w)
     end
-    local _, h, w = table.unpack(diff:size():totable())
     local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or 4
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
