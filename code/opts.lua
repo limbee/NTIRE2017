@@ -22,12 +22,14 @@ function M.parse(arg)
     cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
     cmd:option('-augUnkDIV2K',      'true',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-augUnkFlickr2K',   'true',             'Use x8 augmented unknown DVI2K LR train set')
+    cmd:option('-augUnkIMAGENET',   'false',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
     cmd:option('-degrade',          'bicubic',          'Degrade type: bicubic | unknown')
 	cmd:option('-nTrain_DIV2K',		800,				'Number of images used for DIV2K training')
 	cmd:option('-nTrain_Flickr2K', 	2650,				'Number of images used for Flickr2K training')
+	cmd:option('-nTrain_IMAGENET', 	50000,				'Number of images used for IMAGENET training')
 	cmd:option('-valOffset',		800,				'(valOffset + 1) ~ (valOffset + nVal) images are used for validation')
     cmd:option('-nVal',             10,                 'Number of images for validation')
     cmd:option('-rejection',        -1,                 'Enables patch rejection which has low gradient (uninformative)')
@@ -37,6 +39,7 @@ function M.parse(arg)
     cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
     cmd:option('-inverse',          'false',            'If inverse is true, learn downsampling operation')
     cmd:option('-flickr2kSize',     2650,               'Number of images in Flickr2K dataset')
+    cmd:option('-imagenetSize',     50000,               'Number of images in Flickr2K dataset')
     cmd:option('-nGradStat',        1e4,                'Number of patches used for calulating gradient statistics')
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
@@ -117,9 +120,11 @@ function M.parse(arg)
     opt.useDIV2K = opt.useDIV2K == 'true'
     opt.augUnkDIV2K = opt.augUnkDIV2K == 'true'
     opt.augUnkFlickr2K = opt.augUnkFlickr2K == 'true'
+    opt.augUnkIMAGENET = opt.augUnkIMAGENET == 'true'
 	if opt.degrade == 'bicubic' then
 		opt.augUnkDIV2K = false
         opt.augUnkFlickr2K = false
+        opt.augUnkIMAGENET = false
 	end
 
     opt.inverse = opt.inverse == 'true'
