@@ -2,6 +2,7 @@ clear;
 outputDir = 'img_output';
 %outputDir = 'img_input';
 targetDir = 'img_target';
+dataset = 'imagenet50k';
 setException = {};
 psnrOnly = false;
 
@@ -57,6 +58,11 @@ for iModel = 1:length(totalDir)
                     if targetDim == 2
                         targetImg = cat(3, targetImg, targetImg, targetImg);
                     end
+                    if dataset == 'imagenet50k' 
+                        targetImg = 0.299 * targetImg(:,:,1) + 0.587 * targetImg(:,:,2) + 0.114 * targetImg(:,:,3);
+                        inputImg = 0.299 * inputImg(:,:,1) + 0.587 * inputImg(:,:,2) + 0.114 * inputImg(:,:,3);
+                    end
+                    
                     shave = scale + 6;
                     [h, w, ~] = size(inputImg);
                     targetImg = targetImg(1:h, 1:w, :);
