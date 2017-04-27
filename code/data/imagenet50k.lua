@@ -8,32 +8,49 @@ function imagenet50k:__init(opt, split)
     self.opt = opt
     self.split = split
 
-    self.nTrain = opt.nTrain_DIV2K
-    self.nVal = opt.nVal
-	self.offset = opt.valOffset -- (offset + 1) ~ (offset + nVal) images are used to validate the training
     self.scale = self.opt.scale
+
     self.dataSize = 50000
+    self.nVal = 5                   --We use Set5 for validation
 
     --Absolute path of the dataset
     local apath = nil
-    self.ext = nil
 
-    assert(opt.datatype == 'png', 'IMAGENET only supports -datatype png')
     assert(opt.degrade == 'bicubic', 'IMAGENET only supports bicubic degrader')
-    apath = paths.concat(opt.datadir, 'IMAGENET')
-    self.ext = '.png'
-
-
-    local tHR = 'IMAGENET_HR'
-    local tLR = 'IMAGENET_LR_'
-
-    self.dirTar = paths.concat(apath, tHR)
-    self.dirInp, self.dirInp_aug = {}, {}
-
-    for i = 1, #self.scale do
-		table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
-        self.dirInp[i] = opt.dataSize == 'small' and self.dirInp[i] or self.dirInp[i]
+    if opt.datatype == 'png' then
+        self.ext = '.png'
+    elseif opt.datatype == 't7' then
+        self.ext = '.t7'
     end
+
+    if self.split == 'train' then
+        if opt.datatype == 'png' then
+            apath = paths.concat(opt.datadir, 'IMAGENET')
+        elseif opt.datatype == 't7' then
+            apath = paths.concat(opt.datadir, 'IMAGENET_decoded')
+        end
+
+        local tHR = 'IMAGENET_HR'
+        local tLR = 'IMAGENET_LR_'
+
+        self.dirTar = paths.concat(apath, tHR)
+        self.dirInp = {}
+        for i = 1, #self.scale do
+            table.insert(self.dirInp, paths.concat(apath, tLR .. opt.degrade, 'X' .. self.scale[i]))
+            self.dirInp[i] = self.dirInp[i]
+        end
+    elseif self.split == 'val' then
+        apath = paths.concat(opt.datadir, 'benchmark')
+        local tHR = 'Set5'
+        local tLR = 'small/Set5'
+
+        self.dirTar = paths.concat(apath, tHR)
+        self.dirInp = {}
+        for i = 1, #self.scale do
+            table.insert(self.dirInp, paths.concat(apath, tLR, 'X' .. self.scale[i]))
+        end
+    end
+    
 
     collectgarbage()
     collectgarbage()
@@ -44,15 +61,15 @@ function imagenet50k:get(idx, scaleIdx)
     local scale = self.scale[scaleIdx]
     local dataSize = self.dataSize
 
-    if self.split == 'train' then
-        if idx > self.offset then
-            idx = idx + self.nVal
-        end
-    end
-
+    local input, target = nil
     local inputName, targetName, rot = self:getFileName(idx, scale)
-	local input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
-    local target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')    
+    if self.opt.datatype == 'png' or self.split == 'val' then
+	    input = image.load(paths.concat(self.dirInp[scaleIdx], inputName), self.opt.nChannel, 'float')
+        target = image.load(paths.concat(self.dirTar, targetName), self.opt.nChannel, 'float')    
+    elseif self.opt.datatype == 't7' then
+        input = torch.load(paths.concat(self.dirInp[scaleIdx], inputName))
+        target = torch.load(paths.concat(self.dirTar, targetName))
+    end
 
     local _, h, w = unpack(target:size():totable())
     local hInput, wInput = math.floor(h / scale), math.floor(w / scale)
@@ -77,8 +94,13 @@ function imagenet50k:get(idx, scaleIdx)
         target = target[{{}, {ty, ty + targetPatch - 1}, {tx, tx + targetPatch - 1}}]
     end
 
-    input:mul(self.opt.mulImg)
-    target:mul(self.opt.mulImg)
+    if self.opt.datatype == 'png' or self.split == 'val' then
+        input:mul(self.opt.mulImg)
+        target:mul(self.opt.mulImg)
+    else
+        input = input:float():mul(self.opt.mulImg / 255)
+        target = target:float():mul(self.opt.mulImg / 255)
+    end
 
     --Reject the patch that has small size of spatial gradient
     if self.split == 'train' and self.opt.rejection ~= -1 then
@@ -133,7 +155,7 @@ end
 
 function imagenet50k:__size()
     if self.split == 'train' then
-        return self.nTrain
+        return self.dataSize
     elseif self.split == 'val' then
         return self.nVal
     end
@@ -163,24 +185,32 @@ end
 
 function imagenet50k:getFileName(idx, scale)
     --filename format: ????x?.png
-    local fileName = idx
-    local digit = idx
-    while digit < 10000 do
-        fileName = '0' .. fileName
-        digit = digit * 10
+    if self.split == 'train' then
+        local fileName = idx
+        local digit = idx
+        while digit < 10000 do
+            fileName = '0' .. fileName
+            digit = digit * 10
+        end
+
+        local targetName = fileName .. self.ext
+        local inputName = nil
+        local rot
+        if scale == 1 then
+            inputName = targetName
+        else
+            rot = nil
+            inputName = fileName .. 'x' .. scale .. self.ext
+        end
+
+        return inputName, targetName, rot
+    elseif self.split == 'val' then
+        local fileList = {'baby', 'bird', 'butterfly', 'head', 'woman'}
+        local inputName = fileList[idx] .. '.png'
+        return inputName, inputName, nil
     end
 
-    local targetName = fileName .. self.ext
-    local inputName = nil
-    local rot
-    if scale == 1 then
-        inputName = targetName
-    else
-        rot = nil
-        inputName = fileName .. 'x' .. scale .. self.ext
-    end
-
-    return inputName, targetName, rot
+    return nil, nil, nil
 end
 
 return M.imagenet50k
