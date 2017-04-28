@@ -64,7 +64,7 @@ local function getModel(opt)
 
         model = cudnn.convert(model,cudnn)
     end
-	
+
 	if opt.subMean and opt.dataset == 'imagenet50k' then
 		local r, g, b = 0.4785 * opt.mulImg, 0.4571 * opt.mulImg, 0.4072 * opt.mulImg
 		local subMeanLayer = model:get(1)
@@ -80,7 +80,7 @@ local function getModel(opt)
 		end
 	end
 
-    model:cuda()
+	model:cuda()
     cudnn.fastest = true
     cudnn.benchmark = true
 
@@ -102,7 +102,7 @@ local function getModel(opt)
     if opt.printModel then
         print(model)
     end
-    
+   	 
     return model
 end
 
