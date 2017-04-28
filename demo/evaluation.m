@@ -2,7 +2,7 @@ clear;
 outputDir = 'img_output';
 targetDir = 'img_target';
 setException = {};
-psnrOnly = false;
+psnrOnly = true;
 
 tableRow = {};
 tableCol = {};
@@ -56,13 +56,13 @@ for iModel = 1:length(totalDir)
                     if targetDim == 2
                         targetImg = cat(3, targetImg, targetImg, targetImg);
                     end
-					shave = scale + 6
-                    if sum(strcmp(setName, {'Set5', 'Set14', 'B100', 'Urban100'})) 
+					shave = scale + 6;
+                    if sum(strcmp(setName, {'Set5', 'Set14', 'B100', 'Urban100'})) == 1 
                         targetImg = rgb2ycbcr(targetImg);
                         targetImg = targetImg(:,:,1);
                         inputImg = rgb2ycbcr(inputImg);
                         inputImg = inputImg(:,:,1);
-						shave = scale
+						shave = scale;
                     end
                     [h, w, ~] = size(inputImg);
                     targetImg = targetImg(1:h, 1:w, :);
