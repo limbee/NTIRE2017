@@ -68,9 +68,16 @@ local function getModel(opt)
 	if opt.subMean and opt.dataset == 'imagenet50k' then
 		local r, g, b = 0.4785 * opt.mulImg, 0.4571 * opt.mulImg, 0.4072 * opt.mulImg
 		local subMeanLayer = model:get(1)
-		local addMeanLayer = model:get(model:size())
 		subMeanLayer.bias:copy(torch.Tensor({-r, -g, -b}))
-		addMeanLayer.bias:copy(torch.Tensor({r, g, b}))
+		if opt.netType:find('multiscale') then
+			local addMeanParallel = model:get(model:size())
+			for i = 1, #opt.scale do
+				addMeanParallel:get(i).bias:copy(torch.Tensor({r, g, b}))
+			end
+		else
+			local addMeanLayer = model:get(model:size())
+			addMeanLayer.bias:copy(torch.Tensor({r, g, b}))
+		end
 	end
 
 	model:cuda()

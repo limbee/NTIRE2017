@@ -186,26 +186,31 @@ function util:load()
     return ok, loss, psnr, lr
 end
 
+--in-place quantization and divide by 255
+function util:quantize(img, mulImg)
+    return img:mul(255 / mulImg):add(0.5):floor():div(255)
+end
+
+function util:rgb2ycbcr(img)
+	local y = 16 + (65.481 * img[1]) + (128.553 * img[2]) + (24.966 * img[3])
+	return y / 255
+end
+
 function util:calcPSNR(output, target, scale)
     local _, h, w = table.unpack(output:size():totable())
 	local diff = nil
     if self.opt.dataset ~= 'imagenet50k' then
         diff = (output - target):squeeze()
     else
-        local outputY = image.rgb2yuv(output:squeeze())[1]
-        local targetY = image.rgb2yuv(target:squeeze())[1]
+        local outputY = util:rgb2ycbcr(output)
+        local targetY = util:rgb2ycbcr(target)
         diff = (outputY - targetY):view(1, h, w)
     end
-    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or 4
+    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or scale
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
 
     return psnr
-end
-
---in-place quantization and divide by 255
-function util:quantize(img, mulImg)
-    return img:mul(255 / mulImg):add(0.5):floor():div(255)
 end
 
 function util:swapModel(model, index)
