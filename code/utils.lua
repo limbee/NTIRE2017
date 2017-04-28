@@ -192,11 +192,11 @@ function util:calcPSNR(output, target, scale)
     if self.opt.dataset ~= 'imagenet50k' then
         diff = (output - target):squeeze()
     else
-        local outputY = image.rgb2yuv(output:squeeze())[1]
-        local targetY = image.rgb2yuv(target:squeeze())[1]
+        local outputY = image.rgb2y(output:squeeze())
+        local targetY = image.rgb2y(target:squeeze())
         diff = (outputY - targetY):view(1, h, w)
     end
-    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or 4
+    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or scale
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
 

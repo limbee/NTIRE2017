@@ -1,3 +1,8 @@
+
+#imagenet
+th test.lua -type bench -model imagenet -scale 4 
+
+
 # Bicubic scale 2
 #th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true
 
