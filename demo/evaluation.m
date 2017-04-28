@@ -64,7 +64,7 @@ for iModel = 1:length(totalDir)
                         inputImg = inputImg(:,:,1);
                     end
                     
-                    shave = scale + 6;
+                    shave = scale;%+6;
                     [h, w, ~] = size(inputImg);
                     targetImg = targetImg(1:h, 1:w, :);
                     inputImg = inputImg((1 + shave):(h - shave), (1 + shave):(w - shave), :);
