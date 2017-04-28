@@ -206,7 +206,7 @@ function util:calcPSNR(output, target, scale)
         local targetY = util:rgb2ycbcr(target)
         diff = (outputY - targetY):view(1, h, w)
     end
-    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or 4
+    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or scale
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
 
