@@ -3,6 +3,8 @@ t7pack_test
 *.pdf
 *.swp
 *.t7
+*.png
+*.jpg
 run*.sh
 !training.sh
 !makeFinal.sh
