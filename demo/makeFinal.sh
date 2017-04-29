@@ -1,4 +1,3 @@
-
 #imagenet
 #th test.lua -type bench -model model_217_en -scale 4 -selfEnsemble true 
 #th test.lua -type bench -model model_217 -scale 4
