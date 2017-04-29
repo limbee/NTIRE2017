@@ -6,8 +6,8 @@ t7pack_test
 *.png
 *.jpg
 run*.sh
-!training.sh
-!makeFinal.sh
+!code/training.sh
+!demo/makeFinal.sh
 
 # Compiled Lua sources
 luac.out

@@ -62,13 +62,13 @@ for _,scale in pairs(scales) do
     -- ilr_bic = image.scale(ilr_bic, scale)
     -- ilr_unk = image.scale(ilr_unk, scale)
     local ilr_bic = image.load(paths.concat(
-        'img_interpolate', 'Interpolate_bicubic_' .. imageName .. 'x' .. scale .. ext))
+        '../img_interpolate', 'interpolate_bicubic_' .. imageName .. 'x' .. scale .. ext))
     local ilr_unk = image.load(paths.concat(
-        'img_interpolate', 'Interpolate_unknown_' .. imageName .. 'x' .. scale .. ext))
+        '../img_interpolate', 'interpolate_unknown_' .. imageName .. 'x' .. scale .. ext))
     local sr_bic = image.load(paths.concat(
-        'img_output', 'bicubic_x' .. scale, 'val', 'X' .. scale, imageName .. ext))
+        '../img_output', 'bicubic_x' .. scale, 'val', 'X' .. scale, imageName .. ext))
     local sr_unk = image.load(paths.concat(
-        'img_output', 'unknown_x' .. scale, 'val', 'X' .. scale, imageName .. ext))
+        '../img_output', 'unknown_x' .. scale, 'val', 'X' .. scale, imageName .. ext))
 
     ilr_bic = ilr_bic[{{}, {top, bottom}, {left, right}}]
     ilr_unk = ilr_unk[{{}, {top, bottom}, {left, right}}]
