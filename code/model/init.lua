@@ -80,7 +80,7 @@ local function getModel(opt)
 		end
 	end
 
-    model:cuda()
+	model:cuda()
     cudnn.fastest = true
     cudnn.benchmark = true
 

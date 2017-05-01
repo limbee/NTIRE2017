@@ -17,7 +17,7 @@ local function createModel(opt)
     body:add(conv(opt.nFeat,opt.nFeat, 3,3, 1,1, 1,1))
 
     ret = seq():add(conv(opt.nChannel,opt.nFeat, 3,3, 1,1, 1,1))
-    if opt.degrade == 'bicubic' then
+    if opt.globalSkip then
         ret:add(addSkip(body, true))
     else
         ret:add(body)

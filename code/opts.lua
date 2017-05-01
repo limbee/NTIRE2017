@@ -73,6 +73,7 @@ function M.parse(arg)
     cmd:option('-preTrained',       '.',              'Directory of pre-trained model')
     cmd:option('-printModel',       'false',            'Print model at the start of the training')
     cmd:option('-netType',          'baseline',         'SR network architecture. Options: baseline | resnet | vdsr | msresnet')
+    cmd:option('-globalSkip',       'true',             'Global skip connection')
     cmd:option('-filtsize',         3,                  'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,                 'Number of convolution layer (for VDSR)')
     cmd:option('-nConv',            36,                 'Number of convolution layers excluding the beginning and end')
@@ -115,6 +116,7 @@ function M.parse(arg)
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
+    opt.globalSkip = opt.globalSkip == 'true'
     opt.isSwap = opt.isSwap == 'true'
 
     opt.useDIV2K = opt.useDIV2K == 'true'
