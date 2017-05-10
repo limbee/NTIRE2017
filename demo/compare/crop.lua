@@ -9,12 +9,12 @@ cmd:option('-id',           1,                                  'Id of cropped i
 cmd:option('-lt',           '1_1',                              'left, top')
 cmd:option('-wh',           '1_1',                              'width, height')
 cmd:option('-ps',           '.',                                'square patch size')
-cmd:option('-works',        'Aplus_SRCNN_VDSR_SRResNet',        'works to compare')
+cmd:option('-works',        'Aplus+SRCNN+VDSR+SRResNet+SRResNet_reproduce+Ours_Single+Ours_Multi',        'works to compare')
 
 local opt = cmd:parse(arg or {})
 
 local apath = opt.apath
-local works = opt.works:split('_')
+local works = opt.works:split('+')
 local set = opt.set
 local imgName = opt.name
 local scales = opt.scales:split('_')
@@ -58,9 +58,10 @@ for _,scale in pairs(scales) do
     image.save(ilr_name, ilr)
 
     for _,work in pairs(works) do
-        if not (work:find('SRResNet') and scale ~= 4) then
+		if not ((work:find('SRResNet') and scale ~= 4) or (work == 'SRResNet' and (set == 'val' or set == 'Urban100'))) then
+        -- if (not (work == 'SRResNet' and (scale ~= 4 or set == 'val'))) and (work == 'SRResNet_reproduce' and scale ~= 4) then
             local sr
-            if work:find('SRResNet') then
+            if work == 'SRResNet' then
                 sr = image.load(paths.concat(apath, work, set, 'X' .. scale, imgName .. '_SRResNet-MSE' .. ext))
             else
                 sr = image.load(paths.concat(apath, work, set, 'X' .. scale, imgName .. ext))
