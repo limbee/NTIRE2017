@@ -46,7 +46,8 @@ for iModel = 1:length(totalDir)
             meanPSNR = 0;
             meanSSIM = 0;
             numImages = 0;
-            for im = 1:length(scaleDir)
+            tic;
+            parfor im = 1:length(scaleDir)
                 imageName = scaleDir(im).name;
                 inputName = fullfile(scaleFull, imageName);
                 targetName = fullfile(targetDir, modelName, setName, imageName);
@@ -73,7 +74,11 @@ for iModel = 1:length(totalDir)
 						shave = scale;
                     end
                     [h, w, ~] = size(inputImg);
-                    targetImg = targetImg(1:h, 1:w, :);
+                    if strcmp(modelName, 'Aplus')
+                        targetImg = targetImg((1 + scale):(h + scale), (1 + scale):(w + scale), :);
+                    else
+                        targetImg = targetImg(1:h, 1:w, :);
+                    end
                     inputImg = inputImg((1 + shave):(h - shave), (1 + shave):(w - shave), :);
                     targetImg = targetImg((1 + shave):(h - shave), (1 + shave):(w - shave), :);
                     meanPSNR = meanPSNR + psnr(inputImg, targetImg);
@@ -83,6 +88,7 @@ for iModel = 1:length(totalDir)
                     numImages = numImages + 1;
                 end
             end
+            toc;
             if (numImages > 0)
                 meanPSNR = meanPSNR / numImages;
                 meanSSIM = meanSSIM / numImages;
