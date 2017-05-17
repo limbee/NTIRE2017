@@ -29,6 +29,7 @@ cmd:option('-chopSize',     4e4,            'Minimum chop size for chopForward')
 cmd:option('-selfEnsemble', 'false',        'enables self ensemble with flip and rotation')
 cmd:option('-inplace',      'false',        'inplace operation')
 cmd:option('-progress',     'true',         'show current progress')
+cmd:option('-feature',     'false',         'save features')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
@@ -52,24 +53,7 @@ local Xs = 'X' .. opt.scale
 --Multiscale model needs quick swap
 local function swap(model, modelType)
     local sModel = nn.Sequential()
-    --[[if modelType == 'multiscale' then
-        sModel
-            :add(model:get(1))
-            :add(model:get(2))
-            :add(model:get(3))
-            :add(model:get(4):get(opt.swap))
-            :add(model:get(5):get(opt.swap))
-    elseif modelType == 'multiscale_unknown' then
-        sModel
-            :add(model:get(1))
-            :add(model:get(2))
-            :add(model:get(3):get(opt.swap))
-            :add(model:get(4))
-            :add(model:get(5):get(opt.swap))
-            :add(model:get(6):get(opt.swap))
-    end
-    ]]
-    if modelType == 'multiscale' then
+    if modelType:find( 'multiscale') then
         sModel
             :add(model:get(1))
             :add(model:get(2))
@@ -260,6 +244,10 @@ for i = 1, #opt.model do
                 local output = nil
                 if opt.selfEnsemble then
                     output = util:x8Forward(input, model, opt.scale, opt.nGPU)
+                elseif opt.feature then
+                   local c, h, w = table.unpack(input:size():totable())
+                    output = util:recursiveForward(input:cuda():view(1, c, h, w), model, opt.feature, testList[j], modelName, opt.scale,j)
+                    
                 else
                     local c, h, w = table.unpack(input:size():totable())
                     output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale,

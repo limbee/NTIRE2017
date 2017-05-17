@@ -60,10 +60,17 @@ for iModel = 1:length(totalDir)
                     end
 					shave = scale + 6;
                     if sum(strcmp(setName, {'Set5', 'Set14', 'B100', 'Urban100'})) == 1 
+
+                    if targetDim == 2
+                        targetImg = targetImg(:,:,1);
+			inputImg = inputImg(:,:,1);
+
+		    else
                         targetImg = rgb2ycbcr(targetImg);
                         targetImg = targetImg(:,:,1);
                         inputImg = rgb2ycbcr(inputImg);
                         inputImg = inputImg(:,:,1);
+		    end
 						shave = scale;
                     end
                     [h, w, ~] = size(inputImg);

@@ -10,7 +10,29 @@ function util:__init(opt)
     if opt then
         self.opt = opt
         self.save = opt.save
+
     end
+end
+
+local function saveFeature(feature, featureI, layerName, info, modelName, s, numImage)
+    local featureDir = paths.concat('feature', modelName, info.setName, 'X' .. s, featureI ..'_'.. layerName,numImage)
+    if not paths.dirp(featureDir) then
+        paths.mkdir(featureDir)
+    end
+
+
+    feature = feature:float()
+
+    feature = feature:squeeze(1)
+    if feature:size(1) == 3 then
+    feature:mul(1):add(0.5):floor():div(255)
+    image.save(paths.concat(featureDir, info.fileName), feature)
+    else
+        for i=1, feature:size(1) do
+            torch.save(paths.concat(featureDir, i.. '.t7'), feature[{{i}, {}, {}}]:squeeze(1))
+        end
+    end
+
 end
 
 function util:plot(tbl, name, label)
@@ -334,12 +356,13 @@ function util:x8Forward(img, model, scale, nGPU)
     return output
 end
 
-function util:recursiveForward(input, model, safe)
+function util:recursiveForward(input, model, safe, info, modelName, scale,numImage)
     model:clearState()
     local input = input:clone()
     local model = model:clone()
     collectgarbage()
     collectgarbage()
+    local featureI = 1
 
     local gpuid = self.opt and self.opt.gpuid or 1
 
@@ -726,12 +749,7 @@ function util:recursiveForward(input, model, safe)
             collectgarbage()
         end
 
-        input = nil
-        subModel:clearState()
-        subModel = nil
-        model:clearState()
-        collectgarbage()
-        collectgarbage()
+
 
         local function recursiveCuda(elem)
             if type(elem) == 'table' then
@@ -758,8 +776,39 @@ function util:recursiveForward(input, model, safe)
             end
         end
 
+
         output = recursiveCuda(output)
 
+        if safe == 'true' then
+        --print(featureI)
+        --print(subModel.__typename)
+            if subModel.__typename:find('ConcatTable') then
+            else
+                if true then
+                if featureI== 1  or  featureI== 3 or featureI== 4 or  featureI== 73 or featureI== 74 or featureI== 163 or featureI==  164 then
+                    saveFeature(output, featureI, subModel.__typename, info, modelName, scale, numImage)
+                    print(featureI)
+                    print(subModel.__typename)
+                    --print(output:size())
+                end
+                else
+                if featureI== 1 or featureI==  2 or featureI== 53 or featureI== 59  or featureI== 131  then
+                    saveFeature(output, featureI, subModel.__typename, info, modelName, scale, numImage)
+                    print(featureI)
+                    print(subModel.__typename)
+                    --print(output:size())
+                end
+                end
+            end
+            featureI=featureI+1
+
+        end
+        input = nil
+        subModel:clearState()
+        subModel = nil
+        model:clearState()
+        collectgarbage()
+        collectgarbage()
         return output
     end
 
@@ -775,5 +824,7 @@ function util:recursiveForward(input, model, safe)
 
     return ret:cuda()
 end
+
+
 
 return M.util
