@@ -1,8 +1,9 @@
 clear;
 outputDir = 'img_output';
 targetDir = 'img_target';
+modelException = {};
 setException = {};
-psnrOnly = true;
+psnrOnly = false;
 
 tableRow = {};
 tableCol = {};
@@ -20,7 +21,7 @@ disp(repmat('-', 1, 80))
 totalDir = dir(fullfile(outputDir));
 for iModel = 1:length(totalDir)
     modelName = totalDir(iModel).name;
-    if modelName(1) == '.'
+    if (modelName(1) == '.') || (any(strcmp(modelException, modelName)) == true)
         continue;
     end
     modelFull = fullfile(outputDir, modelName);
@@ -45,7 +46,7 @@ for iModel = 1:length(totalDir)
             meanPSNR = 0;
             meanSSIM = 0;
             numImages = 0;
-            for im = 1:length(scaleDir)
+            parfor im = 1:length(scaleDir)
                 imageName = scaleDir(im).name;
                 inputName = fullfile(scaleFull, imageName);
                 targetName = fullfile(targetDir, modelName, setName, imageName);
@@ -74,9 +75,6 @@ for iModel = 1:length(totalDir)
                     end
                     numImages = numImages + 1;
                 end
-                if (mod(im, 20) == 0) && (psnrOnly == false)
-                    disp([num2str(im) '/' num2str(length(scaleDir))]);
-                end
             end
             if (numImages > 0)
                 meanPSNR = meanPSNR / numImages;
@@ -101,12 +99,12 @@ for iModel = 1:length(totalDir)
                 disp([modelNameF, ' | ', ...
                 setNameF, ' | ', ...
                 scaleF, ...
-                ' | PSNR: ', num2str(meanPSNR, '%.3fdB')])
+                ' | PSNR: ', num2str(meanPSNR, '%.2fdB')])
                 if psnrOnly == false
                     disp([repmat(' ', 1, 25), ' | ', ...
                     repmat(' ', 1, 10), ' | ', ...
                     repmat(' ', 1, 5), ...
-                    ' | SSIM: ', num2str(meanSSIM, '%.3f')])
+                    ' | SSIM: ', num2str(meanSSIM, '%.4f')])
                 end
             end
         end

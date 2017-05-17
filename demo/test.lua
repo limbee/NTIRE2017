@@ -5,12 +5,15 @@ require 'image'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
-cmd:option('-nGPU',         2,              'Number of GPUs to use by default')
+cmd:option('-nGPU',         1,              'Number of GPUs to use by default')
 cmd:option('-gpuid',	    1,		        'GPU id for use')
 
 cmd:option('-dataDir',	    '/var/tmp',     'data directory')
 cmd:option('-dataset',      'DIV2K',        'test dataset')
 cmd:option('-type',         'test', 	    'demo type: bench | test | val')
+cmd:option('-valFrom',      791,            'validate from')
+cmd:option('-valTo',        800,            'validate to')
+
 cmd:option('-save',         '.',            'Save as')
 
 cmd:option('-mulImg',       255,            'multiply constant to input image')
@@ -49,7 +52,7 @@ local Xs = 'X' .. opt.scale
 --Multiscale model needs quick swap
 local function swap(model, modelType)
     local sModel = nn.Sequential()
-    if modelType == 'multiscale' then
+    --[[if modelType == 'multiscale' then
         sModel
             :add(model:get(1))
             :add(model:get(2))
@@ -65,7 +68,16 @@ local function swap(model, modelType)
             :add(model:get(5):get(opt.swap))
             :add(model:get(6):get(opt.swap))
     end
-
+    ]]
+    if modelType == 'multiscale' then
+        sModel
+            :add(model:get(1))
+            :add(model:get(2))
+            :add(model:get(3):get(opt.swap))
+            :add(model:get(4))
+            :add(model:get(5):get(opt.swap))
+            :add(model:get(6):get(opt.swap))
+    end
     return sModel:cuda()
 end
 
@@ -140,7 +152,7 @@ if opt.type == 'bench' then
     end
 elseif opt.type == 'val' then
     dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_LR_' .. opt.degrade, Xs)
-    for i = 791, 800 do
+    for i = opt.valFrom, opt.valTo do
         table.insert(testList,
         {
             setName = 'val',
