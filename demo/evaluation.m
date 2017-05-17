@@ -1,7 +1,7 @@
 clear;
 outputDir = 'img_output';
-%outputDir = 'img_input';
 targetDir = 'img_target';
+modelException = {};
 setException = {};
 psnrOnly = false;
 
@@ -21,7 +21,7 @@ disp(repmat('-', 1, 80))
 totalDir = dir(fullfile(outputDir));
 for iModel = 1:length(totalDir)
     modelName = totalDir(iModel).name;
-    if modelName(1) == '.'
+    if (modelName(1) == '.') || (any(strcmp(modelException, modelName)) == true)
         continue;
     end
     modelFull = fullfile(outputDir, modelName);
@@ -57,7 +57,14 @@ for iModel = 1:length(totalDir)
                     if targetDim == 2
                         targetImg = cat(3, targetImg, targetImg, targetImg);
                     end
-                    shave = scale + 6;
+					shave = scale + 6;
+                    if sum(strcmp(setName, {'Set5', 'Set14', 'B100', 'Urban100'})) == 1 
+                        targetImg = rgb2ycbcr(targetImg);
+                        targetImg = targetImg(:,:,1);
+                        inputImg = rgb2ycbcr(inputImg);
+                        inputImg = inputImg(:,:,1);
+						shave = scale;
+                    end
                     [h, w, ~] = size(inputImg);
                     targetImg = targetImg(1:h, 1:w, :);
                     inputImg = inputImg((1 + shave):(h - shave), (1 + shave):(w - shave), :);
@@ -67,9 +74,6 @@ for iModel = 1:length(totalDir)
                         meanSSIM = meanSSIM + ssim(inputImg, targetImg);
                     end
                     numImages = numImages + 1;
-                end
-                if (mod(im, 20) == 0) && (psnrOnly == false)
-                    disp([num2str(im) '/' num2str(length(scaleDir))]);
                 end
             end
             if (numImages > 0)
@@ -95,12 +99,12 @@ for iModel = 1:length(totalDir)
                 disp([modelNameF, ' | ', ...
                 setNameF, ' | ', ...
                 scaleF, ...
-                ' | PSNR: ', num2str(meanPSNR, '%.3fdB')])
+                ' | PSNR: ', num2str(meanPSNR, '%.2fdB')])
                 if psnrOnly == false
                     disp([repmat(' ', 1, 25), ' | ', ...
                     repmat(' ', 1, 10), ' | ', ...
                     repmat(' ', 1, 5), ...
-                    ' | SSIM: ', num2str(meanSSIM, '%.3f')])
+                    ' | SSIM: ', num2str(meanSSIM, '%.4f')])
                 end
             end
         end

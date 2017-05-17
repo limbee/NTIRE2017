@@ -140,7 +140,7 @@ if opt.type == 'bench' then
     end
 elseif opt.type == 'val' then
     dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_LR_' .. opt.degrade, Xs)
-    for i = 791, 800 do
+    for i = 801, 810 do
         table.insert(testList,
         {
             setName = 'val',
