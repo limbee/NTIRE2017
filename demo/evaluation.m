@@ -3,7 +3,7 @@ outputDir = 'img_output';
 targetDir = 'img_target';
 modelException = {};
 setException = {};
-psnrOnly = false;
+psnrOnly = true;
 
 tableRow = {};
 tableCol = {};

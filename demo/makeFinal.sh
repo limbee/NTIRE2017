@@ -1,4 +1,3 @@
-
 #imagenet
 th test.lua -type bench -model imagenet -scale 4 
 
