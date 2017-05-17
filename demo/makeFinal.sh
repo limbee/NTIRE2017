@@ -21,7 +21,7 @@
 #th test.lua -type test -model unknown_x3_1.t7+unknown_x3_2.t7 -scale 3 -degrade unknown
 
 # Unknown scale 4
-th test.lua -type val -model unknown_x4_1.t7+unknown_x4_2.t7 -scale 4 -degrade unknown -save unknown_single -chopSize 2e4
+#th test.lua -type val -model unknown_x4_1.t7+unknown_x4_2.t7 -scale 4 -degrade unknown -save unknown_single -chopSize 2e4
 
 
 
