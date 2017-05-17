@@ -1,0 +1,210 @@
+clear all;
+
+% mu_height = 80;
+% sd = 10;
+% minH=10;
+% shihtH =0.1;
+% distHSd=0.3;
+% marginH = 0.05; 
+% shiftW=0.5;
+% distWSd = 0.17;
+% marginW=0.05;
+% 
+% sampleN = 10;
+% superClass1 = [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18];
+% superClass2 = [20 23 24 25 26 27 28 29 30 31 32];
+% superClass3 = [33 34 35 36 37 38 39];
+
+absolPath = "/var/tmp/dataset/ILSVRC/";
+dataPath = "Data/CLS-LOC/";
+gtPath = "ImageSets/CLS-LOC/";
+dataPathid = ["test/" "train/" "val/"];
+gtPathid = ["test.txt" "train_cls.txt" "val.txt"];    
+
+fid =fopen(strcat(absolPath, gtPath, 'random50k.txt'), 'w');
+gtid= fopen(strcat(absolPath, gtPath, 'mergeAll.txt'),'r');
+gtLength = 100000+1281167+50000;
+targetLength = 50000;
+rand('seed',1)
+checkOrder = randperm(gtLength);
+
+imagePath={};
+for i = 1 : gtLength
+    gt_i = fgetl(gtid);
+    if gt_i==-1
+        break;
+    end
+    gt_param = strsplit(gt_i, {' '}); % folder name w1 h1 w2 h2 class superclass + remains(5)
+    
+    imagePath(i) = gt_param(1);   
+end
+
+j= 1;
+for i=1:gtLength
+    potenImage = imread(char(strcat(absolPath,dataPath,imagePath{checkOrder(i)},'.JPEG')));
+    
+    if size(size(potenImage),2) ==3
+        if size(potenImage,1) >=192 && size(potenImage,2)>=192
+            fprintf(fid, '%s %d %d %d %d\n',imagePath{checkOrder(i)},j,size(potenI);
+            if j ==targetLength
+                break;
+            end            
+            j=j+1;
+        end
+    end
+    
+    
+end
+
+fclose(fid);
+
+
+% 
+% i=1;
+% Ground_path=[];
+% while(1)
+%    gt_i = fgetl(gtid);
+%    if gt_i==-1
+%        break;
+%    end
+%    gt_param{i} = strsplit(gt_i, {'/', ';'}); % folder name w1 h1 w2 h2 class superclass + remains(5)
+%     
+%    
+%    if str2num(gt_param{i}{1})+8 <= 9
+%         new_folder = sprintf('0%d',str2num(gt_param{i}{1})+8);
+%    elseif str2num(gt_param{i}{1})+8 > 9
+%         new_folder = sprintf('%d',str2num(gt_param{i}{1})+8);
+%    else
+%        new_folder =gt_param{i}{1};
+%    end
+%         fprintf(fid, '%s/%s;%s;%s;%s;%s;%s;%s;\n', new_folder,gt_param{i}{2},gt_param{i}{3},gt_param{i}{4},gt_param{i}{5},gt_param{i}{6},gt_param{i}{7},gt_param{i}{8});
+%    
+%    
+%    Ground_path{i} = sprintf('%s/%s', gt_param{i}{1},gt_param{i}{2}); 
+%    
+%    i=i+1;
+% end
+% 
+% Ground_Index=unique(Ground_path);
+% 
+% 
+% 
+% %%%%%%%%%%%
+% 
+% 
+% 
+%     j=1;
+%     for i = 1 : length(Ground_Index)-1
+% 
+%         
+%         Ground_Sign_Index = find(strcmp(Ground_path,Ground_Index{i}));
+%         %path = sprintf('BTSD/detection/%s/',gt_param{(Ground_Sign_Index(1))}{1});
+%         %fileGlob = glob(path, '.jpg');
+%         path = sprintf('BTSD/detection/%s',Ground_Index{i});
+%         fileGlob = path;
+%         CameraId = str2num(gt_param{Ground_Sign_Index(1)}{1});
+%         
+%         if CameraId+8 <= 9
+%           pathSave = sprintf('BTSD/detection/0%d/', CameraId+8);
+%             pS=sprintf('0%d',CameraId+8);
+% 
+%         elseif CameraId+8 > 9
+%             pathSave = sprintf('BTSD/detection/%d/', CameraId+8);
+%             pS=sprintf('%d',CameraId+8);
+%         end
+% 
+%         if ~exist(pathSave,'dir')
+%             mkdir(pathSave);
+%         end
+%         
+%         imageGround = imread(fileGlob);
+%         [~, fileName, ~] = fileparts(fileGlob);
+% 
+%         if j == 1
+%             shuffleClass = randperm(62)-1; % should change 1~62 to 0~61
+%         elseif j == 63
+%             shuffleClass = randperm(62)-1; % should change 1~62 to 0~61
+%             j=1;                
+%         end
+%         if shuffleClass(j) <= 9
+%             pathSign = sprintf('BTSD/classification/Training/0000%d/',shuffleClass(j));
+%         else
+%             pathSign = sprintf('BTSD/classification/Training/000%d/',shuffleClass(j));
+%         end    
+%         signGlob = glob(pathSign,'*.jpg');
+%         randSign = randperm(length(signGlob));
+%         
+%         imageSign = imread(signGlob{randSign(1)});
+%         [heiS, weiS, ~] = size(imageSign);
+%         signH = max(round(minH + abs(sd.*randn(1,1))), round(mu_height + sd.*randn(1,1)));
+%         signW = round(signH*weiS/heiS);
+% 
+%         rsImageSign =imresize(imageSign,[signH,signW],'bicubic');
+%         
+%         [heiG,weiG,~] = size(imageGround);
+%         distH = min(1-marginH, max(marginH, distHSd*abs(randn(sampleN,1))));
+%         posSignH = round(distH*(heiG-signH))+1;
+%         
+%         a=distWSd*randn(sampleN,1);
+%         a(a<0)=a(a<0)+1;
+%         distW = min(1-marginW, max(marginW, abs(a))); 
+%         posSignW= round(distW*(weiG-signW))+1;
+%         
+%         
+%         for q = 1 : sampleN
+%               binarymap_new_sign = zeros(size(imageGround,1),size(imageGround,2));
+%               binarymap_new_sign(posSignH(q):posSignH(q)+signH-1,posSignW(q):posSignW(q)+signW-1) = 1;
+%               
+%               distance(q) = mean(mse(imageGround(posSignH(q):posSignH(q)+2,posSignW(q):posSignW(q)+2,:),rsImageSign(1:3, 1:3,:)) + ...
+%                     mse(imageGround(posSignH(q)+signH-4:posSignH(q)+signH-1,posSignW(q):posSignW(q)+2,:),rsImageSign(signH-3:signH, 1:3,:)) + ...
+%                     mse(imageGround(posSignH(q):posSignH(q)+2,posSignW(q)+signW-4:posSignW(q)+signW-1,:),rsImageSign(1:3, signW-3:signW,:)) +...
+%                     mse(imageGround(posSignH(q)+signH-4:posSignH(q)+signH-1,posSignW(q)+signW-4:posSignW(q)+signW-1,:),rsImageSign(signH-3:signH, signW-3:signW,:)));
+% 
+%             for p = 1 : length(Ground_Sign_Index)
+%  
+%                 binarymap_origin_sign = zeros(size(imageGround,1),size(imageGround,2));
+%                 w1=max(1,round(str2num(gt_param{(Ground_Sign_Index(p))}{3})));
+%                 h1=max(1,round(str2num(gt_param{(Ground_Sign_Index(p))}{4})));
+%                 w2=max(1,round(str2num(gt_param{(Ground_Sign_Index(p))}{5})));
+%                 h2=max(1,round(str2num(gt_param{(Ground_Sign_Index(p))}{6})));
+%                 
+%                 
+%                 binarymap_origin_sign(h1:h2,w1:w2) = 1;
+%                 
+%                 
+%                  
+%                 if nnz(binarymap_origin_sign&binarymap_new_sign)
+%                     distance(q) = inf;
+%                     %a=sprintf('%s', Ground_Index{i});
+%                     %disp(a);
+%                 end
+%             end
+%             
+%         end
+%         
+%         index_array = find(distance==min(distance));
+%         index = index_array(1);
+%         %posSign = round([signH;signW] + (sdPos-2*[signH;signW]).*rand(2,1));
+%         
+%         imageGround(posSignH(index):posSignH(index)+signH-1,posSignW(index):posSignW(index)+signW-1,:) = rsImageSign;
+%         ifname = sprintf('%s%s.jpg',pathSave,fileName);
+%         imwrite(imageGround,ifname);
+% 
+%         if find(superClass1 == shuffleClass(j))
+%             superclass = 1;
+%         elseif  find(superClass2 == shuffleClass(j))
+%             superclass = 2;
+%         elseif find(superClass3 == shuffleClass(j))
+%             superclass = 3;
+%         else
+%             superclass =0;
+%         end
+%         %fprintf(fid, '%d\n', index);
+%         fprintf(fid, '%s/%s.jpg;%d;%d;%d;%d;%d;%d;\n',pS,fileName,posSignW(index),posSignH(index),posSignW(index)+signW-1,posSignH(index)+signH-1,shuffleClass(j),superclass);
+%     j=j+1;
+%     end
+% 
+% fclose(fid);
+% 
+% 
+% %%%%%%%%%%%%%%%%%%

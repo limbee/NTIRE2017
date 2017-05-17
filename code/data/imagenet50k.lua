@@ -113,4 +113,104 @@ function imagenet50k:get(idx, scaleIdx)
 
         local dx = grT[{{}, {1, grP - 1}, {1, grP - 1}}] - grT[{{}, {1, grP - 1}, {2, grP}}]
         local dy = grT[{{}, {1, grP - 1}, {1, grP - 1}}] - grT[{{}, {2, grP}, {1, grP - 1}}]
-        local dsum = dx:pow(
+        local dsum = dx:pow(2) + dy:pow(2)
+        local dsqrt = dsum:sqrt()
+        local gradValue = dsqrt:view(-1):mean()
+        
+        if self.gradStatistics == nil then
+            self.gradSamples = self.opt.nGradStat
+            self.gsTable = {}
+            self.gradStatistics = {}
+            for i = 1, #self.scale do
+                table.insert(self.gsTable, {})
+                table.insert(self.gradStatistics, -1)
+            end
+            print('Caculating median of gradient for ' .. self.gradSamples .. ' samples...')
+            return nil
+        end
+        
+        if #self.gsTable[scaleIdx] < self.gradSamples then
+            table.insert(self.gsTable[scaleIdx], gradValue)
+            return nil
+        else
+            if self.gradStatistics[scaleIdx] == -1 then
+                local threshold = math.floor(self.gradSamples * self.opt.rejection / 100)
+                table.sort(self.gsTable[scaleIdx])
+                self.gradStatistics[scaleIdx] = self.gsTable[scaleIdx][threshold]
+                print('Gradient threshold for scale ' .. self.scale[scaleIdx] .. ': ' .. self.gradStatistics[scaleIdx])
+                return nil
+            else
+                if gradValue <= self.gradStatistics[scaleIdx] then
+                    return nil
+                end
+            end
+        end
+    end
+
+    return {
+        input = input,
+        target = target
+    }
+end
+
+function imagenet50k:__size()
+    if self.split == 'train' then
+        return self.dataSize
+    elseif self.split == 'val' then
+        return self.nVal
+    end
+end
+
+function imagenet50k:augment()
+    if self.split == 'train' and self.opt.degrade == 'bicubic' then
+        local transforms = {}
+        if self.opt.colorAug then
+            table.insert(transforms,
+                transform.ColorJitter({
+                    brightness = 0.1,
+                    contrast = 0.1,
+                    saturation = 0.1
+                })
+            )
+        end
+        -- We don't need vertical flip, since hflip + rotation covers it
+        table.insert(transforms, transform.HorizontalFlip())
+        table.insert(transforms, transform.Rotation())
+
+        return transform.Compose(transforms)
+    else
+        return function(sample) return sample end
+    end
+end
+
+function imagenet50k:getFileName(idx, scale)
+    --filename format: ????x?.png
+    if self.split == 'train' then
+        local fileName = idx
+        local digit = idx
+        while digit < 10000 do
+            fileName = '0' .. fileName
+            digit = digit * 10
+        end
+
+        local targetName = fileName .. self.ext
+        local inputName = nil
+        local rot
+        if scale == 1 then
+            inputName = targetName
+        else
+            rot = nil
+            inputName = fileName .. 'x' .. scale .. self.ext
+        end
+
+        return inputName, targetName, rot
+    elseif self.split == 'val' then
+        local fileList = {'baby', 'bird', 'butterfly', 'head', 'woman'}
+        local inputName = fileList[idx] .. '.png'
+        return inputName, inputName, nil
+    end
+
+    return nil, nil, nil
+end
+
+return M.imagenet50k

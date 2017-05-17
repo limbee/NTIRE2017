@@ -5,7 +5,7 @@ require 'image'
 require '../code/model/common'
 
 local cmd = torch.CmdLine()
-cmd:option('-nGPU',         1,              'Number of GPUs to use by default')
+cmd:option('-nGPU',         2,              'Number of GPUs to use by default')
 cmd:option('-gpuid',	    1,		        'GPU id for use')
 
 cmd:option('-dataDir',	    '/var/tmp',     'data directory')
