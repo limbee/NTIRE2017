@@ -159,7 +159,7 @@ function div2k:get(idx, scaleIdx)
     
     local patchSize = self.opt.patchSize
     local targetPatch = self.opt.multiPatch and (patchSize * scale) or patchSize
-    local inputPatch = targetPatch / scale
+    local inputPatch = (self.opt.dataSize == 'big') and targetPatch or targetPatch / scale
 
     if (wTarget < targetPatch) or (hTarget < targetPatch) then
         return nil

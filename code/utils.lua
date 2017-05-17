@@ -10,6 +10,7 @@ function util:__init(opt)
     if opt then
         self.opt = opt
         self.save = opt.save
+        self.dataSize =opt.dataSize
     end
 end
 
@@ -199,14 +200,14 @@ end
 function util:calcPSNR(output, target, scale)
     local _, h, w = table.unpack(output:size():totable())
 	local diff = nil
-    if self.opt.dataset ~= 'imagenet50k' then
+    if self.opt.dataset ~= 'imagenet50k' and self.opt.dataset ~= 'SR291' then
         diff = (output - target):squeeze()
     else
         local outputY = util:rgb2ycbcr(output)
         local targetY = util:rgb2ycbcr(target)
         diff = (outputY - targetY):view(1, h, w)
     end
-    local shave = (self.opt.dataset ~= 'imagenet50k') and (scale + 6) or scale
+    local shave = (self.opt.dataset ~= 'imagenet50k') and (self.opt.dataset ~= 'SR291') and (scale + 6) or scale
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
 
@@ -252,7 +253,7 @@ function util:chopForward(input, model, scale, chopShave, chopSize, nGPU)
         input[{{}, {}, bnd.y2, bnd.x1}],
         input[{{}, {}, bnd.y2, bnd.x2}]
     }
-    local outputPatch = torch.CudaTensor(4, c, scale * hc, scale * wc)
+    local outputPatch =  torch.CudaTensor(4, c, scale * hc, scale * wc)
     if (wc * hc) < chopSize then
         for i = 1, 4, nGPU do
             inputBatch = torch.CudaTensor(nGPU, c, hc, wc)
@@ -289,7 +290,6 @@ end
 
 function util:x8Forward(img, model, scale, nGPU)
     local n = 8
-
     local inputTable = {}
     local outputTable = {}
     for i = 1, n do

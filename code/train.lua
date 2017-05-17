@@ -181,6 +181,8 @@ function Trainer:test(epoch, dataloader)
             local output
             if self.opt.inverse then
                 output = modelTest:forward(input)
+            elseif self.opt.dataSize == 'big' then
+                output = self.util:recursiveForward(input, modelTest)
             else
                 output = self.util:chopForward(input, modelTest, self.scale[i], self.opt.chopShave, self.opt.chopSize)
             end
