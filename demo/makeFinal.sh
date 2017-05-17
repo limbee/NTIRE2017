@@ -1,13 +1,21 @@
-<<<<<<< HEAD
 #imagenet
 #th test.lua -type bench -model model_217_en -scale 4 -selfEnsemble true 
 #th test.lua -type bench -model model_217 -scale 4
 #th test.lua -type bench -model model_148 -scale 2
 #th test.lua -type bench -model model_176 -scale 3
-th test.lua -type bench -model model_299 -scale 4
-=======
-th test.lua -type val -model SRresnet -scale 2 -feature true
-#th test.lua -type val -model Baseline -scale 2 -feature true
+#th test.lua -type bench -model model_299 -scale 4
+
+#baseline SR291
+#th test.lua -type bench -model baseline_SR291 -scale 2
+#th test.lua -type bench -model model_30 -scale 2
+#th test.lua -type bench -model model_300 -scale 2
+
+
+
+#feature map
+#th test.lua -type val -model SRresnet -scale 2 -feature true -gpuid 2
+th test.lua -type val -model Baseline -scale 2 -feature true -gpuid 2
+
 #paper SRresnet
 #th test.lua -type val -model 1 -scale 4
 #th test.lua -type bench -model 1 -scale 4
@@ -19,7 +27,6 @@ th test.lua -type val -model SRresnet -scale 2 -feature true
 #th test.lua -type bench -model model_bicubic_imagenetx2 -scale 2
 #th test.lua -type test -degrade unknown -model model_unknown_DIV2Kx3 -scale 3
 #th test.lua -type test -degrade unknown -model model_unknown_DIV2Kx4 -scale 4
->>>>>>> 6c14533e6deffc64ee6ec98df68df86bd351e1ea
 
 # Bicubic scale 2
 #th test.lua -type test -model bicubic_x2.t7 -scale 2 -selfEnsemble true

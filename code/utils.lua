@@ -15,8 +15,8 @@ function util:__init(opt)
     end
 end
 
-local function saveFeature(feature, featureI, layerName, info, modelName, s, numImage)
-    local featureDir = paths.concat('feature', modelName, info.setName, 'X' .. s, featureI ..'_'.. layerName,numImage)
+local function saveFeature(feature, featureI, layerName, info, modelName, s, numImage, subModel)
+    local featureDir = paths.concat('feature', modelName, info.setName, 'X' .. s, featureI ..'_'.. layerName)
     if not paths.dirp(featureDir) then
         paths.mkdir(featureDir)
     end
@@ -25,13 +25,30 @@ local function saveFeature(feature, featureI, layerName, info, modelName, s, num
     feature = feature:float()
 
     feature = feature:squeeze(1)
-    if feature:size(1) == 3 then
-    feature:mul(1):add(0.5):floor():div(255)
-    image.save(paths.concat(featureDir, info.fileName), feature)
-    else
-        for i=1, feature:size(1) do
-            torch.save(paths.concat(featureDir, i.. '.t7'), feature[{{i}, {}, {}}]:squeeze(1))
+    if subModel.__typename:find('BatchNormalization') then
+
+        --print(subModel.running_mean:float())
+
+        if not paths.dirp(paths.concat(featureDir, 'param')) then
+            paths.mkdir(paths.concat(featureDir, 'param'))
         end
+        torch.save(paths.concat(featureDir, 'param',numImage.. 'std.t7'),subModel.running_var:float():clone())
+        torch.save(paths.concat(featureDir, 'param',numImage.. 'mean.t7'), subModel.running_mean:float():clone())
+
+    end
+
+    if feature:size(1) == 3 then
+    
+    image.save(paths.concat(featureDir, info.fileName), feature:float():mul(1):add(0.5):floor():div(255):clone())
+    else
+        local feature_save = feature:clone()
+        torch.save(paths.concat(featureDir, numImage.. '.t7'), feature_save)
+            --print(feature:size())
+
+        --[[for i=1, feature:size(1) do
+            torch.save(paths.concat(featureDir, i.. '.t7'), feature[{{i}, {}, {}}]:squeeze(1))
+            print(feature[{{i}, {}, {}}]:squeeze(1):size())
+        end]]
     end
 
 end
@@ -782,9 +799,14 @@ function util:recursiveForward(input, model, safe, info, modelName, scale,numIma
         if safe == 'true' then
         --print(featureI)
         --print(subModel.__typename)
+
+
             if subModel.__typename:find('ConcatTable') then
             else
-                if true then
+                    saveFeature(output, featureI, subModel.__typename, info, modelName, scale, numImage,subModel)
+                    --print(featureI)
+                    --print(subModel.__typename)
+                --[[if false then
                 if featureI== 1  or  featureI== 3 or featureI== 4 or  featureI== 73 or featureI== 74 or featureI== 163 or featureI==  164 then
                     saveFeature(output, featureI, subModel.__typename, info, modelName, scale, numImage)
                     print(featureI)
@@ -792,13 +814,13 @@ function util:recursiveForward(input, model, safe, info, modelName, scale,numIma
                     --print(output:size())
                 end
                 else
-                if featureI== 1 or featureI==  2 or featureI== 53 or featureI== 59  or featureI== 131  then
+                if featureI== 2 or featureI==  3 or featureI== 59  or featureI== 131  then
                     saveFeature(output, featureI, subModel.__typename, info, modelName, scale, numImage)
                     print(featureI)
                     print(subModel.__typename)
                     --print(output:size())
                 end
-                end
+                end]]
             end
             featureI=featureI+1
 
