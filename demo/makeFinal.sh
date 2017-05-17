@@ -1,4 +1,4 @@
-th test.lua -type val -model SRresnet -scale 2 -feature true
+#th test.lua -type val -model SRresnet -scale 2 -feature true
 #th test.lua -type val -model Baseline -scale 2 -feature true
 #paper SRresnet
 #th test.lua -type val -model 1 -scale 4
@@ -56,4 +56,4 @@ th test.lua -type val -model SRresnet -scale 2 -feature true
 #th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 3 -degrade unknown
 
 # For scale 4
-#th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 4 -degrade unknown
+th test.lua -type test -model unknown_multiscale_1.t7+unknown_multiscale_2.t7 -scale 4 -degrade unknown -save unknownMulti

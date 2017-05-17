@@ -50,14 +50,7 @@ local Xs = 'X' .. opt.scale
 --Multiscale model needs quick swap
 local function swap(model, modelType)
     local sModel = nn.Sequential()
-    if modelType == 'multiscale' then
-        sModel
-            :add(model:get(1))
-            :add(model:get(2))
-            :add(model:get(3))
-            :add(model:get(4):get(opt.swap))
-            :add(model:get(5):get(opt.swap))
-    elseif modelType == 'multiscale_unknown' then
+    if modelType:find( 'multiscale') then
         sModel
             :add(model:get(1))
             :add(model:get(2))
