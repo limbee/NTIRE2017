@@ -22,21 +22,24 @@ function M.parse(arg)
     cmd:option('-dataset',          'div2k',            'Dataset for training: div2k | flickr2k')
     cmd:option('-augUnkDIV2K',      'true',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-augUnkFlickr2K',   'true',             'Use x8 augmented unknown DVI2K LR train set')
+    cmd:option('-augUnkIMAGENET',   'false',             'Use x8 augmented unknown DVI2K LR train set')
     cmd:option('-useDIV2K',         'true',             'Use DIV2K dataset when train with Flickr2K')
     cmd:option('-datatype',         't7',               'Dataset type: png | t7 | t7pack')
     cmd:option('-dataSize',         'small',            'Input image size: small | big')
     cmd:option('-degrade',          'bicubic',          'Degrade type: bicubic | unknown')
 	cmd:option('-nTrain_DIV2K',		800,				'Number of images used for DIV2K training')
 	cmd:option('-nTrain_Flickr2K', 	2650,				'Number of images used for Flickr2K training')
+	cmd:option('-nTrain_IMAGENET', 	50000,				'Number of images used for IMAGENET training')
 	cmd:option('-valOffset',		800,				'(valOffset + 1) ~ (valOffset + nVal) images are used for validation')
     cmd:option('-nVal',             10,                 'Number of images for validation')
     cmd:option('-rejection',        -1,                 'Enables patch rejection which has low gradient (uninformative)')
     cmd:option('-rejectionType',    'input',            'Reject patches based on input | target patch gradient')
     cmd:option('-colorAug',         'false',            'Apply color augmentation (brightness, contrast, saturation')
     cmd:option('-subMean',          'true',             'Data pre-processing: subtract mean')
-    cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
+	cmd:option('-mulImg',           255,                'Data pre-processing: multiply constant value to both input and output')
     cmd:option('-inverse',          'false',            'If inverse is true, learn downsampling operation')
     cmd:option('-flickr2kSize',     2650,               'Number of images in Flickr2K dataset')
+    cmd:option('-imagenetSize',     50000,               'Number of images in Flickr2K dataset')
     cmd:option('-nGradStat',        1e4,                'Number of patches used for calulating gradient statistics')
     -- Training
     cmd:option('-nEpochs',          300,                'Number of total epochs to run. 0: Infinite')
@@ -44,7 +47,8 @@ function M.parse(arg)
     cmd:option('-lrDecay',          'step',             'Learning rate decaying method: step | exp | inv | schedule')
     cmd:option('-halfLife',         200e3,              'Half-life of learning rate: default is 200e3')
     cmd:option('-batchSize',        16,                 'Mini-batch size (1 = pure stochastic)')
-    cmd:option('-patchSize',        96,                 'Training patch size')
+    cmd:option('-splitBatch',		1,					'Split the batch into n sub-batches')
+	cmd:option('-patchSize',        96,                 'Training patch size')
     cmd:option('-multiPatch',       'false',            'Enable multiple patchSizes for multiscale learning')
     cmd:option('-scale',            '2',                'Super-resolution upscale factor')
     cmd:option('-valOnly',          'false',            'Run on validation set only')
@@ -69,6 +73,7 @@ function M.parse(arg)
     cmd:option('-preTrained',       '.',              'Directory of pre-trained model')
     cmd:option('-printModel',       'false',            'Print model at the start of the training')
     cmd:option('-netType',          'baseline',         'SR network architecture. Options: baseline | resnet | vdsr | msresnet')
+    cmd:option('-globalSkip',       'true',             'Global skip connection')
     cmd:option('-filtsize',         3,                  'Filter size of convolutional layer')
     cmd:option('-nLayer',           20,                 'Number of convolution layer (for VDSR)')
     cmd:option('-nConv',            36,                 'Number of convolution layers excluding the beginning and end')
@@ -111,14 +116,17 @@ function M.parse(arg)
     opt.valOnly = opt.valOnly == 'true'
     opt.trainOnly = opt.trainOnly == 'true'
     opt.reset = opt.reset == 'true'
+    opt.globalSkip = opt.globalSkip == 'true'
     opt.isSwap = opt.isSwap == 'true'
 
     opt.useDIV2K = opt.useDIV2K == 'true'
     opt.augUnkDIV2K = opt.augUnkDIV2K == 'true'
     opt.augUnkFlickr2K = opt.augUnkFlickr2K == 'true'
+    opt.augUnkIMAGENET = opt.augUnkIMAGENET == 'true'
 	if opt.degrade == 'bicubic' then
 		opt.augUnkDIV2K = false
         opt.augUnkFlickr2K = false
+        opt.augUnkIMAGENET = false
 	end
 
     opt.inverse = opt.inverse == 'true'
