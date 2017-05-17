@@ -17,7 +17,7 @@ local function getModel(opt)
         end
     elseif opt.preTrained ~= '.' then
         print('Loading pre-trained model from: ' .. opt.preTrained)
-        if (opt.netType == 'resnet_cu') or (opt.netType == 'multiscale_unknown') then
+        if opt.netType:find('resnet_cu') or (opt.netType == 'multiscale_unknown') then
             model = require('model/' .. opt.netType)(opt)
         else
             model = torch.load(opt.preTrained)

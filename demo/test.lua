@@ -26,6 +26,7 @@ cmd:option('-chopSize',     4e4,            'Minimum chop size for chopForward')
 cmd:option('-selfEnsemble', 'false',        'enables self ensemble with flip and rotation')
 cmd:option('-inplace',      'false',        'inplace operation')
 cmd:option('-progress',     'true',         'show current progress')
+cmd:option('-feature',     'false',         'save features')
 
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
@@ -140,7 +141,7 @@ if opt.type == 'bench' then
     end
 elseif opt.type == 'val' then
     dataDir = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_LR_' .. opt.degrade, Xs)
-    for i = 791, 800 do
+    for i = 801, 810 do
         table.insert(testList,
         {
             setName = 'val',
@@ -248,6 +249,10 @@ for i = 1, #opt.model do
                 local output = nil
                 if opt.selfEnsemble then
                     output = util:x8Forward(input, model, opt.scale, opt.nGPU)
+                elseif opt.feature then
+                   local c, h, w = table.unpack(input:size():totable())
+                    output = util:recursiveForward(input:cuda():view(1, c, h, w), model, opt.feature, testList[j], modelName, opt.scale,j)
+                    
                 else
                     local c, h, w = table.unpack(input:size():totable())
                     output = util:chopForward(input:cuda():view(1, c, h, w), model, opt.scale,
