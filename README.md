@@ -5,20 +5,28 @@ This repository is for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire1
 
 by [SNU_CVLab Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son, KyoungMu Lee**
 
+DIV2K 0853<br/>(Bicubic)|GT|Bicubic|VDSR|SRResNet|EDSR+|MDSR+
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0853_Full_cut.png)|![](/document/figs/results/val_0853_GT.png)|![](/document/figs/results/val_0853_Bicubic.png)|![](/document/figs/results/val_0853_VDSR.png)|![](/document/figs/results/val_0853_SRResNet_reproduce.png)|![](/document/figs/results/val_0853_Ours_Single.png)|![](/document/figs/results/val_0853_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|30.80 /<br/>0.9537 |32.82 /<br/>0.9623 |34.00 /<br/>0.9679 |34.78 /<br/>0.9708 |34.78 /<br/>.9707
+
+DIV2K 0793<br/>(Unknown)|GT|Bicubic|EDSR|MDSR
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0793_Full_cut.png)|![](/document/figs/results/val_0793_GT.png)|![](/document/figs/results/val_0793_Bicubic.png)|![](/document/figs/results/val_0793_Ours_Single.png)|![](/document/figs/results/val_0793_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|23.81 /<br/>0.8053 |30.94 /<br/>0.9318 |30.81 /<br/>0.9301
+
+We provide more results below.
+
 ## Model
-This is our **single scale** model for scale 2. We only changed upsampler for different scale models.
+This is our **single-scale** model for scale 2. We only changed upsampler for different scale models.
 
-![model_baseline](/document/figs/baseline.png)
+![model_baseline](/document/figs/singlescale.png)
 
-**Bicubic multiscale** model has three upsamplers to generate different scale output images.
+This is our **multi-scale** model. It has three pre-processing modules and upsamplers to generate different scale output images. Note that we did not used pre-processing modules for bicubic downsampling track in NTIRE2017 final submission.
 
-![model_bicubic_multiscale](/document/figs/multiscale_bicubic.png)
+![model_bicubic_multiscale](/document/figs/multiscale.png)
 
-**Unknown multiscale** model has three additional pre-processing modules for different scale inputs.
-
-![model_unknown_multiscale](/document/figs/multiscale_unknown.png)
-
-Every convolution layer execpt pre-processing modules in **Unknown multiscale** model uses **3x3** convolution kernel with **stride = 1, pad =  1**.
+Every convolution layer execpt pre-processing modules in **multi-scale** model uses **3x3** convolution kernel with **stride = 1, pad =  1**.
 
 Each pre-processing module has two residual blocks with convolution kernel **5x5, stride = 1, pad = 1**.
 
@@ -229,3 +237,34 @@ You can download our pre-trained models and super-resolve your own image.
 
     sh training.sh
     ```
+
+## More results
+Urban100 img034|GT|Bicubic|VDSR|SRResNet|EDSR+|MDSR+
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/Urban100_img034_Full_cut.png)|![](/document/figs/results/Urban100_img034_GT.png)|![](/document/figs/results/Urban100_img034_Bicubic.png)|![](/document/figs/results/Urban100_img034_VDSR.png)|![](/document/figs/results/Urban100_img034_SRResNet_reproduce.png)|![](/document/figs/results/Urban100_img034_Ours_Single.png)|![](/document/figs/results/Urban100_img034_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|21.41 /<br/>0.4810|22.62 /<br/>0.5657|23.14 /<br/>0.5891|23.48 /<br/>0.6048|23.46 /<br/>0.6039
+
+Urban100 img062<br/>(Bicubic)|GT|Bicubic|VDSR|SRResNet|EDSR+|MDSR+
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/Urban100_img062_Full_cut.png)|![](/document/figs/results/Urban100_img062_GT.png)|![](/document/figs/results/Urban100_img062_Bicubic.png)|![](/document/figs/results/Urban100_img062_VDSR.png)|![](/document/figs/results/Urban100_img062_SRResNet_reproduce.png)|![](/document/figs/results/Urban100_img062_Ours_Single.png)|![](/document/figs/results/Urban100_img062_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|19.82 /<br/>0.6471|20.75 /<br/>0.7504|21.70 /<br/>0.8054|22.70 /<br/>0.8537|22.66 /<br/>0.8508
+
+DIV2K 0869<br/>(Bicubic)|GT|Bicubic|VDSR|SRResNet|EDSR+|MDSR+
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0869_Full_cut.png)|![](/document/figs/results/val_0869_GT.png)|![](/document/figs/results/val_0869_Bicubic.png)|![](/document/figs/results/val_0869_VDSR.png)|![](/document/figs/results/val_0869_SRResNet_reproduce.png)|![](/document/figs/results/val_0869_Ours_Single.png)|![](/document/figs/results/val_0869_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|22.66 /<br/>0.8025|23.36 /<br/>0.8365|23.71 /<br/>0.8485|23.89 /<br/>0.8563|23.90 /<br/>0.8558
+
+DIV2K 0791<br/>(Unknown)|GT|Bicubic|EDSR|MDSR
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0791_Full_cut.png)|![](/document/figs/results/val_0791_GT.png)|![](/document/figs/results/val_0791_Bicubic.png)|![](/document/figs/results/val_0791_Ours_Single.png)|![](/document/figs/results/val_0791_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|22.20 /<br/>0.7979|29.05 /<br/>0.9257 |28.96 /<br/>0.9244
+
+DIV2K 0792<br/>(Unknown)|GT|Bicubic|EDSR|MDSR
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0792_Full_cut.png)|![](/document/figs/results/val_0792_GT.png)|![](/document/figs/results/val_0792_Bicubic.png)|![](/document/figs/results/val_0792_Ours_Single.png)|![](/document/figs/results/val_0792_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|21.59 /<br/>0.6846|27.24 /<br/>0.8376|27.14 /<br/>0.8356
+
+DIV2K 0797<br/>(Unknown)|GT|Bicubic|EDSR|MDSR
+:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
+![](/document/figs/results/val_0797_Full_cut.png)|![](/document/figs/results/val_0797_GT.png)|![](/document/figs/results/val_0797_Bicubic.png)|![](/document/figs/results/val_0797_Ours_Single.png)|![](/document/figs/results/val_0797_Ours_Multi.png)
+PSNR (dB) / SSIM|- / -|19.77 /<br/>0.8937|25.48 /<br/>0.9597|25.38 /<br/>0.9590
