@@ -46,7 +46,6 @@ for iModel = 1:length(totalDir)
             meanPSNR = 0;
             meanSSIM = 0;
             numImages = 0;
-            tic;
             parfor im = 1:length(scaleDir)
                 imageName = scaleDir(im).name;
                 inputName = fullfile(scaleFull, imageName);
@@ -88,7 +87,6 @@ for iModel = 1:length(totalDir)
                     numImages = numImages + 1;
                 end
             end
-            toc;
             if (numImages > 0)
                 meanPSNR = meanPSNR / numImages;
                 meanSSIM = meanSSIM / numImages;

@@ -123,6 +123,7 @@ if opt.type == 'bench' then
     dataDir = paths.concat(opt.dataDir, 'dataset/benchmark')
     for benchFolder in paths.iterdirs(paths.concat(dataDir, 'small')) do
         local inputFolder = paths.concat(dataDir, 'small', benchFolder, Xs)
+        if benchFolder:find('Set5') then
         for benchFile in paths.iterfiles(inputFolder) do
             if benchFile:find('.png') then
                 table.insert(testList, 
@@ -132,6 +133,7 @@ if opt.type == 'bench' then
                     fileName = benchFile
                 })
             end
+        end
         end
     end
 elseif opt.type == 'val' then
