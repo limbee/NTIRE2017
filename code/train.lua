@@ -168,18 +168,22 @@ function Trainer:test(epoch, dataloader)
             self:copyInputs(batch.input[i], batch.target[i], 'test')
 
             local input = nn.Unsqueeze(1):cuda():forward(self.input.test)
+            --[[
             if self.opt.nChannel == 1 then
                 input = nn.Unsqueeze(1):cuda():forward(input)
             end
+            --]]
 
+            --Fast model swap
             if isSwap then    
-                --Fast model swap
                 tempModel = modelTest
                 modelTest = self.util:swapModel(tempModel, i)
             end
 
             local output
-            if self.opt.inverse then
+            if self.opt.naiveForward then
+                output = modelTest:forward(input)
+            elseif self.opt.inverse then
                 output = modelTest:forward(input)
             elseif self.opt.dataSize == 'big' then
                 output = self.util:recursiveForward(input, modelTest)
