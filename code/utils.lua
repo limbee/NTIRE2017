@@ -238,15 +238,26 @@ end
 
 function util:calcPSNR(output, target, scale)
     local _, h, w = table.unpack(output:size():totable())
-	local diff = nil
-    if self.opt.dataset ~= 'imagenet50k' and self.opt.dataset ~= 'SR291' then
-        diff = (output - target):squeeze()
-    else
+	local diff
+    if self.opt.dataset == 'imagenet50k' or self.opt.dataset == 'SR291' then
         local outputY = util:rgb2ycbcr(output)
         local targetY = util:rgb2ycbcr(target)
         diff = (outputY - targetY):view(1, h, w)
+    elseif self.opt.dataset == 'div2k' or self.opt.dataset == 'flickr2k' then
+        diff = (output - traget):squeeze()
+    elseif self.opt.dataset == 'mnist' then
+        diff = output - target
     end
-    local shave = (self.opt.dataset ~= 'imagenet50k') and (self.opt.dataset ~= 'SR291') and (scale + 6) or scale
+
+    local shave
+    if self.opt.dataset == 'imagenet50k' or self.opt.dataset == 'SR291' then
+        shave = scale
+    elseif self.opt.dataset == 'div2k' or self.opt.dataset == 'flickr2k' then
+        shave = scale + 6
+    elseif self.opt.dataset == 'mnist' then
+        shave = 0
+    end
+
     local diffShave = diff[{{}, {1 + shave, h - shave}, {1 + shave, w - shave}}]
     local psnr = -10 * math.log10(diffShave:pow(2):mean())
 

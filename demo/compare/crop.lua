@@ -4,7 +4,7 @@ cmd = torch.CmdLine()
 cmd:option('-apath',        '/dataset/SR_compare',              'Absolute path')
 cmd:option('-set',          'Set5',                             'Test set')
 cmd:option('-name',         'baby',                             'Test image')
-cmd:option('-scales',       '2_3_4',                    'Scales')
+cmd:option('-scales',       '4',                                'Scales')
 cmd:option('-id',           1,                                  'Id of cropped image')
 cmd:option('-lt',           '1_1',                              'left, top')
 cmd:option('-wh',           '1_1',                              'width, height')
@@ -51,11 +51,18 @@ end
 local ext = '.png'
 id = id .. '_' .. w .. 'x' .. h
 
+local function save(work, scale, img)
+    local name = set .. '_' .. imgName .. '_' .. work .. '_sc=' .. scale
+    name = name .. '_x=' .. lt[1] .. '_y=' .. lt[2] .. '_ps=' .. patchSize
+    image.save(paths.concat(savePath, name .. ext), img)
+end
+
 for _,scale in pairs(scales) do
     local ilr = image.load(paths.concat(apath, 'Bicubic', set, 'X' .. scale, imgName .. ext))
     ilr = ilr[{{}, {top, bottom}, {left, right}}]
-    local ilr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_Bicubic_x' .. scale .. ext)
-    image.save(ilr_name, ilr)
+    save('Bicubic', scale, ilr)
+    -- local ilr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_Bicubic_x' .. scale .. ext)
+    -- image.save(ilr_name, ilr)
 
     for _,work in pairs(works) do
 		if not ((work:find('SRResNet') and scale ~= 4) or (work == 'SRResNet' and (set == 'val' or set == 'Urban100'))) then
@@ -67,13 +74,18 @@ for _,scale in pairs(scales) do
                 sr = image.load(paths.concat(apath, work, set, 'X' .. scale, imgName .. ext))
             end
             sr = sr[{{}, {top, bottom}, {left, right}}]
-            local sr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_' .. work .. '_x' .. scale .. ext)
-            image.save(sr_name, sr)
+            save(work, scale, sr)
+            -- local sr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_' .. work .. '_x' .. scale .. ext)
+            -- image.save(sr_name, sr)
         end
     end
 end
 
 local hr = image.load(paths.concat(apath, 'GT', set, imgName .. ext))
-hr = hr [{{}, {top, bottom}, {left, right}}]
-local hr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_HR' .. ext)
-image.save(hr_name, hr)
+local hr_ = hr [{{}, {top, bottom}, {left, right}}]
+save('GT', 0, hr_)
+-- local hr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_HR' .. ext)
+-- image.save(hr_name, hr)
+
+image.drawRect(hr, left, top, right, bottom, {lineWidth = 7, color={255,255,0}, inplace=true})
+save('Box', 0, hr)

@@ -61,6 +61,7 @@ function M.parse(arg)
     cmd:option('-reset',            'false',            'Reset training')
     cmd:option('-chopShave',        10,                 'Shave width for chopForward')
     cmd:option('-chopSize',         16e4,               'Minimum chop size for chopForward')
+    cmd:option('-naiveForward',     'false',            'Simple forward when test')
     -- Optimization
     cmd:option('-optimMethod',      'ADAM',             'Optimization method')
     cmd:option('-lr',               1e-4,               'Initial learning rate')
@@ -118,11 +119,13 @@ function M.parse(arg)
     opt.reset = opt.reset == 'true'
     opt.globalSkip = opt.globalSkip == 'true'
     opt.isSwap = opt.isSwap == 'true'
+    opt.naiveForward = opt.naiveForward == 'true'
 
     opt.useDIV2K = opt.useDIV2K == 'true'
     opt.augUnkDIV2K = opt.augUnkDIV2K == 'true'
     opt.augUnkFlickr2K = opt.augUnkFlickr2K == 'true'
     opt.augUnkIMAGENET = opt.augUnkIMAGENET == 'true'
+
 	if opt.degrade == 'bicubic' then
 		opt.augUnkDIV2K = false
         opt.augUnkFlickr2K = false
