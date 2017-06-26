@@ -52,7 +52,6 @@ local ext = '.png'
 id = id .. '_' .. w .. 'x' .. h
 
 local function save(work, scale, img)
-    local scale = scale or 
     local name = set .. '_' .. imgName .. '_' .. work .. '_sc=' .. scale
     name = name .. '_x=' .. lt[1] .. '_y=' .. lt[2] .. '_ps=' .. patchSize
     image.save(paths.concat(savePath, name .. ext), img)
@@ -83,7 +82,10 @@ for _,scale in pairs(scales) do
 end
 
 local hr = image.load(paths.concat(apath, 'GT', set, imgName .. ext))
-hr = hr [{{}, {top, bottom}, {left, right}}]
-save('GT', 0, hr)
+local hr_ = hr [{{}, {top, bottom}, {left, right}}]
+save('GT', 0, hr_)
 -- local hr_name = paths.concat('cropped', set .. '_' .. imgName .. '_' .. id .. '_HR' .. ext)
 -- image.save(hr_name, hr)
+
+image.drawRect(hr, left, top, right, bottom, {lineWidth = 7, color={255,255,0}, inplace=true})
+save('Box', 0, hr)

@@ -1,4 +1,5 @@
-Set 5
+# Set 5
+
 # th crop.lua -set Set5 -name baby -id 1 -lt 292_158 -ps 100
 # th crop.lua -set Set5 -name baby -id 2 -lt 131_155 -ps 47
 # th crop.lua -set Set5 -name baby -id 3 -lt 188_18 -ps 66
@@ -16,7 +17,7 @@ Set 5
 # th crop.lua -set Set5 -name woman -id 2 -lt 40_167 -ps 49
 # th crop.lua -set Set5 -name woman -id 3 -lt 47_74 -ps 37
 
-Set 14
+# Set 14
 
 # th crop.lua -set Set14 -name baboon -id 1 -lt 277_7 -ps 67
 # th crop.lua -set Set14 -name baboon -id 2 -lt 175_272 -ps 123
@@ -62,7 +63,7 @@ Set 14
 # th crop.lua -set Set14 -name foreman -id 1 -lt 16_36 -wh 38_76
 # th crop.lua -set Set14 -name foreman -id 2 -lt 293_25 -wh 38_76
 
-B100
+# B100
 
 # th crop.lua -set B100 -name 37073 -id 1 -lt 353_198 -wh 42_84
 # th crop.lua -set B100 -name 42012 -id 1 -lt 65_277 -wh 29_58
@@ -92,7 +93,7 @@ B100
 # th crop.lua -set B100 -name 189080 -id 2 -lt 165_247 -wh 82_41
 
 
-DIV2K
+# DIV2K
 
 # th crop.lua -set val -name 0801 -id 1 -lt 777_194 -wh 53_106
 # th crop.lua -set val -name 0801 -id 2 -lt 769_176 -ps 178		##
@@ -201,5 +202,31 @@ DIV2K
 # th crop.lua -set Urban100 -name img061 -id 2 -lt 794_441 -wh 31_64
 # th crop.lua -set Urban100 -name img067 -id 1 -lt 445_193 -wh 36_72
 
+# Based on random croppings
 
+th crop.lua -set val -name 0804 -lt 1378_289 -ps 100
+th crop.lua -set val -name 0828 -lt 1169_846 -ps 100
+th crop.lua -set val -name 0828 -lt 1287_928 -ps 100
+th crop.lua -set val -name 0830 -lt 1340_352 -ps 100
+th crop.lua -set val -name 0841 -lt 1746_625 -ps 140
+th crop.lua -set val -name 0845 -lt 591_954 -ps 100
+th crop.lua -set val -name 0845 -lt 780_418 -ps 100
+th crop.lua -set val -name 0845 -lt 1023_381 -ps 100
+th crop.lua -set val -name 0845 -lt 1139_309 -ps 100
+th crop.lua -set val -name 0846 -lt 21_294 -ps 100
+th crop.lua -set val -name 0847 -lt 676_1461 -ps 100
+th crop.lua -set val -name 0851 -lt 796_1232 -ps 100
+th crop.lua -set val -name 0861 -lt 517_1275 -ps 70
 
+th crop.lua -set Urban100 -name img008 -lt 548_190 -ps 100
+th crop.lua -set Urban100 -name img033 -lt 198_77 -ps 100
+th crop.lua -set Urban100 -name img039 -lt 219_459 -ps 100
+th crop.lua -set Urban100 -name img042 -lt 31_84 -ps 100
+th crop.lua -set Urban100 -name img044 -lt 36_208 -ps 100
+th crop.lua -set Urban100 -name img061 -lt 724_272 -ps 100
+th crop.lua -set Urban100 -name img067 -lt 866_93 -ps 100
+th crop.lua -set Urban100 -name img070 -lt 123_296 -ps 100
+th crop.lua -set Urban100 -name img071 -lt 651_207 -ps 100
+th crop.lua -set Urban100 -name img074 -lt 431_740 -ps 100
+th crop.lua -set Urban100 -name img083 -lt 222_677 -ps 100
+th crop.lua -set Urban100 -name img096 -lt 475_206 -ps 100

@@ -15,6 +15,7 @@ cmd:option('-reset',        'true',                             'Reset')
 local opt = cmd:parse(arg or {})
 opt.reset = opt.reset == 'true'
 assert(opt.nSave <= opt.nSample)
+torch.manualSeed(os.date('%s') * os.date('%m'))
 
 local apath = opt.apath
 local works = opt.works:split('+')
