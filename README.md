@@ -1,38 +1,30 @@
 # NTIRE2017 Super-resolution Challenge: SNU_CVLab
 
-# Introduction
-This repository is for [NTIRE2017 Challenge](http://www.vision.ee.ethz.ch/ntire17/), based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch) and [SR ResNet](https://arxiv.org/pdf/1609.04802.pdf)
+<!--## Introduction-->
+This is a repository for **Team SNU_CVLab**,  the winner of [NTIRE2017 Challenge on Single Image Super-Resolution](http://www.vision.ee.ethz.ch/ntire17/). </br>
+Our paper ***"Enhanced Deep Residual Networks for Single Image Super-Resolution"*** [(PDF)](http://cv.snu.ac.kr/publication/conf/2017/EDSR_fixed.pdf) won the **Best Paper Award** of the NTIRE workshop.
 
-by [SNU_CVLab Members](http://cv.snu.ac.kr/?page_id=57): **Seungjun Nah, Bee Lim, Heewon Kim, Sanghyun Son, Kyoung Mu Lee**
-
-<!--DIV2K 0853<br/>(Bicubic)|GT|Bicubic|VDSR|SRResNet|EDSR+|MDSR+
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-![](/document/figs/results/val_0853_Full_cut.png)|![](/document/figs/results/val_0853_GT.png)|![](/document/figs/results/val_0853_Bicubic.png)|![](/document/figs/results/val_0853_VDSR.png)|![](/document/figs/results/val_0853_SRResNet_reproduce.png)|![](/document/figs/results/val_0853_Ours_Single.png)|![](/document/figs/results/val_0853_Ours_Multi.png)
-PSNR (dB) / SSIM|- / -|30.80 /<br/>0.9537 |32.82 /<br/>0.9623 |34.00 /<br/>0.9679 |34.78 /<br/>0.9708 |34.78 /<br/>.9707
-
-DIV2K 0793<br/>(Unknown)|GT|Bicubic|EDSR|MDSR
-:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:
-![](/document/figs/results/val_0793_Full_cut.png)|![](/document/figs/results/val_0793_GT.png)|![](/document/figs/results/val_0793_Bicubic.png)|![](/document/figs/results/val_0793_Ours_Single.png)|![](/document/figs/results/val_0793_Ours_Multi.png)
-PSNR (dB) / SSIM|- / -|23.81 /<br/>0.8053 |30.94 /<br/>0.9318 |30.81 /<br/>0.9301-->
-
-We provide more results below.
+Team members: **Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee** from [Computer Vision Lab, SNU](http://cv.snu.ac.kr/?page_id=19)</br>
+The codes are based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch). </br>
 
 ## Model
-This is our **single-scale** model for scale 2. We only changed upsampler for different scale models.
+Structure of our single-scale model (***EDSR***).
 
-![model_baseline](/document/figs/singlescale.png)
+![EDSR](/figs/EDSR_resized.png)
 
-This is our **multi-scale** model. It has three pre-processing modules and upsamplers to generate different scale output images. Note that we did not used pre-processing modules for bicubic downsampling track in NTIRE2017 final submission.
+Structure of our multi-scale model (***MDSR***).
 
-![model_bicubic_multiscale](/document/figs/multiscale.png)
+![MDSR](/figs/MDSR_resized.png)
 
-Every convolution layer execpt pre-processing modules in **multi-scale** model uses **3x3** convolution kernel with **stride = 1, pad =  1**.
-
-Each pre-processing module has two residual blocks with convolution kernel **5x5, stride = 1, pad = 1**.
+In MDSR, every convolution layer execpt pre-processing modules uses **3x3** convolution kernel with **stride = 1, padding =  1**.
+Each pre-processing module has two residual blocks with **5x5** convolution kernels.
 
 ## Challenge Results
 
-To be announced
+Our team (**SNU_CVLab**) ranked at 1st (EDSR) and 2nd (MDSR) place.
+
+![Challenge_result](/figs/Challenge_result.png)
+
 
 # About our code
 ## Dependencies
@@ -55,34 +47,33 @@ Please download the dataset from below. If you download the dataset in the other
     makeData = /var/tmp/dataset/ # Please set the absolute path as desired
     mkdir -p $makeData/; cd $makedata/
     # Please download the dataset from [CodaLab](https://competitions.codalab.org/competitions/16303)
+    # Alternatively, you can download it from our server: http://cv.snu.ac.kr/research/EDSR/DIV2K.tar
     tar -xvf DIV2K.tar
     ```
     After untar, you will have the following directory structure:
 
-    **/var/tmp/dataset/DIV2K/DIV2K_train_HR/0???.png**
+    **/var/tmp/dataset/DIV2K/DIV2K_train_HR/0???.png**<br>
+    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???.png**<br>
+    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???.png**<br>
 
-    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???.png**
-
-    **/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???.png**
-
-* **Flickr2K** collected by **SNU_CVLab** with Flickr API
+* **Flickr2K** collected by **SNU_CVLab** using Flickr API
     ```bash
     makeData = /var/tmp/dataset/
     mkdir -p $makeData/; cd $makedata/
-
-    # Not prepared yet on the server cv.snu.ac.kr. (in April 18, 2017)
-    # In a few days, we will release the code used to collect the images of Flickr2K. 
-    wget https://cv.snu.ac.kr/~/Flickr2K.tar
+    wget http://cv.snu.ac.kr/research/EDSR/Flickr2K.tar
     tar -xvf Flickr2K.tar
     ```
-
     After untar, you will have the following directory structure:
 
-    **/var/tmp/dataset/Flickr2K/Flickr2K_HR/00????.png** 
-    
-    **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_bicubic/X?/00????x?.png**
+    **/var/tmp/dataset/Flickr2K/Flickr2K_HR/00????.png**<br>
+    **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_bicubic/X?/00????x?.png**<br>
+    **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_unknown/X?/00????x?.png**<br>
 
-    **/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_unknown/X?/00????x?.png**
+    To generate input of unknown track, we trained simple downsampler network. <br>
+    Downsamplers can be downloaded by
+    ```bash
+    wget htt://cv.snu.ac.kr/research/EDSR/downsamplers.tar
+    ```
 
 To enable faster data loading, please convert the downloaded dataset into .t7 files
 * To train with **DIV2K**
@@ -110,41 +101,22 @@ You can choose to use .png filesm too. Details are described below.
 ## Quick Start (Demo)
 You can download our pre-trained models and super-resolve your own image.
 
-1. Download our models ([google drive link](https://drive.google.com/open?id=0B3AjYlPQo4LLR1FQOXdWTUhlSm8)) into $makeReposit/NTIRE2017/demo/model/
+<!--1. Download our models ([google drive link](https://drive.google.com/open?id=0B3AjYlPQo4LLR1FQOXdWTUhlSm8)) into $makeReposit/NTIRE2017/demo/model/-->
+1. Download our models into $makeReposit/NTIRE2017/demo/model/
+    ```bash
+    cd $makdReposit/NTIRE2017/demo/model/
+    # Our models submitted to the Challenge
+    wget http://cv.snu.ac.kr/research/EDSR/model_challenge.tar
+    # Our models used to write the paper
+    wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
+    ```
 
-    **A. Single scale-expert model**
-    
-    **Track 1**
-    * bicubic_x2.t7
-    * bicubic_x3.t7
-    * bicubic_x4.t7
-    
-    **Track 2**
-    * unknown_x2_1.t7
-    * unknown_x2_2.t7
-    * unknown_x3_1.t7
-    * unknown_x3_2.t7 
-    * unknown_x4_1.t7
-    * unknown_x4_2.t7
-
-    (Below are the models that have been cut off at the deadline of the NTIRE2017 SR Challange and failed to upload. These perform slightly better than the model above.)
-    * unknown_x3_3.t7
-    * unknown_x3_4.t7 
-    
-    **B. Multi-scale model**
-    
-    **Track 1**
-    * bicubic_multiscale.t7
-    
-    **Track 2**
-    * unknown_multiscale_1.t7
-    * unknown_multiscale_2.t7
+    We used 2 model ensemble for unknown track of challenge.
 
 2. Run `test.lua` with given models and images:
     
     ```bash
     cd $makeReposit/NTIRE2017/demo
-
     th test.lua -selfEnsemble true      # This command runs our final bicubic_x2 model
     ```
     You can reproduce our final results with provided shell script **makeFinal.sh** in **NTIRE2017/demo** directory. You have to uncomment the appropriate line before you run.

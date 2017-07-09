@@ -7,6 +7,8 @@ t7pack_test
 *.png
 *.jpg
 run*.sh
+!figs/*.png
+!figs/*.jpg
 !code/training.sh
 !demo/makeFinal.sh
 
