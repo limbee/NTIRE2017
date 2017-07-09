@@ -10,11 +10,11 @@ The codes are based on [Facebook ResNet](https://github.com/facebook/fb.resnet.t
 ## Model
 Structure of our single-scale model (***EDSR***).
 
-![EDSR](/figs/EDSR_resized.png)
+![EDSR](/figs/EDSR.png)
 
 Structure of our multi-scale model (***MDSR***).
 
-![MDSR](/figs/MDSR_resized.png)
+![MDSR](/figs/MDSR.png)
 
 In MDSR, every convolution layer execpt pre-processing modules uses **3x3** convolution kernel with **stride = 1, padding =  1**.
 Each pre-processing module has two residual blocks with **5x5** convolution kernels.
