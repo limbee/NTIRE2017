@@ -244,7 +244,7 @@ function util:calcPSNR(output, target, scale)
         local targetY = util:rgb2ycbcr(target)
         diff = (outputY - targetY):view(1, h, w)
     elseif self.opt.dataset == 'div2k' or self.opt.dataset == 'flickr2k' then
-        diff = (output - traget):squeeze()
+        diff = (output - target):squeeze()
     elseif self.opt.dataset == 'mnist' then
         diff = output - target
     end

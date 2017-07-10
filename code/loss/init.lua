@@ -1,5 +1,7 @@
 require 'nn'
 require 'cunn'
+require 'loss/Adversarial_loss'
+require 'loss/VGG_loss'
 
 require('loss/KernelCriterion')
 
@@ -32,6 +34,14 @@ local function getLoss(opt)
         local kernel = torch.CudaTensor({{{-1, 1}, {0, 0}}, {{-1, 0}, {1, 0}}})
         local gradLoss = nn.KernelCriterion(opt, kernel)
         criterion:add(gradLoss, opt.grad)
+    end
+    if opt.vgg > 0 then
+        local vgg_loss = nn.VGG_loss(opt)
+        criterion:add(vgg_loss, opt.vgg)
+    end
+    if opt.adv > 0 then
+        local adv_loss = nn.Adversarial_loss(opt)
+        criterion:add(adv_loss, opt.adv)
     end
     
     if (opt.nOut > 1) and (opt.isSwap == false) then 
