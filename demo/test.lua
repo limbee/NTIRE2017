@@ -34,6 +34,7 @@ cmd:option('-feature',     'false',         'save features')
 local opt = cmd:parse(arg or {})
 opt.progress = (opt.progress == 'true')
 opt.inplace = (opt.inplace == 'true')
+opt.feature = (opt.feature == 'ture')
 opt.model = opt.model:split('+')
 opt.ensembleW = opt.ensembleW:split('_')
 for i = 1, #opt.ensembleW do
