@@ -1,23 +1,30 @@
 # NTIRE2017 Super-resolution Challenge: SNU_CVLab
 
 <!--## Introduction-->
-This is a repository for **Team SNU_CVLab**,  the winner of [NTIRE2017 Challenge on Single Image Super-Resolution](http://www.vision.ee.ethz.ch/ntire17/).<br><br>
-Our paper ***"Enhanced Deep Residual Networks for Single Image Super-Resolution"*** [(PDF)](http://cv.snu.ac.kr/publication/conf/2017/EDSR_fixed.pdf) won the **Best Paper Award** of the [NTIRE2017 workshop](http://www.vision.ee.ethz.ch/ntire17/) from CVPR2017.
+This is a repository of **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [Computer Vision Lab, Seoul National University](http://cv.snu.ac.kr/?page_id=19)), the **winner** of [NTIRE2017 Challenge on Single Image Super-Resolution](http://www.vision.ee.ethz.ch/ntire17/).
 
-Team members:<br>
-**Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee** from [Computer Vision Lab, SNU](http://cv.snu.ac.kr/?page_id=19)<br><br>
-The codes are based on [Facebook ResNet](https://github.com/facebook/fb.resnet.torch). <br>
+Our paper was presented in CVPR 2017 workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)), and won the **Best Paper Award** of the workshop.
+
+Please refer to the paper for more details. 
+* Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution"**, <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
+
+In this repository, we provide
+* Demo code
+* Training code
+* Download of dataset (DIV2K, Flickr2K)
+* Download of our trained models
+* Super-resolution examples
+
+The codes are based on Facebook's Torch implementation of ResNet ([facebook/fb.resnet.torch](https://github.com/facebook/fb.resnet.torch)). <br>
 
 ## Model
-**EDSR** (Single-scale model. We provide scale x2, x3, x4 model).
+**EDSR** (Single-scale model. We provide scale x2, x3, x4 models).
 
 ![EDSR](/figs/EDSR.png)
 
-**MDSR** (Multi-scale model. It can handle x2, x3, x4 super-resolution with a single model).
+**MDSR** (Multi-scale model. It can handle x2, x3, x4 super-resolution in a single model).
 
 ![MDSR](/figs/MDSR.png)
-
-Please see our [paper](http://cv.snu.ac.kr/publication/conf/2017/EDSR_fixed.pdf) for more details.
 
 ## NTIRE2017 Super-resolution Challenge Results
 
@@ -28,8 +35,8 @@ Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) prize.
 
 # About our code
 ## Dependencies
-* torch7
-* cudnn
+* Torch7
+* cuDNN
 * nccl (Optional, for faster GPU communication)
 
 ## Code
@@ -39,6 +46,124 @@ makeReposit = [/the/directory/as/you/wish]
 mkdir -p $makeReposit/; cd $makeReposit/
 git clone https://github.com/LimBee/NTIRE2017.git
 ```
+
+## Quick Start (Demo)
+You can test the super-resolution on your own images using our trained models.
+
+1. Download our models
+
+    ```bash
+    cd $makeReposit/NTIRE2017/demo/model/
+
+    # Our models submitted to the Challenge
+    wget http://cv.snu.ac.kr/research/EDSR/model_challenge.tar
+
+    # Our models for the paper
+    wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
+
+    ```
+    Or, use this links [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
+    [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br>
+    (**We recommend you to download the models for paper, because the models for challenge is not compatible with our current code. Please contact us if you want to execute those models.**)
+
+    After download the .tar file, make sure that the model files are placed in the directory. For example,
+    ```bash
+    $makeReposit/NTIRE2017/demo/model/bicubic_x2.t7
+    ```
+
+2. Place your low-resolution test images at
+    
+    ```bash
+    $makeReposit/NTIRE2017/demo/img_input/
+    ```
+    The demo code will read .jpg, .jpeg, .png format images.
+
+
+3. Run `test.lua`
+    
+    ```bash
+    cd $makeReposit/NTIRE2017/demo
+
+    # Test EDSR (scale 2)
+    th test.lua -selfEnsemble false
+
+    # Test EDSR+ (scale 2)
+    th test.lua -selfEnsemble true
+
+    # Test MDSR (scale 2)
+    th test.lua -model bicubic_multiscale -scale 2 -selfEnsemble false
+
+    # Test MDSR+ (scale 2)
+    th test.lua -model bicubic_multiscale -scale 2 -selfEnsemble true
+    ```
+    (Note: To run the **MDSR**, model name should include `multiscale`. e.g. `multiscale_blahblahblah.t7`)
+
+    The result images will be located at
+    ```bash
+    $makeReposit/NTIRE2017/demo/img_output/
+    ```
+
+    * Here are some optional arguments you can adjust. If you have any problem, please refer following lines.
+
+    ```bash
+    # You can test our model with multiple GPU. (n = 1, 2, 4)
+    -nGPU       [n]
+
+    # Please specify this directory. Default is /var/tmp/dataset
+    -dataDir    [$makeData]
+    -dataset    [DIV2K | myData]
+    -save       [Folder name]
+
+    # About self-ensemble strategy, please see our paper for the detail.
+    # Do not use this option for unknown downsampling.
+    -selfEnsemble   [true | false]
+
+    # Please reduce the chopSize when you see 'out of memory'.
+    # The optimal size of S can be vary depend on your maximum GPU memory.
+    -chopSize   [S]   
+    ```
+
+4. (Optional) Evaluate PSNR and SSIM if you have ground-truth HR images
+
+    Place the GT images at
+    ```bash
+    $makeReposit/NTIRE2017/demo/img_target
+    ```
+    Evaluation is done by running the MATLAB script.
+    ```bash
+    matlab -nodisplay <evaluation.m
+    ```
+
+    If you do not want to calculate SSIM, please modify `evaluation.m` file as below. (Calculating SSIM of large image is very slow for 3 channel images.)
+    ```
+    line 6:     psnrOnly = false; -> psnrOnly = true;
+    ```
+
+    You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` directory. You have to uncomment the line you want to execute.
+    ```bash
+    sh makeFinal.sh
+    ```
+
+    <!-- You can run the test script with your own model and images. Just put your images in `NTIRE2017/demo/img_input`. If you have ground-truth high-resolution images, please locate them in **NTIRE2017/demo/img_target/myData** for evaluation.
+    
+    ```bash
+    th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+    ``` -->
+
+    <!---
+    This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
+    ```bash
+    th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
+    ```
+    We used 0791.png to 0800.png in DIV2K train set for validation, and you can test any model with validation set.
+    ```bash
+    th test.lua -type val -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+    ```
+    If you have ground-truth images for the test images, you can evaluate them with MATLAB. (-type [bench | val] automatically place ground-truth high-resolution images into img_target folder.)
+    ```bash
+    matlab -nodisplay <evaluation.m
+    ```
+    --->
 
 ## Dataset
 Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.tar) if you want to train our models from scratch or evaluate the DIV2K dataset. Place the tar file anywhere you want. **(We recommend /var/tmp/dataset/DIV2K.tar)** Then, please follow the guide below. <U>If want to place the dataset in the other directory, **you have to change the optional argument -dataset for training and test.**</U>
@@ -95,87 +220,6 @@ To make data loading faster, you can convert the dataset into binary .t7 files
     ```
 You can use raw .png files too. Please see **Training** for the details.
 
-## Quick Start (Demo)
-You can download our pre-trained models upscale your own image.
-
-1. Download our models using the scripts below. You can also download them from [here](http://cv.snu.ac.kr/research/EDSR/model_paper.tar).After download the tar file, make sure  that the file is placed in the right directory. (`$makeReposit/NTIRE2017/demo/model/model_paper.tar`)<br>
-**We recommend you to download the models for paper because the models for challenge is not compatible with our current code. Please contact us if you want to execute those models.**
-    ```bash
-    cd $makeReposit/NTIRE2017/demo/model/
-
-    # Our models submitted to the Challenge
-    wget http://cv.snu.ac.kr/research/EDSR/model_challenge.tar
-
-    # Our models for the paper
-    wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
-    ```
-
-2. Run `test.lua` with given models and images:
-    
-    ```bash
-    cd $makeReposit/NTIRE2017/demo
-
-    # This command runs our EDSR+ (scale 2)
-    th test.lua -selfEnsemble true
-
-    # This command runs our MDSR+ (scale 2)
-    th test.lua -model bicubic_multiscale -scale 2 -selfEnsemble true
-    ```
-    You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` directory. You have to uncomment the line you want to execute.
-    ```bash
-    sh makeFinal.sh
-    ```
-
-    * Here are some optional arguments you can adjust. If you have any problem, please refer following lines.
-
-        ```bash
-        # You can test our model with multiple GPU. (n = 1, 2, 4)
-        -nGPU       [n]
-
-        # Please specify this directory. Default is /var/tmp/dataset
-        -dataDir    [$makeData]
-        -dataset    [DIV2K | myData]
-        -save       [Folder name]
-
-        # About self-ensemble strategy, please see our paper for the detail.
-        # Do not use this option for unknown downsampling.
-        -selfEnsemble   [true | false]
-
-        # Please reduce the chopSize when you see 'out of memory'.
-        # The optimal size of S can be vary depend on your maximum GPU memory.
-        -chopSize   [S]   
-        ```
-
-        For some reasons, our torch code does not support full evaluation. You have to run **MATLAB** script to get the output PSNR and SSIM.
-
-        ```bash
-        matlab -nodisplay <evaluation.m
-        ```
-
-        If you do not want to calculate SSIM, please modify `evaluation.m` file as below. (Calculating SSIM of large image is very slow.)
-        ```
-        line 6:     psnrOnly = false; -> psnrOnly = true;
-        ```
-    You can run the test script with your own model and images. Just put your images in `NTIRE2017/demo/img_input`. If you have ground-truth high-resolution images, please locate them in **NTIRE2017/demo/img_target/myData** for evaluation.
-    
-    ```bash
-    th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
-    ```
-    To run the **MDSR**, model name should include `multiscale`. (For example, `multiscale_blahblahblah.t7`) Sorry for inconvinience.
-    <!---
-    This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
-    ```bash
-    th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
-    ```
-    We used 0791.png to 0800.png in DIV2K train set for validation, and you can test any model with validation set.
-    ```bash
-    th test.lua -type val -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
-    ```
-    If you have ground-truth images for the test images, you can evaluate them with MATLAB. (-type [bench | val] automatically place ground-truth high-resolution images into img_target folder.)
-    ```bash
-    matlab -nodisplay <evaluation.m
-    ```
-    --->
 ## Training
 
 1. To train our baseline model, please run the following command:
@@ -223,3 +267,53 @@ You can download our pre-trained models upscale your own image.
     ```
 
     <U>Some model may require pre-trained **bicubic scale 2** or **bicubic multiscale** model.</U> Here, we assume that you already downloaded `bicubic_x2.t7` and `bicubic_multiscale.t7` in the `NTIRE2017/demo/model` directory. Otherwise, you can create them yourself. It is possible to start the traning from scratch by removing `-preTrained` option in the script.
+
+<br>
+
+# Results
+
+![result_1](/figs/result/result_1.jpg)
+
+![result_2](/figs/result/result_2.jpg)
+
+![result_3](/figs/result/result_3.jpg)
+
+![result_4](/figs/result/result_4.jpg)
+
+![result_5](/figs/result/result_5.jpg)
+
+![result_6](/figs/result/result_6.jpg)
+
+![result_7](/figs/result/result_7.jpg)
+
+![result_8](/figs/result/result_8.jpg)
+
+![result_9](/figs/result/result_9.jpg)
+
+![result_10](/figs/result/result_10.jpg)
+
+![result_11](/figs/result/result_11.jpg)
+
+![result_12](/figs/result/result_12.jpg)
+
+![result_13](/figs/result/result_13.jpg)
+
+![result_14](/figs/result/result_14.jpg)
+
+![result_15](/figs/result/result_15.jpg)
+
+![result_16](/figs/result/result_16.jpg)
+
+![result_17](/figs/result/result_17.jpg)
+
+![result_18](/figs/result/result_18.jpg)
+
+![result_19](/figs/result/result_19.jpg)
+
+![result_20](/figs/result/result_20.jpg)
+
+## Challenge: unknown track
+
+![unknown_1](/figs/result/unknown_1.jpg)
+
+![unknown_2](/figs/result/unknown_2.jpg)

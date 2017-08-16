@@ -9,7 +9,7 @@ cmd:option('-nGPU',         1,              'Number of GPUs to use by default')
 cmd:option('-gpuid',	    1,		        'GPU id for use')
 
 cmd:option('-dataDir',	    '/var/tmp',     'data directory')
-cmd:option('-dataset',      'DIV2K',        'test dataset')
+cmd:option('-dataset',      'myData',       'test dataset: DIV2K | myData')
 cmd:option('-type',         'test', 	    'demo type: bench | test | val')
 cmd:option('-valFrom',      791,            'validate from')
 cmd:option('-valTo',        800,            'validate to')
