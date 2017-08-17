@@ -14,7 +14,7 @@ Please refer to our paper for details.
 
 If you find our work useful in your research or publication, please cite our work:
 
-[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
+[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017**. </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] [[Slide](http://cv.snu.ac.kr/research/EDSR/Presentation_v3(release).pptx)]
 ```
 @inproceedings{lim2017enhanced,
   title={Enhanced Deep Residual Networks for Single Image Super-Resolution},
@@ -77,28 +77,29 @@ git clone https://github.com/LimBee/NTIRE2017.git
 ```
 
 ## Quick Start (Demo)
-You can test the super-resolution on your own images using our trained models.
+You can test our super-resolution algorithm with your own images.
 
 We assume the images are downsampled by bicubic interpolation.
 
-| Model | Scale | File Name | Self Esemble |
-| ---|---|---|---|---|
-| **EDSR baseline**| x2 | baseline_x2.t7 | - |
-| **EDSR baseline**| x3 | baseline_x3.t7 | - |
-| **EDSR baseline**| x4 | baseline_x4.t7 | - |
-| **MDSR baseline**| Multi | baseline_multiscale.t7 | - |
-|||
-| **EDSR**| x2 | EDSR_x2.t7 | - |
-| **EDSR**| x3 | EDSR_x3.t7 | - |
-| **EDSR**| x4 | EDSR_x4.t7 | - |
-| **MDSR**| Multi | MDSR.t7 | - |
-|||
-| **EDSR+**| x2 | EDSR_x2.t7 | O |
-| **EDSR+**| x3 | EDSR_x3.t7 | O |
-| **EDSR+**| x4 | EDSR_x4.t7 | O |
-| **MDSR+**| Multi | MDSR.t7 | O |
+| Model | Scale | File Name | Self Esemble | # ResBlocks | # Filters | # Parameters |
+|  ---  |  ---  | ---       | ---          | ---         |---        |---           |
+| **EDSR baseline**| x2 | baseline_x2.t7 | X | 16 | 64 | 1.5M |
+| **EDSR baseline**| x3 | baseline_x3.t7 | X | 16 | 64 | 1.5M | 
+| **EDSR baseline**| x4 | baseline_x4.t7 | X | 16 | 64 | 1.5M | 
+| **MDSR baseline**| Multi | baseline_multiscale.t7 | X | 16 | 64 | 3.2M |
+||||||||
+| **EDSR**| x2 | EDSR_x2.t7 | X | 32 | 256 | 43M | 
+| **EDSR**| x3 | EDSR_x3.t7 | X | 32 | 256 | 43M | 
+| **EDSR**| x4 | EDSR_x4.t7 | X | 32 | 256 | 43M | 
+| **MDSR**| Multi | MDSR.t7 | X | 32 | 256 | 8.0M |
+||||||||
+| **EDSR+**| x2 | EDSR_x2.t7 | O | 32 | 256 | 43M | 
+| **EDSR+**| x3 | EDSR_x3.t7 | O | 32 | 256 | 43M | 
+| **EDSR+**| x4 | EDSR_x4.t7 | O | 32 | 256 | 43M | 
+| **MDSR+**| Multi | MDSR.t7 | O | 80 | 64 | 8.0M |
 
 
+<br>
 
 1. Download our models
 
@@ -108,11 +109,13 @@ We assume the images are downsampled by bicubic interpolation.
     # Our models for the paper[1]
     wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
     ```
+
     Or, use the link: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar)
     <!-- [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br> -->
     (**If you would like to run the models we used during the challenge, please contact us.**)
 
     After downloading the .tar files, make sure that the model files are placed in proper locations. For example,
+
     ```bash
     $makeReposit/NTIRE2017/demo/model/bicubic_x2.t7
     $makeReposit/NTIRE2017/demo/model/bicubic_x3.t7
@@ -370,7 +373,7 @@ You can also use .png files too. Please see below **Training** section for the d
 
 ![result_20](/figs/result/result_20.jpg)
 
-## Challenge: unknown downsampling track
+## NTIRE2017 SR Challenge: Unknown Down-sampling Track
 
 ![unknown_1](/figs/result/unknown_1.jpg)
 
