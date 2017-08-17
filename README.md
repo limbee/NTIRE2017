@@ -102,7 +102,6 @@ You can test the super-resolution on your own images using our trained models.
 
     # Our models for the paper
     wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
-
     ```
     Or, use these links: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
     [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br>
@@ -127,16 +126,16 @@ You can test the super-resolution on your own images using our trained models.
     cd $makeReposit/NTIRE2017/demo
 
     # Test EDSR (scale 2)
-    th test.lua -selfEnsemble false
+    th test.lua -model EDSR_x2 -selfEnsemble false
 
     # Test EDSR+ (scale 2)
-    th test.lua -selfEnsemble true
+    th test.lua -model EDSR_x2 -selfEnsemble true
 
     # Test MDSR (scale 2)
-    th test.lua -model bicubic_multiscale -scale 2 -selfEnsemble false
+    th test.lua -model MDSR -scale 2 -selfEnsemble false
 
     # Test MDSR+ (scale 2)
-    th test.lua -model bicubic_multiscale -scale 2 -selfEnsemble true
+    th test.lua -model MDSR -scale 2 -selfEnsemble true
     ```
     (Note: To run the **MDSR**, model name should include `multiscale`. e.g. `multiscale_blahblahblah.t7`)
 

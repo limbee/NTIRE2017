@@ -54,7 +54,7 @@ local Xs = 'X' .. opt.scale
 --Multiscale model needs quick swap
 local function swap(model, modelType)
     local sModel = nn.Sequential()
-    if modelType:find( 'multiscale') then
+    if modelType:find('multiscale') then
         sModel
             :add(model:get(1))
             :add(model:get(2))
@@ -216,14 +216,10 @@ for i = 1, #opt.model do
             print('Model: [' .. modelName .. ']')
 
             --For multiscale model, we need quick model swap
-            if modelFile:find('multiscale') then
+            if modelFile:find('multiscale') or modelFile:find('MDSR') then
                 print('This is a multi-scale model! Swap the model')
                 opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
-                if not modelFile:find('unknown') then
-                    model = swap(model, 'multiscale')
-                else
-                    model = swap(model, 'multiscale_unknown')
-                end
+                model = swap(model, 'multiscale')
             end
 
             --test.lua supports multi-gpu
@@ -248,7 +244,7 @@ for i = 1, #opt.model do
                 if opt.selfEnsemble then
                     output = util:x8Forward(input, model, opt.scale, opt.nGPU)
                 elseif opt.feature then
-                   local c, h, w = table.unpack(input:size():totable())
+                    local c, h, w = table.unpack(input:size():totable())
                     output = util:recursiveForward(input:cuda():view(1, c, h, w), model, opt.feature, testList[j], modelName, opt.scale,j)
                     
                 else
