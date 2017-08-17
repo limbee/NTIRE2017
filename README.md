@@ -28,8 +28,7 @@ If you find our work useful in your research or publication, please cite our wor
 In this repository, we provide
 * Our model architecture description (EDSR, MDSR)
 * NTIRE2017 Super-resolution Challenge Results
-* Demo code
-* Training code
+* Demo & Training code
 * Trained models (EDSR, MDSR) 
 * Datasets we used (DIV2K, Flickr2K)
 * Super-resolution examples
@@ -45,15 +44,20 @@ The code is based on Facebook's Torch implementation of ResNet ([facebook/fb.res
 
 ![MDSR](/figs/MDSR.png)
 
+Note that the MDSR architecture for the challenge and for the paper[1] is slightly different.
+During the challenge, MDSR had variation between two challenge tracks. While we had scale-specific feature extraction modules for track 2:unknown downscaling, we didn't use the scale-specific modules for track 1:bicubic downscaling.
+
+**We later unified the MDSR model in our paper[1] by including scale-specific modules for both cases. From now on, unless specified as "challenge", we describe the models described in the paper.**
+
 ## NTIRE2017 Super-resolution Challenge Results
 
-Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) place.
+We proposed 2 methods and they won the 1st (EDSR) and 2nd (MDSR) place.
 
 ![Challenge_result](/figs/Challenge_result.png)
 
-Following is the benchmark performance compared to previous methods.
+We have also compared the super-resolution performance of our models with previous state-of-the-art methods.
 
-![Paper_result](/figs/paper_result.png)
+![Paper_result](/figs/paper_result_v2.png)
 
 
 # About our code
@@ -61,6 +65,8 @@ Following is the benchmark performance compared to previous methods.
 * Torch7
 * cuDNN
 * nccl (Optional, for faster GPU communication)
+
+Our code is tested under Ubuntu 14.04 and 16.04 environment with Titan X GPUs (12GB VRAM).
 
 ## Code
 Clone this repository into any place you want. You may follow the example below.
@@ -73,22 +79,24 @@ git clone https://github.com/LimBee/NTIRE2017.git
 ## Quick Start (Demo)
 You can test the super-resolution on your own images using our trained models.
 
-| Model | Scale | File Name | Self Esemble | Description |
+We assume the images are downsampled with bicubic interpolation.
+
+| Model | Scale | File Name | Self Esemble |
 | ---|---|---|---|---|
-| **EDSR baseline**| x2 | baseline_x2.t7 | - | |
-| **EDSR baseline**| x3 | baseline_x3.t7 | - | |
-| **EDSR baseline**| x4 | baseline_x4.t7 | - | |
-| **MDSR baseline**| Multi | baseline_multiscale.t7 | - | |
-||||
-| **EDSR**| x2 | EDSR_x2.t7 | - | |
-| **EDSR**| x3 | EDSR_x3.t7 | - | |
-| **EDSR**| x4 | EDSR_x4.t7 | - | |
-| **MDSR**| Multi | MDSR.t7 | - | |
-||||
-| **EDSR+**| x2 | EDSR_x2.t7 | O | |
-| **EDSR+**| x3 | EDSR_x3.t7 | O | |
-| **EDSR+**| x4 | EDSR_x4.t7 | O | |
-| **MDSR+**| Multi | MDSR.t7 | O | |
+| **EDSR baseline**| x2 | baseline_x2.t7 | - |
+| **EDSR baseline**| x3 | baseline_x3.t7 | - |
+| **EDSR baseline**| x4 | baseline_x4.t7 | - |
+| **MDSR baseline**| Multi | baseline_multiscale.t7 | - |
+|||
+| **EDSR**| x2 | EDSR_x2.t7 | - |
+| **EDSR**| x3 | EDSR_x3.t7 | - |
+| **EDSR**| x4 | EDSR_x4.t7 | - |
+| **MDSR**| Multi | MDSR.t7 | - |
+|||
+| **EDSR+**| x2 | EDSR_x2.t7 | O |
+| **EDSR+**| x3 | EDSR_x3.t7 | O |
+| **EDSR+**| x4 | EDSR_x4.t7 | O |
+| **MDSR+**| Multi | MDSR.t7 | O |
 
 
 
@@ -97,19 +105,18 @@ You can test the super-resolution on your own images using our trained models.
     ```bash
     cd $makeReposit/NTIRE2017/demo/model/
 
-    # Our models submitted to the Challenge
-    wget http://cv.snu.ac.kr/research/EDSR/model_challenge.tar
-
     # Our models for the paper[1]
     wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
     ```
-    Or, use these links: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
-    [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br>
-    (**We recommend you to download the models for paper[1], because the models for challenge is currently not compatible with our code. Please contact us if you want to execute those models.**)
+    Or, use the link: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar)
+    <!-- [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br> -->
+    (**If you would like to run the models we used during the challenge, please contact us.**)
 
-    After downloading the .tar file, make sure that the model files are placed in proper locations. For example,
+    After downloading the .tar files, make sure that the model files are placed in proper locations. For example,
     ```bash
     $makeReposit/NTIRE2017/demo/model/bicubic_x2.t7
+    $makeReposit/NTIRE2017/demo/model/bicubic_x3.t7
+    ...
     ```
 
 2. Place your low-resolution test images at
@@ -122,7 +129,12 @@ You can test the super-resolution on your own images using our trained models.
 
 3. Run `test.lua`
     
+    **You can run different models and scales by changing input arguments.**
+    
     ```bash
+    # To run for scale 2, 3, or 4, set -scale as 2, 3, or 4
+    # To run EDSR+ and MDSR+, you need to set -selfEnsemble as true
+
     cd $makeReposit/NTIRE2017/demo
 
     # Test EDSR (scale 2)
@@ -272,7 +284,7 @@ You can use raw .png files too. Please see **Training** for the details.
     th main.lua         # This model is not our final model!
     ```
 
-    * Here are some optional arguments you can adjust. If you have any problem, please refer following lines. You can check more information in `NTIRE2017/code/opts.lua`.
+    * Here are some optional arguments you can adjust. If you have any problem, please refer following lines. You can check out details in `NTIRE2017/code/opts.lua`.
         ```bash
         # You can train the model with multiple GPU. (Not multi-scale model.)
         -nGPU       [n]
