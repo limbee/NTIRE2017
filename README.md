@@ -1,23 +1,38 @@
 # NTIRE2017 Super-resolution Challenge: SNU_CVLab
 
-<!--## Introduction-->
-This is a repository of **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [Computer Vision Lab, Seoul National University](http://cv.snu.ac.kr/?page_id=19)), the **winner** of [NTIRE2017 Challenge on Single Image Super-Resolution](http://www.vision.ee.ethz.ch/ntire17/).
+## Introduction
+This is our project repository for CVPR 2017 Workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)).
 
-Our paper was presented in CVPR 2017 workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)), and won the **Best Paper Award** of the workshop.
+We, **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [**Computer Vision Lab, Seoul National University**](http://cv.snu.ac.kr/)) are **winners** of [**NTIRE2017 Challenge on Single Image Super-Resolution**](http://www.vision.ee.ethz.ch/ntire17/). 
 
-Please refer to the paper for more details. 
-* Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution"**, <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
+Our paper was published in CVPR 2017 workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)), and won the **Best Paper Award** of the workshop challenge track.
+Please refer to our paper for more details. 
+
+[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
+
+If you use our work useful in your research or publication, please cite our work:
+```
+@inproceedings{lim2017enhanced,
+  title={Enhanced Deep Residual Networks for Single Image Super-Resolution},
+  author={Lim, Bee and Son, Sanghyun and Kim, Heewon and Nah, Seungjun and Lee, Kyoung Mu},
+  booktitle = {The IEEE Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
+  month={July},
+  year={2017}
+}
+```
 
 In this repository, we provide
+* Our model architecture description (EDSR, MDSR)
+* NTIRE2017 Super-resolution Challenge Results
 * Demo code
 * Training code
-* Download of dataset (DIV2K, Flickr2K)
-* Download of our trained models
+* Download link of our trained models (EDSR, MDSR) 
+* Download link of the datasets we used (DIV2K, Flickr2K)
 * Super-resolution examples
 
-The codes are based on Facebook's Torch implementation of ResNet ([facebook/fb.resnet.torch](https://github.com/facebook/fb.resnet.torch)). <br>
+The code is based on Facebook's Torch implementation of ResNet ([facebook/fb.resnet.torch](https://github.com/facebook/fb.resnet.torch)). <br>
 
-## Model
+## Model Architecture
 **EDSR** (Single-scale model. We provide scale x2, x3, x4 models).
 
 ![EDSR](/figs/EDSR.png)
@@ -28,7 +43,7 @@ The codes are based on Facebook's Torch implementation of ResNet ([facebook/fb.r
 
 ## NTIRE2017 Super-resolution Challenge Results
 
-Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) prize.
+Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) place.
 
 ![Challenge_result](/figs/Challenge_result.png)
 
@@ -83,11 +98,11 @@ You can test the super-resolution on your own images using our trained models.
     wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
 
     ```
-    Or, use these links [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
+    Or, use these links: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
     [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br>
-    (**We recommend you to download the models for paper, because the models for challenge is not compatible with our current code. Please contact us if you want to execute those models.**)
+    (**We recommend you to download the models for paper, because the models for challenge is currently not compatible with our code. Please contact us if you want to execute those models.**)
 
-    After download the .tar file, make sure that the model files are placed in the directory. For example,
+    After downloading the .tar file, make sure that the model files are placed in proper locations. For example,
     ```bash
     $makeReposit/NTIRE2017/demo/model/bicubic_x2.t7
     ```
