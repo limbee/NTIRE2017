@@ -62,7 +62,7 @@ You can test the super-resolution on your own images using our trained models.
     wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
 
     ```
-    Or, use this links [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
+    Or, use these links [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar), 
     [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br>
     (**We recommend you to download the models for paper, because the models for challenge is not compatible with our current code. Please contact us if you want to execute those models.**)
 
@@ -139,10 +139,10 @@ You can test the super-resolution on your own images using our trained models.
     line 6:     psnrOnly = false; -> psnrOnly = true;
     ```
 
-    You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` directory. You have to uncomment the line you want to execute.
-    ```bash
-    sh makeFinal.sh
-    ```
+You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` directory. You have to uncomment the line you want to execute.
+```bash
+sh makeFinal.sh
+```
 
     <!-- You can run the test script with your own model and images. Just put your images in `NTIRE2017/demo/img_input`. If you have ground-truth high-resolution images, please locate them in **NTIRE2017/demo/img_target/myData** for evaluation.
     
@@ -179,7 +179,7 @@ Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.
     `/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???.png`<br>
     `/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???.png`<br>
 
-* **Flickr2K** collected by us using Flickr API
+* **Flickr2K** collected by ourselves using Flickr API
     ```bash
     makeData = /var/tmp/dataset/
     mkdir -p $makeData/; cd $makedata/
@@ -192,8 +192,14 @@ Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.
     `/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_bicubic/X?/00????x?.png`<br>
     `/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_unknown/X?/00????x?.png`<br>
 
+    We also provide the codes we used for downloading and selecting the Flickr2K images at
+    ```bash
+    $makeReposit/NTIRE2017/code/tools/Flickr2K/
+    ```
+    Use your own flickr API keys to use the script.
+
     To generate the training images for unknown track, we trained simple downsampler network.<br>
-    You can download them from [here](htt://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
+    You can download them from [here](http://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
 
 To make data loading faster, you can convert the dataset into binary .t7 files
 * Convert **DIV2K** dataset into .t7 files
@@ -312,7 +318,7 @@ You can use raw .png files too. Please see **Training** for the details.
 
 ![result_20](/figs/result/result_20.jpg)
 
-## Challenge: unknown track
+## Challenge: unknown downsampling track
 
 ![unknown_1](/figs/result/unknown_1.jpg)
 
