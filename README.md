@@ -50,6 +50,24 @@ git clone https://github.com/LimBee/NTIRE2017.git
 ## Quick Start (Demo)
 You can test the super-resolution on your own images using our trained models.
 
+| Model | Scale | File Name | Self Esemble | Description |
+| ---|---|---|---|---|
+| **EDSR baseline**| x2 | baseline_x2.t7 | - | |
+| **EDSR baseline**| x3 | baseline_x3.t7 | - | |
+| **EDSR baseline**| x4 | baseline_x4.t7 | - | |
+| **MDSR baseline**| Multi | baseline_multiscale.t7 | - | |
+||||
+| **EDSR**| x2 | EDSR_x2.t7 | - | |
+| **EDSR**| x3 | EDSR_x3.t7 | - | |
+| **EDSR**| x4 | EDSR_x4.t7 | - | |
+| **MDSR**| Multi | MDSR.t7 | - | |
+||||
+| **EDSR+**| x2 | EDSR_x2.t7 | O | |
+| **EDSR+**| x3 | EDSR_x3.t7 | O | |
+| **EDSR+**| x4 | EDSR_x4.t7 | O | |
+| **MDSR+**| Multi | MDSR.t7 | O | |
+
+
 1. Download our models
 
     ```bash
