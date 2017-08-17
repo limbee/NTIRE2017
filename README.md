@@ -57,8 +57,7 @@ We proposed 2 methods and they won the 1st (EDSR) and 2nd (MDSR) place.
 
 We have also compared the super-resolution performance of our models with previous state-of-the-art methods.
 
-![Paper_result](/figs/paper_result_v2.png)
-
+![Paper_result](/figs/paper_result.png)
 
 # About our code
 ## Dependencies
@@ -97,7 +96,6 @@ We assume the images are downsampled by bicubic interpolation.
 | **EDSR+**| x3 | EDSR_x3.t7 | O | 32 | 256 | 43M | 
 | **EDSR+**| x4 | EDSR_x4.t7 | O | 32 | 256 | 43M | 
 | **MDSR+**| Multi | MDSR.t7 | O | 80 | 64 | 8.0M |
-
 
 <br>
 
