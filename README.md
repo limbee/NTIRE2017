@@ -144,26 +144,24 @@ You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` dire
 sh makeFinal.sh
 ```
 
-    <!-- You can run the test script with your own model and images. Just put your images in `NTIRE2017/demo/img_input`. If you have ground-truth high-resolution images, please locate them in **NTIRE2017/demo/img_target/myData** for evaluation.
-    
-    ```bash
-    th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
-    ``` -->
+<!--- You can run the test script with your own model and images. Just put your images in `NTIRE2017/demo/img_input`. If you have ground-truth high-resolution images, please locate them in **NTIRE2017/demo/img_target/myData** for evaluation.
 
-    <!---
-    This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
-    ```bash
-    th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
-    ```
-    We used 0791.png to 0800.png in DIV2K train set for validation, and you can test any model with validation set.
-    ```bash
-    th test.lua -type val -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
-    ```
-    If you have ground-truth images for the test images, you can evaluate them with MATLAB. (-type [bench | val] automatically place ground-truth high-resolution images into img_target folder.)
-    ```bash
-    matlab -nodisplay <evaluation.m
-    ```
-    --->
+```bash
+th test.lua -type test -dataset myData -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+```
+This code generates high-resolution images for some famous SR benchmark set (Set 5, Set 14, Urban 100, BSD 100)
+```bash
+th test.lua -type bench -model anyModel -scale [2 | 3 | 4]
+```
+We used 0791.png to 0800.png in DIV2K train set for validation, and you can test any model with validation set.
+```bash
+th test.lua -type val -model anyModel -scale [2 | 3 | 4] -degrade [bicubic | unknown]
+```
+If you have ground-truth images for the test images, you can evaluate them with MATLAB. (-type [bench | val] automatically place ground-truth high-resolution images into img_target folder.)
+```bash
+matlab -nodisplay <evaluation.m
+```
+-->
 
 ## Dataset
 Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.tar) if you want to train our models from scratch or evaluate the DIV2K dataset. Place the tar file anywhere you want. **(We recommend /var/tmp/dataset/DIV2K.tar)** Then, please follow the guide below. <U>If want to place the dataset in the other directory, **you have to change the optional argument -dataset for training and test.**</U>
