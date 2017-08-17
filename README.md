@@ -79,7 +79,7 @@ git clone https://github.com/LimBee/NTIRE2017.git
 ## Quick Start (Demo)
 You can test the super-resolution on your own images using our trained models.
 
-We assume the images are downsampled with bicubic interpolation.
+We assume the images are downsampled by bicubic interpolation.
 
 | Model | Scale | File Name | Self Esemble |
 | ---|---|---|---|---|
@@ -156,7 +156,7 @@ We assume the images are downsampled with bicubic interpolation.
     $makeReposit/NTIRE2017/demo/img_output/
     ```
 
-    * Here are some optional arguments you can adjust. If you have any problem, please refer following lines.
+    * Here are some optional argument examples you can adjust. Please refer to the following explanation.
 
     ```bash
     # You can test our model with multiple GPU. (n = 1, 2, 4)
@@ -186,12 +186,12 @@ We assume the images are downsampled with bicubic interpolation.
     matlab -nodisplay <evaluation.m
     ```
 
-    If you do not want to calculate SSIM, please modify `evaluation.m` file as below. (Calculating SSIM of large image is very slow for 3 channel images.)
+    If you don't want to calculate SSIM, please modify `evaluation.m` file as below. (Calculating SSIM of large image is very slow for 3 channel images.)
     ```
     line 6:     psnrOnly = false; -> psnrOnly = true;
     ```
 
-You can reproduce our final results with `makeFinal.sh` in `NTIRE2017/demo` directory. You have to uncomment the line you want to execute.
+You can reproduce our final results by running `makeFinal.sh` in `NTIRE2017/demo` directory. Please uncomment the command you want to execute in the file.
 ```bash
 sh makeFinal.sh
 ```
@@ -216,7 +216,9 @@ matlab -nodisplay <evaluation.m
 -->
 
 ## Dataset
-Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.tar) if you want to train our models from scratch or evaluate the DIV2K dataset. Place the tar file anywhere you want. **(We recommend /var/tmp/dataset/DIV2K.tar)** Then, please follow the guide below. <U>If want to place the dataset in the other directory, **you have to change the optional argument -dataset for training and test.**</U>
+If you want to train or evaluate our models with DIV2K or Flickr2K dataset, please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.tar).
+Place the tar file to the location you want. **(We recommend /var/tmp/dataset/)**  <U>If the dataset is located otherwise, **you have to change the optional argument -dataset for training and test.**</U>
+
 * [**DIV2K**](http://www.vision.ee.ethz.ch/~timofter/publications/Agustsson-CVPRW-2017.pdf) from [**NTIRE2017**](http://www.vision.ee.ethz.ch/ntire17/)
     ```bash
     makeData = /var/tmp/dataset/ # We recommend this path, but you can freely change it.
@@ -229,7 +231,7 @@ Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.
     `/var/tmp/dataset/DIV2K/DIV2K_train_LR_bicubic/X?/0???.png`<br>
     `/var/tmp/dataset/DIV2K/DIV2K_train_LR_unknown/X?/0???.png`<br>
 
-* **Flickr2K** collected by ourselves using Flickr API
+* **Flickr2K** dataset collected by ourselves using Flickr API
     ```bash
     makeData = /var/tmp/dataset/
     mkdir -p $makeData/; cd $makedata/
@@ -242,21 +244,21 @@ Please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.
     `/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_bicubic/X?/00????x?.png`<br>
     `/var/tmp/dataset/Flickr2K/Flickr2K_train_LR_unknown/X?/00????x?.png`<br>
 
-    We also provide the codes we used for downloading and selecting the Flickr2K images at
+    We also provide the code we used for collecting the Flickr2K images at
     ```bash
     $makeReposit/NTIRE2017/code/tools/Flickr2K/
     ```
     Use your own flickr API keys to use the script.
 
-    To generate the training images for unknown track, we trained simple downsampler network.<br>
-    You can download them from [here](http://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
+    During the challenge, we additionally generated training data by learning simple downsampler networks from DIV2K dataset track 2.<br>
+    You can download the downsampler models from [here](http://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
 
 To make data loading faster, you can convert the dataset into binary .t7 files
-* Convert **DIV2K** dataset into .t7 files
+* Convert **DIV2K** dataset from .png to into .t7 files
     ```bash
     cd $makeReposit/NTIRE2017/code/tools
 
-    # Choose one
+    # Choose one among below
 
     # This command generates multiple t7 files for
     # each image in DIV2K_train_HR folder (Requires ~2GB RAM for training)
@@ -274,7 +276,7 @@ To make data loading faster, you can convert the dataset into binary .t7 files
     # each image in Flickr2K_HR folder
     th png_to_t7.lua -apath $makeData -dataset Flickr2K -split true
     ```
-You can use raw .png files too. Please see **Training** for the details.
+You can also use .png files too. Please see below **Training** section for the details.
 
 ## Training
 
