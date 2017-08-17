@@ -6,11 +6,15 @@ This is our project repository for CVPR 2017 Workshop ([2nd NTIRE](http://www.vi
 We, **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [**Computer Vision Lab, Seoul National University**](http://cv.snu.ac.kr/)) are **winners** of [**NTIRE2017 Challenge on Single Image Super-Resolution**](http://www.vision.ee.ethz.ch/ntire17/). 
 
 Our paper was published in CVPR 2017 workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)), and won the **Best Paper Award** of the workshop challenge track.
-Please refer to our paper for more details. 
 
-[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
+
+
+
+Please refer to our paper for details. 
 
 If you use our work useful in your research or publication, please cite our work:
+
+[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017** </i> [[PDF](http://cv.snu.ac.kr/publication/conf2017/EDSR_fixed.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] 
 ```
 @inproceedings{lim2017enhanced,
   title={Enhanced Deep Residual Networks for Single Image Super-Resolution},
@@ -46,6 +50,8 @@ The code is based on Facebook's Torch implementation of ResNet ([facebook/fb.res
 Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) place.
 
 ![Challenge_result](/figs/Challenge_result.png)
+
+Following is the benchmark performance compared to previous methods.
 
 ![Paper_result](/figs/paper_result.png)
 
