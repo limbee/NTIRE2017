@@ -32,7 +32,7 @@ Our team (**SNU_CVLab**) won the 1st (EDSR) and 2nd (MDSR) prize.
 
 ![Challenge_result](/figs/Challenge_result.png)
 
-
+![Paper_result](/figs/paper_result.png)
 # About our code
 ## Dependencies
 * Torch7
