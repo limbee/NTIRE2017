@@ -16,12 +16,12 @@ If you find our work useful in your research or publication, please cite our wor
 
 [1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017**. </i> [[PDF](http://openaccess.thecvf.com/content_cvpr_2017_workshops/w12/papers/Lim_Enhanced_Deep_Residual_CVPR_2017_paper.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] [[Slide](http://cv.snu.ac.kr/research/EDSR/Presentation_v3(release).pptx)]
 ```
-@inproceedings{lim2017enhanced,
-  title={Enhanced Deep Residual Networks for Single Image Super-Resolution},
-  author={Lim, Bee and Son, Sanghyun and Kim, Heewon and Nah, Seungjun and Lee, Kyoung Mu},
+@InProceedings{Lim_2017_CVPR_Workshops,
+  author = {Lim, Bee and Son, Sanghyun and Kim, Heewon and Nah, Seungjun and Lee, Kyoung Mu},
+  title = {Enhanced Deep Residual Networks for Single Image Super-Resolution},
   booktitle = {The IEEE Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
-  month={July},
-  year={2017}
+  month = {July},
+  year = {2017}
 }
 ```
 
