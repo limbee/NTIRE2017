@@ -90,7 +90,7 @@ We assume the images are downsampled by bicubic interpolation.
 | **EDSR**| x2 | EDSR_x2.t7 | X | 32 | 256 | 43M | 
 | **EDSR**| x3 | EDSR_x3.t7 | X | 32 | 256 | 43M | 
 | **EDSR**| x4 | EDSR_x4.t7 | X | 32 | 256 | 43M | 
-| **MDSR**| Multi | MDSR.t7 | X | 32 | 256 | 8.0M |
+| **MDSR**| Multi | MDSR.t7 | X | 80 | 64 | 8.0M |
 ||||||||
 | **EDSR+**| x2 | EDSR_x2.t7 | O | 32 | 256 | 43M | 
 | **EDSR+**| x3 | EDSR_x3.t7 | O | 32 | 256 | 43M | 
