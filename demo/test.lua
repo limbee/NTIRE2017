@@ -51,21 +51,6 @@ local testList = {}
 local dataDir = ''
 local Xs = 'X' .. opt.scale
 
---Multiscale model needs quick swap
-local function swap(model, modelType)
-    local sModel = nn.Sequential()
-    if modelType:find('multiscale') then
-        sModel
-            :add(model:get(1))
-            :add(model:get(2))
-            :add(model:get(3):get(opt.swap))
-            :add(model:get(4))
-            :add(model:get(5):get(opt.swap))
-            :add(model:get(6):get(opt.swap))
-    end
-    return sModel:cuda()
-end
-
 local function saveImage(info, modelName)
     info.saveImg = info.saveImg:float()
     info.saveImg:mul(255 / opt.mulImg):add(0.5):floor():div(255)
@@ -83,13 +68,12 @@ local function saveImage(info, modelName)
         if opt.type == 'bench' then
             targetFrom = paths.concat(dataDir, info.setName, info.fileName)
         elseif opt.type == 'val' then
-            local targetName = info.fileName:split('x')[1] .. '.png'
-            info.fileName = targetName
+            targetName = info.fileName:split('x')[1] .. '.png'
             targetFrom = paths.concat(opt.dataDir, 'dataset/DIV2K/DIV2K_train_HR', targetName)
         end
-        local targetTo = paths.concat(targetDir, info.fileName)
+        local targetTo = paths.concat(targetDir, targetName)
         os.execute('cp ' .. targetFrom .. ' ' .. targetTo)
-        image.save(paths.concat(outputDir, info.fileName), info.saveImg:squeeze(1))
+        image.save(paths.concat(outputDir, targetName), info.saveImg:squeeze(1))
     elseif opt.type == 'test' then
         local outputDir = paths.concat('img_output', modelName, info.setName, Xs)
         if not paths.dirp(outputDir) then
@@ -218,8 +202,7 @@ for i = 1, #opt.model do
             --For multiscale model, we need quick model swap
             if modelFile:find('multiscale') or modelFile:find('MDSR') then
                 print('This is a multi-scale model! Swap the model')
-                opt.swap = (opt.swap == -1) and (opt.scale - 1) or opt.swap
-                model = swap(model, 'multiscale')
+                model = util:swapModel(model, opt.scale - 1)
             end
 
             --test.lua supports multi-gpu

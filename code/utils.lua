@@ -267,14 +267,14 @@ end
 function util:swapModel(model, index)
     local sModel = nn.Sequential()
 
-    if self.opt.netType == 'multiscale' then
+    if #model == 5 then
         sModel
             :add(model:get(1))
             :add(model:get(2))
             :add(model:get(3))
             :add(model:get(4):get(index))
             :add(model:get(5):get(index))
-    elseif self.opt.netType == 'multiscale_unknown' then
+    elseif #model == 6 then
         sModel
             :add(model:get(1))
             :add(model:get(2))
