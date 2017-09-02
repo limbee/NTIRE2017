@@ -1,5 +1,5 @@
 # Bicubic scale 2
-#th main.lua -scale 2 -nFeat 256 -nResBlcok 36 -patchSize 96 -scaleRes 0.1 -skipBatch 3
+#th main.lua -scale 2 -nFeat 256 -nResBlock 36 -patchSize 96 -scaleRes 0.1 -skipBatch 3
 
 # Bicubic scale 3 from pre-trained bicubic scale 2 model
 #th main.lua -scale 3 -netType resnet_cu -nFeat 256 -nResBlock 36 -patchSize 144 -scaleRes 0.1 -skipBatch 3 -preTrained ../demo/model/bicubic_x2.t7
