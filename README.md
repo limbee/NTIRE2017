@@ -35,6 +35,7 @@ In this repository, we provide
 
 The code is based on Facebook's Torch implementation of ResNet ([facebook/fb.resnet.torch](https://github.com/facebook/fb.resnet.torch)). <br>
 
+We also provide [PyTorch version](https://github.com/thstkdgus35/EDSR-PyTorch) of EDSR and MDSR. (Until now, only some models are available.)
 ## Model Architecture
 **EDSR** (Single-scale model. We provide scale x2, x3, x4 models).
 
