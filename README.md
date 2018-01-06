@@ -3,7 +3,7 @@
 ## Introduction
 This is our project repository for CVPR 2017 Workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)).
 
-We, **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [**Computer Vision Lab, Seoul National University**](http://cv.snu.ac.kr/)) are **winners** of [**NTIRE2017 Challenge on Single Image Super-Resolution**](http://www.vision.ee.ethz.ch/~timofter/publications/Timofte-CVPRW-2017.pdf). 
+We, **Team SNU_CVLab**, (<i>Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah</i>, and <i>Kyoung Mu Lee</i> of [**Computer Vision Lab, Seoul National University**](https://cv.snu.ac.kr/)) are **winners** of [**NTIRE2017 Challenge on Single Image Super-Resolution**](http://www.vision.ee.ethz.ch/~timofter/publications/Timofte-CVPRW-2017.pdf). 
 
 Our paper was published in CVPR 2017 workshop ([2nd NTIRE](http://www.vision.ee.ethz.ch/ntire17/)), and won the **Best Paper Award** of the workshop challenge track.
 
@@ -14,7 +14,7 @@ Please refer to our paper for details.
 
 If you find our work useful in your research or publication, please cite our work:
 
-[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017**. </i> [[PDF](http://openaccess.thecvf.com/content_cvpr_2017_workshops/w12/papers/Lim_Enhanced_Deep_Residual_CVPR_2017_paper.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] [[Slide](http://cv.snu.ac.kr/research/EDSR/Presentation_v3(release).pptx)]
+[1] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee, **"Enhanced Deep Residual Networks for Single Image Super-Resolution,"** <i>2nd NTIRE: New Trends in Image Restoration and Enhancement workshop and challenge on image super-resolution in conjunction with **CVPR 2017**. </i> [[PDF](http://openaccess.thecvf.com/content_cvpr_2017_workshops/w12/papers/Lim_Enhanced_Deep_Residual_CVPR_2017_paper.pdf)] [[arXiv](https://arxiv.org/abs/1707.02921)] [[Slide](https://cv.snu.ac.kr/research/EDSR/Presentation_v3(release).pptx)]
 ```
 @InProceedings{Lim_2017_CVPR_Workshops,
   author = {Lim, Bee and Son, Sanghyun and Kim, Heewon and Nah, Seungjun and Lee, Kyoung Mu},
@@ -106,11 +106,11 @@ We assume the images are downsampled by bicubic interpolation.
     cd $makeReposit/NTIRE2017/demo/model/
 
     # Our models for the paper[1]
-    wget http://cv.snu.ac.kr/research/EDSR/model_paper.tar
+    wget https://cv.snu.ac.kr/research/EDSR/model_paper.tar
     ```
 
-    Or, use the link: [model_paper.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar)
-    <!-- [model_challenge.tar](http://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br> -->
+    Or, use the link: [model_paper.tar](https://cv.snu.ac.kr/research/EDSR/model_paper.tar)
+    <!-- [model_challenge.tar](https://cv.snu.ac.kr/research/EDSR/model_paper.tar) <br> -->
     (**If you would like to run the models we used during the challenge, please contact us.**)
 
     After downloading the .tar files, make sure that the model files are placed in proper locations. For example,
@@ -218,7 +218,7 @@ matlab -nodisplay <evaluation.m
 -->
 
 ## Dataset
-If you want to train or evaluate our models with DIV2K or Flickr2K dataset, please download the dataset from [here](http://cv.snu.ac.kr/research/EDSR/DIV2K.tar).
+If you want to train or evaluate our models with DIV2K or Flickr2K dataset, please download the dataset from [here](https://cv.snu.ac.kr/research/EDSR/DIV2K.tar).
 Place the tar file to the location you want. **(We recommend /var/tmp/dataset/)**  <U>If the dataset is located otherwise, **you have to change the optional argument -dataset for training and test.**</U>
 
 * [**DIV2K**](http://www.vision.ee.ethz.ch/~timofter/publications/Agustsson-CVPRW-2017.pdf) from [**NTIRE2017**](http://www.vision.ee.ethz.ch/ntire17/)
@@ -237,7 +237,7 @@ Place the tar file to the location you want. **(We recommend /var/tmp/dataset/)*
     ```bash
     makeData = /var/tmp/dataset/
     mkdir -p $makeData/; cd $makedata/
-    wget http://cv.snu.ac.kr/research/EDSR/Flickr2K.tar
+    wget https://cv.snu.ac.kr/research/EDSR/Flickr2K.tar
     tar -xvf Flickr2K.tar
     ```
     You should have the following directory structure:
@@ -253,7 +253,7 @@ Place the tar file to the location you want. **(We recommend /var/tmp/dataset/)*
     Use your own flickr API keys to use the script.
 
     During the challenge, we additionally generated training data by learning simple downsampler networks from DIV2K dataset track 2.<br>
-    You can download the downsampler models from [here](http://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
+    You can download the downsampler models from [here](https://cv.snu.ac.kr/research/EDSR/downsamplers.tar).
 
 To make data loading faster, you can convert the dataset into binary .t7 files
 * Convert **DIV2K** dataset from .png to into .t7 files
